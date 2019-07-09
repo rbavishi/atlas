@@ -1,0 +1,14 @@
+*.DS_Store
+*.pyc
+*.swp
+*.swo
+.idea
+*.egg-info
+*.pkl
+*.pkl.index
+metadata*
+struct_*
+training-data
+gnn/graph_classification/data/
+specs_compiled.py
+docs/_build
