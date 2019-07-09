@@ -1,34 +1,11 @@
 import ast
 import inspect
-import typing
 from typing import Callable, Set, Optional, Union
 
 import astunparse
 
 from atlas.semantics import Semantics, RandSemantics, DfsSemantics
 from atlas.utils import astutils
-
-
-class Generator:
-    def __init__(self, func: Callable, semantics: Union[str, Semantics] = None, **kwargs):
-        self.func = func
-        self.semantics: Semantics = make_semantics(semantics)
-        self._compiled_func: Callable = None
-
-    def set_semantics(self, semantics: Optional[Union[str, Semantics]] = None):
-        if semantics is not None:
-            self.semantics = make_semantics(semantics)
-
-        self._compiled_func = compile_func(self.func, self.semantics)
-
-    def __call__(self, *args, **kwargs):
-        self.semantics.init()
-        while not self.semantics.is_finished():
-            self.semantics.init_run()
-            yield self._compiled_func(*args, **kwargs)
-            self.semantics.finish_run()
-
-        self.semantics.finish()
 
 
 def get_op_id(n_call: ast.Call) -> Optional[str]:
@@ -60,7 +37,8 @@ def compile_func(func: Callable, semantics: Semantics):
     f_ast.decorator_list = [d for d in f_ast.decorator_list
                             if (not isinstance(d, ast.Name) or d.id != 'generator') and
                             (not isinstance(d, ast.Attribute) or d.attr != 'generator') and
-                            (not (isinstance(d, ast.Call) and isinstance(d.func, ast.Name)) or d.func.id != 'generator')]
+                            (not (isinstance(d, ast.Call) and isinstance(d.func,
+                                                                         ast.Name)) or d.func.id != 'generator')]
 
     known_ops: Set[str] = semantics.get_known_ops()
 
@@ -77,6 +55,28 @@ def compile_func(func: Callable, semantics: Semantics):
     g.update({k: v for k, v in ops.items()})
     exec(astutils.to_source(f_ast), g)
     return g[func.__name__]
+
+
+class Generator:
+    def __init__(self, func: Callable, semantics: Union[str, Semantics] = None, **kwargs):
+        self.func = func
+        self.semantics: Semantics = make_semantics(semantics)
+        self._compiled_func: Callable = None
+
+    def set_semantics(self, semantics: Optional[Union[str, Semantics]] = None):
+        if semantics is not None:
+            self.semantics = make_semantics(semantics)
+
+        self._compiled_func = compile_func(self.func, self.semantics)
+
+    def __call__(self, *args, **kwargs):
+        self.semantics.init()
+        while not self.semantics.is_finished():
+            self.semantics.init_run()
+            yield self._compiled_func(*args, **kwargs)
+            self.semantics.finish_run()
+
+        self.semantics.finish()
 
 
 def generator(*args, **kwargs) -> Generator:
