@@ -19,7 +19,10 @@ def get_op_id(n_call: ast.Call) -> Optional[str]:
     return None
 
 
-def make_semantics(semantics: Union[str, Semantics]) -> Semantics:
+def make_semantics(semantics: Union[str, Semantics]) -> Optional[Semantics]:
+    if semantics is None:
+        return None
+
     if isinstance(semantics, Semantics):
         return semantics
 
