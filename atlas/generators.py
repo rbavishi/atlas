@@ -73,6 +73,9 @@ class Generator:
         self._compiled_func = compile_func(self.func, self.semantics)
 
     def __call__(self, *args, **kwargs):
+        return self._compiled_func(*args, **kwargs)
+
+    def generate(self, *args, **kwargs):
         self.semantics.init()
         while not self.semantics.is_finished():
             self.semantics.init_run()
