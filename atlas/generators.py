@@ -67,15 +67,19 @@ class Generator:
         self._compiled_func: Callable = None
 
     def set_semantics(self, semantics: Optional[Union[str, Semantics]] = None):
-        if semantics is not None:
-            self.semantics = make_semantics(semantics)
-
-        self._compiled_func = compile_func(self.func, self.semantics)
+        self.semantics = make_semantics(semantics)
+        self._compiled_func = None
 
     def __call__(self, *args, **kwargs):
+        if self._compiled_func is None:
+            self._compiled_func = compile_func(self.func, self.semantics)
+
         return self._compiled_func(*args, **kwargs)
 
     def generate(self, *args, **kwargs):
+        if self._compiled_func is None:
+            self._compiled_func = compile_func(self.func, self.semantics)
+
         self.semantics.init()
         while not self.semantics.is_finished():
             self.semantics.init_run()
