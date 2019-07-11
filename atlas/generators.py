@@ -1,11 +1,12 @@
 import ast
 import inspect
-from typing import Callable, Set, Optional, Union
+from typing import Callable, Set, Optional, Union, Dict, List
 
 import astunparse
 
 from atlas.semantics import Semantics, RandSemantics, DfsSemantics
 from atlas.utils import astutils
+from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 
 
 def get_op_id(n_call: ast.Call) -> Optional[str]:
@@ -19,10 +20,7 @@ def get_op_id(n_call: ast.Call) -> Optional[str]:
     return None
 
 
-def make_semantics(semantics: Union[str, Semantics]) -> Optional[Semantics]:
-    if semantics is None:
-        return None
-
+def make_semantics(semantics: Union[str, Semantics]) -> Semantics:
     if isinstance(semantics, Semantics):
         return semantics
 
@@ -61,14 +59,39 @@ def compile_func(func: Callable, semantics: Semantics):
 
 
 class Generator:
-    def __init__(self, func: Callable, semantics: Union[str, Semantics] = None, **kwargs):
+    def __init__(self,
+                 func: Callable,
+                 semantics: Union[str, Semantics] = 'dfs',
+                 name: str = None,
+                 group: str = None,
+                 **kwargs):
+
         self.func = func
         self.semantics: Semantics = make_semantics(semantics)
         self._compiled_func: Callable = None
 
-    def set_semantics(self, semantics: Optional[Union[str, Semantics]] = None):
+        self.name = name
+        if name is not None:
+            register_generator(self, name)
+
+        self.group = group
+        if group is not None:
+            try:
+                gen_group = get_group_by_name(group)
+                self.semantics = gen_group[0].semantics
+
+            except KeyError:
+                pass
+
+            register_group(self, group)
+
+    def set_semantics(self, semantics: Union[str, Semantics], as_group: bool = True):
         self.semantics = make_semantics(semantics)
         self._compiled_func = None
+
+        if as_group and self.group is not None:
+            for g in get_group_by_name(self.group):
+                g.set_semantics(self.semantics, as_group=False)
 
     def __call__(self, *args, **kwargs):
         if self._compiled_func is None:
@@ -92,21 +115,17 @@ class Generator:
 def generator(*args, **kwargs) -> Generator:
     """Define a generator from a function
     """
-    allowed_kwargs = {'semantics'}
+    allowed_kwargs = {'semantics', 'name', 'group'}
     error_str = "The @generator decorator should be applied either with no parentheses or " \
-                "the following keyword args - semantics."
+                "at least one of the following keyword args - {}.".format(', '.join(allowed_kwargs))
     assert (len(args) == 1 and len(kwargs) == 0 and callable(args[0])) or \
            (len(args) == 0 and len(kwargs) > 0 and set(kwargs.keys()).issubset(allowed_kwargs)), error_str
 
     if len(args) == 1:
-        result = Generator(args[0])
-        result.set_semantics('dfs')
-        return result
+        return Generator(args[0])
 
     else:
         def wrapper(func):
-            result = Generator(func, **kwargs)
-            result.set_semantics()
-            return result
+            return Generator(func, **kwargs)
 
         return wrapper
