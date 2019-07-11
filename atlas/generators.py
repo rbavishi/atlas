@@ -1,6 +1,6 @@
 import ast
 import inspect
-from typing import Callable, Set, Optional, Union, Dict, List
+from typing import Callable, Set, Optional, Union, Dict, List, Any
 
 import astunparse
 
@@ -75,6 +75,7 @@ class Generator:
                  semantics: Union[str, Semantics] = 'dfs',
                  name: str = None,
                  group: str = None,
+                 metadata: Dict[Any, Any] = None,
                  **kwargs):
 
         self.func = func
@@ -95,6 +96,8 @@ class Generator:
                 pass
 
             register_group(self, group)
+
+        self.metadata = metadata
 
     def set_semantics(self, semantics: Union[str, Semantics], as_group: bool = True):
         self.semantics = make_semantics(semantics)
@@ -126,7 +129,7 @@ class Generator:
 def generator(*args, **kwargs) -> Generator:
     """Define a generator from a function
     """
-    allowed_kwargs = {'semantics', 'name', 'group'}
+    allowed_kwargs = {'semantics', 'name', 'group', 'metadata'}
     error_str = "The @generator decorator should be applied either with no parentheses or " \
                 "at least one of the following keyword args - {}.".format(', '.join(allowed_kwargs))
     assert (len(args) == 1 and len(kwargs) == 0 and callable(args[0])) or \
