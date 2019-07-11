@@ -3,7 +3,7 @@ from abc import abstractmethod, ABC
 from typing import Callable, Tuple, Dict, Any, Optional, Set
 
 
-class Semantics(ABC):
+class Strategy(ABC):
     def __init__(self):
         self.op_cnt: Dict[str, int] = collections.defaultdict(int)
         self.known_ops: Set[str] = {k for k in dir(self) if getattr(getattr(self, k), "_is_generator_op", False)}
@@ -45,5 +45,5 @@ class Semantics(ABC):
         return func
 
 
-class PyGeneratorBasedSemantics(Semantics, ABC):
+class PyGeneratorBasedStrategy(Strategy, ABC):
     pass

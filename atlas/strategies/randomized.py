@@ -1,10 +1,10 @@
 import random
 from typing import Callable
 
-from atlas.semantics import Semantics, op_def
+from atlas.strategies import Strategy, op_def
 
 
-class RandSemantics(Semantics):
+class RandStrategy(Strategy):
     def make_call(self, op_kind: str, op_id: str) -> Callable:
         label = op_kind
         if op_kind + "_" + op_id in dir(self):

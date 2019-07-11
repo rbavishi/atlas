@@ -4,8 +4,8 @@ from typing import Callable, Set, Optional, Union, Dict, List, Any
 
 import astunparse
 
-from atlas.semantics import Semantics, RandSemantics, DfsSemantics
-from atlas.semantics.base import PyGeneratorBasedSemantics
+from atlas.strategies import Strategy, RandStrategy, DfsStrategy
+from atlas.strategies.base import PyGeneratorBasedStrategy
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 
@@ -21,24 +21,24 @@ def get_op_id(n_call: ast.Call) -> Optional[str]:
     return None
 
 
-def make_semantics(semantics: Union[str, Semantics]) -> Semantics:
-    if isinstance(semantics, Semantics):
-        return semantics
+def make_strategy(strategy: Union[str, Strategy]) -> Strategy:
+    if isinstance(strategy, Strategy):
+        return strategy
 
-    if semantics == 'randomized':
-        return RandSemantics()
+    if strategy == 'randomized':
+        return RandStrategy()
 
-    elif semantics == 'dfs':
-        return DfsSemantics()
+    elif strategy == 'dfs':
+        return DfsStrategy()
 
-    raise Exception("Unrecognized semantics - {}".format(semantics))
+    raise Exception("Unrecognized strategy - {}".format(strategy))
 
 
-def convert_func_to_python_generator(f_ast: ast.FunctionDef, semantics: Semantics) -> ast.FunctionDef:
+def convert_func_to_python_generator(f_ast: ast.FunctionDef, strategy: Strategy) -> ast.FunctionDef:
     raise NotImplementedError
 
 
-def compile_func(func: Callable, semantics: Semantics) -> Callable:
+def compile_func(func: Callable, strategy: Strategy) -> Callable:
     f_ast = astutils.parse(inspect.getsource(func))
     f_ast.decorator_list = [d for d in f_ast.decorator_list
                             if (not isinstance(d, ast.Name) or d.id != 'generator') and
@@ -48,18 +48,18 @@ def compile_func(func: Callable, semantics: Semantics) -> Callable:
 
     g = inspect.getclosurevars(func).globals.copy()
 
-    if isinstance(semantics, PyGeneratorBasedSemantics):
-        f_ast = convert_func_to_python_generator(f_ast, semantics)
+    if isinstance(strategy, PyGeneratorBasedStrategy):
+        f_ast = convert_func_to_python_generator(f_ast, strategy)
 
     else:
-        known_ops: Set[str] = semantics.get_known_ops()
+        known_ops: Set[str] = strategy.get_known_ops()
 
         ops = {}
         for n in ast.walk(f_ast):
             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
                 op_kind = n.func.id
                 op_id = get_op_id(n)
-                new_op_name, op = semantics.process_op(op_kind, op_id)
+                new_op_name, op = strategy.process_op(op_kind, op_id)
                 n.func.id = new_op_name
                 ops[n.func.id] = op
 
@@ -72,14 +72,14 @@ def compile_func(func: Callable, semantics: Semantics) -> Callable:
 class Generator:
     def __init__(self,
                  func: Callable,
-                 semantics: Union[str, Semantics] = 'dfs',
+                 strategy: Union[str, Strategy] = 'dfs',
                  name: str = None,
                  group: str = None,
                  metadata: Dict[Any, Any] = None,
                  **kwargs):
 
         self.func = func
-        self.semantics: Semantics = make_semantics(semantics)
+        self.strategy: Strategy = make_strategy(strategy)
         self._compiled_func: Callable = None
 
         self.name = name
@@ -90,7 +90,7 @@ class Generator:
         if group is not None:
             try:
                 gen_group = get_group_by_name(group)
-                self.semantics = gen_group[0].semantics
+                self.strategy = gen_group[0].strategy
 
             except KeyError:
                 pass
@@ -99,31 +99,31 @@ class Generator:
 
         self.metadata = metadata
 
-    def set_semantics(self, semantics: Union[str, Semantics], as_group: bool = True):
-        self.semantics = make_semantics(semantics)
+    def set_strategy(self, strategy: Union[str, Strategy], as_group: bool = True):
+        self.strategy = make_strategy(strategy)
         self._compiled_func = None
 
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
-                g.set_semantics(self.semantics, as_group=False)
+                g.set_strategy(self.strategy, as_group=False)
 
     def __call__(self, *args, **kwargs):
         if self._compiled_func is None:
-            self._compiled_func = compile_func(self.func, self.semantics)
+            self._compiled_func = compile_func(self.func, self.strategy)
 
         return self._compiled_func(*args, **kwargs)
 
     def generate(self, *args, **kwargs):
         if self._compiled_func is None:
-            self._compiled_func = compile_func(self.func, self.semantics)
+            self._compiled_func = compile_func(self.func, self.strategy)
 
-        self.semantics.init()
-        while not self.semantics.is_finished():
-            self.semantics.init_run()
+        self.strategy.init()
+        while not self.strategy.is_finished():
+            self.strategy.init_run()
             yield self._compiled_func(*args, **kwargs)
-            self.semantics.finish_run()
+            self.strategy.finish_run()
 
-        self.semantics.finish()
+        self.strategy.finish()
 
 
 def generator(*args, **kwargs) -> Generator:
@@ -161,7 +161,7 @@ def generator(*args, **kwargs) -> Generator:
 
     The function also accepts specific keyword arguments:
 
-    * **semantics:** The semantics to use while executing the generator.
+    * **strategy:** The strategy to use while executing the generator.
     * **name:** Name used to register the generator. If unspecified, the generator is not registered.
     * **group:** Name of the group to register the generator in. If unspecified,
       the generator is not registered with any group.
@@ -169,7 +169,7 @@ def generator(*args, **kwargs) -> Generator:
       carry around in the generator object.
 
     """
-    allowed_kwargs = {'semantics', 'name', 'group', 'metadata'}
+    allowed_kwargs = {'strategy', 'name', 'group', 'metadata'}
     error_str = "The @generator decorator should be applied either with no parentheses or " \
                 "at least one of the following keyword args - {}.".format(', '.join(allowed_kwargs))
     assert (len(args) == 1 and len(kwargs) == 0 and callable(args[0])) or \

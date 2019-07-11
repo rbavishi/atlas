@@ -1,6 +1,6 @@
 from typing import Dict, Any, Callable, Generator
 
-from atlas.semantics import Semantics, op_def
+from atlas.strategies import Strategy, op_def
 
 
 class PeekableGenerator:
@@ -26,7 +26,7 @@ class PeekableGenerator:
             self._finished = True
 
 
-class DfsSemantics(Semantics):
+class DfsStrategy(Strategy):
     def __init__(self):
         super().__init__()
         self.call_id: int = 0

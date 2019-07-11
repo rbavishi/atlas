@@ -1,10 +1,10 @@
 from typing import Callable, Any
 
-from atlas.semantics import op_def
-from atlas.semantics.base import PyGeneratorBasedSemantics
+from atlas.strategies import op_def
+from atlas.strategies.base import PyGeneratorBasedStrategy
 
 
-class DfsExperimental(PyGeneratorBasedSemantics):
+class DfsExperimental(PyGeneratorBasedStrategy):
     def make_call(self, op_kind: str, op_id: str) -> Callable:
         label = op_kind
         if op_kind + "_" + op_id in dir(self):
