@@ -5,6 +5,7 @@ from typing import Callable, Set, Optional, Union, Dict, List
 import astunparse
 
 from atlas.semantics import Semantics, RandSemantics, DfsSemantics
+from atlas.semantics.base import PyGeneratorBasedSemantics
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 
@@ -33,7 +34,11 @@ def make_semantics(semantics: Union[str, Semantics]) -> Semantics:
     raise Exception("Unrecognized semantics - {}".format(semantics))
 
 
-def compile_func(func: Callable, semantics: Semantics):
+def convert_func_to_python_generator(f_ast: ast.FunctionDef, semantics: Semantics) -> ast.FunctionDef:
+    raise NotImplementedError
+
+
+def compile_func(func: Callable, semantics: Semantics) -> Callable:
     f_ast = astutils.parse(inspect.getsource(func))
     f_ast.decorator_list = [d for d in f_ast.decorator_list
                             if (not isinstance(d, ast.Name) or d.id != 'generator') and
@@ -41,19 +46,25 @@ def compile_func(func: Callable, semantics: Semantics):
                             (not (isinstance(d, ast.Call) and isinstance(d.func,
                                                                          ast.Name)) or d.func.id != 'generator')]
 
-    known_ops: Set[str] = semantics.get_known_ops()
-
-    ops = {}
-    for n in ast.walk(f_ast):
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
-            op_kind = n.func.id
-            op_id = get_op_id(n)
-            new_op_name, op = semantics.process_op(op_kind, op_id)
-            n.func.id = new_op_name
-            ops[n.func.id] = op
-
     g = inspect.getclosurevars(func).globals.copy()
-    g.update({k: v for k, v in ops.items()})
+
+    if isinstance(semantics, PyGeneratorBasedSemantics):
+        f_ast = convert_func_to_python_generator(f_ast, semantics)
+
+    else:
+        known_ops: Set[str] = semantics.get_known_ops()
+
+        ops = {}
+        for n in ast.walk(f_ast):
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
+                op_kind = n.func.id
+                op_id = get_op_id(n)
+                new_op_name, op = semantics.process_op(op_kind, op_id)
+                n.func.id = new_op_name
+                ops[n.func.id] = op
+
+        g.update({k: v for k, v in ops.items()})
+
     exec(astutils.to_source(f_ast), g)
     return g[func.__name__]
 

@@ -45,3 +45,5 @@ class Semantics(ABC):
         return func
 
 
+class PyGeneratorBasedSemantics(Semantics, ABC):
+    pass
