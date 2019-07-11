@@ -1,4 +1,5 @@
-from typing import Dict, Any, Callable, Generator
+import itertools
+from typing import Dict, Any, Callable, Generator, Collection
 
 from atlas.strategies import Strategy, op_def
 
@@ -57,12 +58,12 @@ class DfsStrategy(Strategy):
 
         handler = getattr(self, label)
 
-        def call(domain: Any, context: Any = None, **kwargs):
+        def call(domain: Any, context: Any = None, oid=op_id, **kwargs):
             t = self.call_id
             self.call_id += 1
 
             if t not in self.op_map:
-                op: PeekableGenerator = PeekableGenerator(handler(domain, context, op_id=op_id))
+                op: PeekableGenerator = PeekableGenerator(handler(domain, context=context, oid=oid, **kwargs))
                 self.op_map[t] = op
 
             else:
@@ -76,5 +77,32 @@ class DfsStrategy(Strategy):
         return call
 
     @op_def
-    def Select(self, domain: Any, context: Any = None, **kwargs):
+    def Select(self, domain: Any, context: Any = None, fixed_domain=False, **kwargs):
         yield from domain
+
+    @op_def
+    def Subsets(self, domain: Any, context: Any = None, lengths: Collection[int] = None, **kwargs):
+        for l in range(len(domain)+1):
+            yield from itertools.combinations(domain, l)
+
+    @op_def
+    def OrderedSubsets(self, domain: Any, context: Any = None, lengths: Collection[int] = None, **kwargs):
+        for l in range(len(domain)+1):
+            yield from itertools.permutations(domain, l)
+
+    @op_def
+    def Sequences(self, domain: Any, max_len: int = None, lengths: Collection[int] = None,
+                  context: Any = None, **kwargs):
+        if max_len is None and lengths is None:
+            raise SyntaxError("Sequences requires the explicit keyword argument 'max_len' or 'lengths'")
+
+        if max_len is not None and lengths is not None:
+            raise SyntaxError("Sequences takes only *one* of the 'max_len' and 'lengths' keyword arguments")
+
+        if max_len is not None:
+            for l in range(1, max_len + 1):
+                yield from itertools.product(domain, repeat=l)
+
+        elif lengths is not None:
+            for l in list(lengths):
+                yield from itertools.product(domain, repeat=l)
