@@ -128,6 +128,46 @@ class Generator:
 
 def generator(*args, **kwargs) -> Generator:
     """Define a generator from a function
+
+    Can be used with no arguments or specific keyword arguments to define a generator as follows:
+
+    .. code-block:: python
+
+        from atlas import generator
+
+        @generator
+        def g(length):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+    The generator above can be used to enumerate all binary strings of length ``2`` as follows
+
+    .. code-block:: python
+
+        for s in g.generate(2):
+            print(s)
+
+    with the output as
+
+    .. code-block:: python
+
+        00
+        01
+        10
+        11
+
+    The function also accepts specific keyword arguments:
+
+    * **semantics:** The semantics to use while executing the generator.
+    * **name:** Name used to register the generator. If unspecified, the generator is not registered.
+    * **group:** Name of the group to register the generator in. If unspecified,
+      the generator is not registered with any group.
+    * **metadata:** A dictionary containing arbitrary metadata to
+      carry around in the generator object.
+
     """
     allowed_kwargs = {'semantics', 'name', 'group', 'metadata'}
     error_str = "The @generator decorator should be applied either with no parentheses or " \
