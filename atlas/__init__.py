@@ -1,1 +1,1 @@
-from atlas.generators import generator
+from atlas.generators import generator, Generator
