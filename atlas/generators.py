@@ -8,6 +8,7 @@ from atlas.strategies import Strategy, RandStrategy, DfsStrategy
 from atlas.strategies.base import PyGeneratorBasedStrategy
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
+from atlas.utils.inspection import getclosurevars_recursive
 
 
 def get_op_id(n_call: ast.Call) -> Optional[str]:
@@ -46,7 +47,7 @@ def compile_func(func: Callable, strategy: Strategy) -> Callable:
                             (not (isinstance(d, ast.Call) and isinstance(d.func,
                                                                          ast.Name)) or d.func.id != 'generator')]
 
-    g = inspect.getclosurevars(func).globals.copy()
+    g = getclosurevars_recursive(func).globals.copy()
 
     if isinstance(strategy, PyGeneratorBasedStrategy):
         f_ast = convert_func_to_python_generator(f_ast, strategy)
