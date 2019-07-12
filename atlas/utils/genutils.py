@@ -9,7 +9,6 @@ def register_generator(gen: 'Generator', name: str):
 
 
 def register_group(gen: 'Generator', group: str):
-    print(group)
     if group not in registered_groups:
         registered_groups[group] = []
 
