@@ -40,7 +40,12 @@ def convert_func_to_python_generator(f_ast: ast.FunctionDef, strategy: Strategy)
 
 
 def compile_func(func: Callable, strategy: Strategy) -> Callable:
-    f_ast = astutils.parse(inspect.getsource(func))
+    source_code, start_lineno = inspect.getsourcelines(func)
+    source_code = ''.join(source_code)
+    f_ast = astutils.parse(source_code)
+    # This matches up line numbers with original file and is thus super useful for debugging
+    ast.increment_lineno(f_ast, start_lineno - 1)
+
     f_ast.decorator_list = [d for d in f_ast.decorator_list
                             if (not isinstance(d, ast.Name) or d.id != 'generator') and
                             (not isinstance(d, ast.Attribute) or d.attr != 'generator') and
@@ -66,7 +71,10 @@ def compile_func(func: Callable, strategy: Strategy) -> Callable:
 
         g.update({k: v for k, v in ops.items()})
 
-    exec(astutils.to_source(f_ast), g)
+    module = ast.Module()
+    module.body = [f_ast]
+
+    exec(compile(module, filename=inspect.getabsfile(func), mode="exec"), g)
     return g[func.__name__]
 
 
