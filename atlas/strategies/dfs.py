@@ -81,13 +81,22 @@ class DfsStrategy(Strategy):
         yield from domain
 
     @op_def
-    def Subsets(self, domain: Any, context: Any = None, lengths: Collection[int] = None, **kwargs):
-        for l in range(len(domain)+1):
+    def Subsets(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
+                include_empty: bool = False, **kwargs):
+        if lengths is None:
+            lengths = range(0 if include_empty else 1, len(domain) + 1)
+
+        for l in lengths:
             yield from itertools.combinations(domain, l)
 
     @op_def
-    def OrderedSubsets(self, domain: Any, context: Any = None, lengths: Collection[int] = None, **kwargs):
-        for l in range(len(domain)+1):
+    def OrderedSubsets(self, domain: Any, context: Any = None,
+                       lengths: Collection[int] = None, include_empty: bool = False, **kwargs):
+
+        if lengths is None:
+            lengths = range(0 if include_empty else 1, len(domain) + 1)
+
+        for l in lengths:
             yield from itertools.permutations(domain, l)
 
     @op_def
