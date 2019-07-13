@@ -14,9 +14,9 @@ from atlas.utils.inspection import getclosurevars_recursive
 
 def get_op_id(n_call: ast.Call) -> Optional[str]:
     for kw in n_call.keywords:
-        if kw.arg == 'op_id':
+        if kw.arg == 'oid':
             if not isinstance(kw.value, ast.Str):
-                raise Exception("Value passed to 'op_id' must be a string in {}".format(astunparse.unparse(n_call)))
+                raise Exception("Value passed to 'oid' must be a string in {}".format(astunparse.unparse(n_call)))
 
             return kw.value.s
 
