@@ -2,6 +2,17 @@ from inspect import builtins, ismodule, iscode, ClosureVars
 
 
 def getclosurevars_recursive(func):
+    """
+    The default getclosurevars doesn't go over nested function defs and list comprehensions.
+    We write a recursive version of the same.
+    The logic is borrowed from this post - https://bugs.python.org/issue34947
+    Args:
+        func (Callable): The function to inspect
+
+    Returns:
+        An instance of ClosureVars
+
+    """
     f_code = func.__code__
     # Nonlocal references are named in co_freevars and resolved
     # by looking them up in __closure__ by positional index
@@ -24,6 +35,7 @@ def getclosurevars_recursive(func):
     unbound_names = set()
     codes = [f_code]
     while codes:
+        #  The logic is recursive but is implemented iteratively
         code = codes.pop()
         for name in code.co_names:
             if name in ("None", "True", "False"):
@@ -39,6 +51,7 @@ def getclosurevars_recursive(func):
                     unbound_names.add(name)
 
         for const in code.co_consts:
+            #  Add the code to inspect recursively
             if iscode(const):
                 codes.append(const)
 

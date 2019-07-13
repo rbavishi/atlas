@@ -7,10 +7,11 @@ Welcome to Atlas's documentation!
 =================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: Getting Started:
 
-.. autofunction:: atlas.generator
+   generators.rst
+   strategies.rst
 
 
 Indices and tables

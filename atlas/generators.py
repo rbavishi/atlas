@@ -41,18 +41,34 @@ def convert_func_to_python_generator(f_ast: ast.FunctionDef, strategy: Strategy)
 
 
 def compile_func(func: Callable, strategy: Strategy) -> Callable:
+    """
+    The compilation basically assigns functionality to each of the operator calls as
+    governed by the semantics (strategy).
+
+    Args:
+        func (Callable): The function to compile
+        strategy (Strategy): The strategy governing the behavior of the operators
+
+    Returns:
+        The compiled function
+
+    """
     source_code, start_lineno = inspect.getsourcelines(func)
     source_code = ''.join(source_code)
     f_ast = astutils.parse(textwrap.dedent(source_code))
+
     # This matches up line numbers with original file and is thus super useful for debugging
     ast.increment_lineno(f_ast, start_lineno - 1)
 
+    #  Remove the ``@generator`` decorator to avoid recursive compilation
     f_ast.decorator_list = [d for d in f_ast.decorator_list
                             if (not isinstance(d, ast.Name) or d.id != 'generator') and
                             (not isinstance(d, ast.Attribute) or d.attr != 'generator') and
                             (not (isinstance(d, ast.Call) and isinstance(d.func,
                                                                          ast.Name)) or d.func.id != 'generator')]
 
+    #  Get all the external dependencies of this function.
+    #  We rely on a modified closure function adopted from the ``inspect`` library.
     g = getclosurevars_recursive(func).globals.copy()
 
     if isinstance(strategy, PyGeneratorBasedStrategy):
@@ -64,6 +80,8 @@ def compile_func(func: Callable, strategy: Strategy) -> Callable:
         ops = {}
         for n in ast.walk(f_ast):
             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
+                #  Rename the function call, and assign a new function to be called during execution.
+                #  This new function is determined by the semantics (strategy) being used for compilation.
                 op_kind = n.func.id
                 op_id = get_op_id(n)
                 new_op_name, op = strategy.process_op(op_kind, op_id)
@@ -75,11 +93,17 @@ def compile_func(func: Callable, strategy: Strategy) -> Callable:
     module = ast.Module()
     module.body = [f_ast]
 
+    #  Passing ``g`` to exec allows us to execute all the new functions
+    #  we assigned to every operator call in the previous AST walk
     exec(compile(module, filename=inspect.getabsfile(func), mode="exec"), g)
     return g[func.__name__]
 
 
 class Generator:
+    """
+    The result of applying the ``@generator`` decorator to functions is an instance
+    of this class, which can then be used to run generators as well as modify their behaviors.
+    """
     def __init__(self,
                  func: Callable,
                  strategy: Union[str, Strategy] = 'dfs',
@@ -100,6 +124,7 @@ class Generator:
         if group is not None:
             try:
                 gen_group = get_group_by_name(group)
+                #  Generators in the same group share their strategies by default
                 self.strategy = gen_group[0].strategy
 
             except KeyError:
@@ -110,6 +135,16 @@ class Generator:
         self.metadata = metadata
 
     def set_strategy(self, strategy: Union[str, Strategy], as_group: bool = True):
+        """
+        Set a new strategy for the generator. This is useful for exploring different behaviors of the generator
+        without redefining the function.
+
+        Args:
+            strategy (Union[str, Strategy]): The new strategy to set.
+            as_group (bool): Whether to set this strategy for all the generators in the group (if any).
+                ``True`` by default.
+
+        """
         self.strategy = make_strategy(strategy)
         self._compiled_func = None
 
@@ -118,12 +153,33 @@ class Generator:
                 g.set_strategy(self.strategy, as_group=False)
 
     def __call__(self, *args, **kwargs):
+        """Functions with an ``@generator`` annotation can be called as any regular function as a result of this method.
+        In case of deterministic strategies such as DFS, this will return first possible value. For model-backed
+        strategies, the generator will return the value corresponding to an execution path where all the operators
+        make the choice with the highest probability as directed by their respective models.
+
+        Args:
+            *args: Positional arguments to the original function
+            **kwargs: Keyword arguments to the original function
+        """
         if self._compiled_func is None:
             self._compiled_func = compile_func(self.func, self.strategy)
 
         return self._compiled_func(*args, **kwargs)
 
     def generate(self, *args, **kwargs):
+        """
+        This method returns an iterator for the result of all possible executions (all possible combinations of
+        operator choices) of the generator function for the given input i.e. ``(*args, **kwargs)``
+
+        Args:
+            *args: Positional arguments to the original function
+            **kwargs: Keyword arguments to the original function
+
+        Returns:
+            An iterator for all the possible values that can be returned by the generator function.
+
+        """
         if self._compiled_func is None:
             self._compiled_func = compile_func(self.func, self.strategy)
 
@@ -171,13 +227,19 @@ def generator(*args, **kwargs) -> Generator:
 
     The function also accepts specific keyword arguments:
 
-    * **strategy:** The strategy to use while executing the generator.
-    * **name:** Name used to register the generator. If unspecified, the generator is not registered.
-    * **group:** Name of the group to register the generator in. If unspecified,
-      the generator is not registered with any group.
-    * **metadata:** A dictionary containing arbitrary metadata to
-      carry around in the generator object.
+    Keyword Args:
+        strategy (Union[str, Strategy]): The strategy to use while executing the generator.
+            Can be a string (one of 'dfs' and 'randomized') or an instance of the ``Strategy`` class.
+            Default is 'dfs'.
 
+        name (str): Name used to register the generator.
+            If unspecified, the generator is not registered.
+
+        group (str): Name of the group to register the generator in.
+            If unspecified, the generator is not registered with any group.
+
+        metadata (Dict[Any, Any]): A dictionary containing arbitrary metadata
+            to carry around in the generator object.
     """
     allowed_kwargs = {'strategy', 'name', 'group', 'metadata'}
     error_str = "The @generator decorator should be applied either with no parentheses or " \
