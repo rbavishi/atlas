@@ -1,5 +1,6 @@
 import ast
 import inspect
+import textwrap
 from typing import Callable, Set, Optional, Union, Dict, List, Any
 
 import astunparse
@@ -42,7 +43,7 @@ def convert_func_to_python_generator(f_ast: ast.FunctionDef, strategy: Strategy)
 def compile_func(func: Callable, strategy: Strategy) -> Callable:
     source_code, start_lineno = inspect.getsourcelines(func)
     source_code = ''.join(source_code)
-    f_ast = astutils.parse(source_code)
+    f_ast = astutils.parse(textwrap.dedent(source_code))
     # This matches up line numbers with original file and is thus super useful for debugging
     ast.increment_lineno(f_ast, start_lineno - 1)
 
