@@ -54,3 +54,13 @@ def attr_to_qual_name(node: ast.Attribute):
     accesses.append(node.value.id)
     qual_name = '.'.join(reversed(accesses))
     return qual_name
+
+
+def preorder_traversal(node: ast.AST):
+    yield node
+    for field, val in ast.iter_fields(node):
+        if isinstance(val, list):
+            for i in val:
+                yield from preorder_traversal(i)
+        elif isinstance(val, ast.AST):
+            yield from preorder_traversal(val)
