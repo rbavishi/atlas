@@ -43,7 +43,3 @@ class Strategy(ABC):
     def op_def(func):
         setattr(func, "_is_generator_op", True)
         return func
-
-
-class PyGeneratorBasedStrategy(Strategy, ABC):
-    pass

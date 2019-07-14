@@ -1,7 +1,7 @@
 import ast
 import inspect
 import textwrap
-from typing import Callable, Set, Optional, Union, Dict, List, Any
+from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
 
 import astunparse
 
@@ -36,10 +36,6 @@ def make_strategy(strategy: Union[str, Strategy]) -> Strategy:
     raise Exception("Unrecognized strategy - {}".format(strategy))
 
 
-def convert_func_to_python_generator(f_ast: ast.FunctionDef, strategy: Strategy) -> ast.FunctionDef:
-    raise NotImplementedError
-
-
 def compile_func(func: Callable, strategy: Strategy) -> Callable:
     """
     The compilation basically assigns functionality to each of the operator calls as
@@ -70,25 +66,20 @@ def compile_func(func: Callable, strategy: Strategy) -> Callable:
     #  Get all the external dependencies of this function.
     #  We rely on a modified closure function adopted from the ``inspect`` library.
     g = getclosurevars_recursive(func).globals.copy()
+    known_ops: Set[str] = strategy.get_known_ops()
 
-    if isinstance(strategy, PyGeneratorBasedStrategy):
-        f_ast = convert_func_to_python_generator(f_ast, strategy)
+    ops = {}
+    for n in ast.walk(f_ast):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
+            #  Rename the function call, and assign a new function to be called during execution.
+            #  This new function is determined by the semantics (strategy) being used for compilation.
+            op_kind = n.func.id
+            op_id = get_op_id(n)
+            new_op_name, op = strategy.process_op(op_kind, op_id)
+            n.func.id = new_op_name
+            ops[n.func.id] = op
 
-    else:
-        known_ops: Set[str] = strategy.get_known_ops()
-
-        ops = {}
-        for n in ast.walk(f_ast):
-            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
-                #  Rename the function call, and assign a new function to be called during execution.
-                #  This new function is determined by the semantics (strategy) being used for compilation.
-                op_kind = n.func.id
-                op_id = get_op_id(n)
-                new_op_name, op = strategy.process_op(op_kind, op_id)
-                n.func.id = new_op_name
-                ops[n.func.id] = op
-
-        g.update({k: v for k, v in ops.items()})
+    g.update({k: v for k, v in ops.items()})
 
     module = ast.Module()
     module.body = [f_ast]
