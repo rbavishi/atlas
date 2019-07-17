@@ -6,10 +6,10 @@ from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
 import astunparse
 
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
-from atlas.strategies.base import PyGeneratorBasedStrategy
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 from atlas.utils.inspection import getclosurevars_recursive
+from atlas.exceptions import ExceptionAsContinue
 
 
 def get_op_id(n_call: ast.Call) -> Optional[str]:
@@ -177,7 +177,12 @@ class Generator:
         self.strategy.init()
         while not self.strategy.is_finished():
             self.strategy.init_run()
-            yield self._compiled_func(*args, **kwargs)
+            try:
+                yield self._compiled_func(*args, **kwargs)
+
+            except ExceptionAsContinue:
+                pass
+
             self.strategy.finish_run()
 
         self.strategy.finish()

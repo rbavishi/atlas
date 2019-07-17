@@ -1,6 +1,7 @@
 import itertools
 from typing import Dict, Any, Callable, Generator, Collection
 
+from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import Strategy, op_def
 
 
@@ -63,7 +64,13 @@ class DfsStrategy(Strategy):
             self.call_id += 1
 
             if t not in self.op_map:
-                op: PeekableGenerator = PeekableGenerator(handler(domain, context=context, oid=oid, **kwargs))
+                try:
+                    op: PeekableGenerator = PeekableGenerator(handler(domain, context=context, oid=oid, **kwargs))
+
+                except StopIteration:
+                    #  Operator received an empty domain
+                    raise ExceptionAsContinue
+
                 self.op_map[t] = op
 
             else:
