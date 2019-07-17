@@ -107,6 +107,10 @@ class DfsStrategy(Strategy):
             yield from itertools.permutations(domain, l)
 
     @op_def
+    def Product(self, domain: Any, context: Any = None, **kwargs):
+        yield from itertools.product(*domain)
+
+    @op_def
     def Sequences(self, domain: Any, max_len: int = None, lengths: Collection[int] = None,
                   context: Any = None, **kwargs):
         if max_len is None and lengths is None:

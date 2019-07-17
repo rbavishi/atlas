@@ -15,5 +15,9 @@ def OrderedSubsets(*args, **kwargs):
     raise_unrecognized('OrderedSubsets')
 
 
+def Product(*args, **kwargs):
+    raise_unrecognized('Product')
+
+
 def Sequences(*args, **kwargs):
     raise_unrecognized('Sequences')
