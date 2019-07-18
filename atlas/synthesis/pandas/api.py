@@ -1096,25 +1096,93 @@ def gen_df_combine_first(inputs, *args, **kwargs):
 def gen_df_apply(inputs, *args, **kwargs):
     """DataFrame.apply(self, func, axis=0, broadcast=False, raw=False, reduce=None)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _func = Select([inp for inp in inputs if isinstance(inp, Callable)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _broadcast = Select([False, True], fixed_domain=True)
+    _raw = Select([False, True], fixed_domain=True)
+
+    return _self.apply(func=_func, axis=_axis, broadcast=_broadcast, raw=_raw), {
+        'self': _self, 'func': _func, 'axis': _axis, 'broadcast': _broadcast, 'raw': _raw
+    }
+
 
 @generator(group='pandas', name='df.applymap')
 def gen_df_applymap(inputs, *args, **kwargs):
     """DataFrame.applymap(self, func)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _func = Select([inp for inp in inputs if isinstance(inp, Callable)])
+
+    return _self.applymap(func=_func), {
+        'self': _self, 'func': _func
+    }
 
 
 @generator(group='pandas', name='df.agg')
 def gen_df_agg(inputs, *args, **kwargs):
     """DataFrame.agg(self, func, axis=0)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _func = Select([inp for inp in inputs if isinstance(inp, (str, dict, list, tuple, Callable))])
+    _axis = Select([0, 1], fixed_domain=True)
+
+    return _self.agg(func=_func), {
+        'self': _self, 'func': _func, 'axis': _axis
+    }
+
 
 @generator(group='pandas', name='df.transform')
 def gen_df_transform(inputs, *args, **kwargs):
     """DataFrame.transform(self, func)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _func = Select([inp for inp in inputs if isinstance(inp, (str, dict, list, tuple, Callable))])
+
+    return _self.transform(func=_func), {
+        'self': _self, 'func': _func
+    }
+
 
 @generator(group='pandas', name='df.groupby')
 def gen_df_groupby(inputs, *args, **kwargs):
     """DataFrame.groupby(self, by=None, axis=0, level=None, as_index=True, sort=True, group_keys=True, squeeze=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _sort = Select([True, False], fixed_domain=True)
+    _as_index = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        single = Select([True, False], fixed_domain=True)
+        if single:
+            _level = Select(list(range(0, src.nlevels - 1)))
+        else:
+            _level = list(OrderedSubset(list(range(src.levels)),
+                                        lengths=list(range(2, src.nlevels + 1))))
+
+    if _level is not None:
+        _by = None
+    else:
+        use_ext = Select([True, False], fixed_domain=True)
+        if use_ext:
+            dimension = _self.shape[0] if _axis == 0 else _self.shape[1]
+            _by = Select([inp for inp in inputs
+                          if isinstance(inp, (pd.Series, list, tuple, dict, np.ndarray)) and len(inp) == dimension])
+
+        else:
+            cols = list(_self.columns)
+            index = _self.index
+            index_cols = [index.names[i] for i in range(index.nlevels) if index.names[i] is not None]
+            _by = list(Subset(cols + list(index_cols)))
+
+    return _self.groupby(by=_by, axis=_axis, level=_level, as_index=_as_index, sort=_sort), {
+        'self': _self, 'by': _by, 'axis': _axis, 'level': _level, 'as_index': _as_index, 'sort': _sort
+    }
 
     # ------------------------------------------------------------------- #
     #  Computations/Descriptive Stats
@@ -1572,7 +1640,8 @@ def gen_df_quantile(inputs, *args, **kwargs):
 
     _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
     _axis = Select([0, 1], fixed_domain=True)
-    _q = Select([0.5] + [inp for inp in inputs if isinstance(inp, (int, np.number, float, np.floating))])
+    _q = Select([0.5] + [inp for inp in inputs
+                         if isinstance(inp, (int, np.number, float, np.floating, typing.Sequence))])
     _numeric_only = Select([True, False], fixed_domain=True)
     _interpolation = Select(['linear', 'lower', 'higher', 'midpoint', 'nearest'])
 
@@ -1592,6 +1661,12 @@ def gen_df_rank(inputs, *args, **kwargs):
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _ascending = Select([True, False], fixed_domain=True)
     _pct = Select([True, False], fixed_domain=True)
+
+    return _self.rank(axis=_axis, method=_method, numeric_only=_numeric_only,
+                      na_option=_na_option, ascending=_ascending, pct=_pct), {
+        'self': _self, 'axis': _axis, 'method': _method, 'numeric_only': _numeric_only, 'na_option': _na_option,
+        'ascending': _ascending, 'pct': _pct
+    }
 
 
 @generator(group='pandas', name='df.round')
@@ -2092,4 +2167,279 @@ def gen_df_fillna(inputs, output, *args, **kwargs):
 
     return _self.fillna(value=_value, method=_method, axis=_axis, limit=_limit), {
         'self': _self, 'value': _value, 'method': _method, 'axis': _axis, 'limit': _limit
+    }
+
+    # ------------------------------------------------------------------- #
+    #  Reshaping, Sorting, Transposing
+    # ------------------------------------------------------------------- #
+
+
+@generator(group='pandas', name='df.pivot_table')
+def gen_df_pivot_table(inputs, *args, **kwargs):
+    """DataFrame.pivot_table(self, values=None, index=None, columns=None, aggfunc='mean', fill_value=None,
+                             margins=False, dropna=True, margins_name='All')"""
+
+
+@generator(group='pandas', name='df.pivot')
+def gen_df_pivot(inputs, *args, **kwargs):
+    """DataFrame.pivot(self, index=None, columns=None, values=None)"""
+
+    def dup_filter(cand):
+        try:
+            return not any(_self[[cand, _columns]].duplicated())
+        except:
+            return True
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _columns = Select(_self.columns)
+    _index = Select([None] + list(filter(dup_filter, set(_self.columns) - {_columns})))
+    if _self.index.nlevels > 1 and _index is None:
+        _values = None
+    else:
+        _values = Select(set(_self.columns) | {None})
+
+    return _self.pivot(columns=_columns, index=_index, values=_values), {
+        'self': _self, 'columns': _columns, 'index': _index, 'values': _values
+    }
+
+
+@generator(group='pandas', name='df.reorder_levels')
+def gen_df_reorder_levels(inputs, *args, **kwargs):
+    """DataFrame.reorder_levels(self, order, axis=0)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    src = _self.index if _axis == 0 else _self.columns
+    levels = [(src.names[i] or i) for i in range(src.nlevels)]
+    _order = list(OrderedSubset(levels))
+
+    return _self.reorder_levels(order=_order, axis=_axis), {
+        'self': _self, 'order': _order, 'axis': _axis
+    }
+
+
+@generator(group='pandas', name='df.sort_values')
+def gen_df_sort_values(inputs, *args, **kwargs):
+    """DataFrame.sort_values(self, by, axis=0, ascending=True, inplace=False, kind='quicksort', na_position='last')"""
+
+
+@generator(group='pandas', name='df.stack')
+def gen_df_stack(inputs, *args, **kwargs):
+    """DataFrame.stack(self, level=-1, dropna=True)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _dropna = Select([True, False], fixed_domain=True)
+    level_default = not (_self.columns.nlevels > 1 and Select([True, False], fixed_domain=True))
+    if level_default:
+        _level = -1
+    else:
+        columns = _self.columns
+        levels = [(columns.names[i] or i) for i in range(columns.nlevels)]
+        _level = list(OrderedSubset(levels, lengths=list(range(1, columns.nlevels + 1))))
+
+    return _self.stack(level=_level, dropna=_dropna), {
+        'self': _self, 'level': _level, 'dropna': _dropna
+    }
+
+
+@generator(group='pandas', name='df.unstack')
+def gen_df_unstack(inputs, output, *args, **kwargs):
+    """DataFrame.unstack(self, level=-1, fill_value=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    level_default = not (_self.index.nlevels > 1 and Select([True, False], fixed_domain=True))
+    if level_default:
+        _level = -1
+    else:
+        index = _self.index
+        levels = [(index.names[i] or i) for i in range(index.nlevels)]
+        _level = list(OrderedSubset(levels, lengths=list(range(1, index.nlevels + 1))))
+
+    fill_value_cands = {inp for inp in inputs if np.isscalar(inp)}
+    if isinstance(output, (pd.Series, pd.DataFrame)):
+        fill_value_cands.update(output.values.flatten())
+
+    fill_value_default = not (len(fill_value_cands) > 0 and Select([True, False], fixed_domain=True))
+    if fill_value_default:
+        _fill_value = None
+    else:
+        _fill_value = Select(fill_value_cands)
+
+    return _self.unstack(level=_level, fill_value=_fill_value), {
+        'self': _self, 'level': _level, 'fill_value': _fill_value
+    }
+
+
+@generator(group='pandas', name='df.melt')
+def gen_df_melt(inputs, *args, **kwargs):
+    """DataFrame.melt(self, id_vars=None, value_vars=None, var_name=None, value_name='value', col_level=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _var_name = Select([None] + [inp for inp in inputs if isinstance(inp, str)])
+    _value_name = Select(['value'] + [inp for inp in inputs if isinstance(inp, str)])
+
+    default_id_vars = Select([True, False], fixed_domain=True)
+    default_value_vars = Select([True, False], fixed_domain=True)
+
+    if default_id_vars:
+        _id_vars = None
+    else:
+        _id_vars = list(OrderedSubset(_self.columns))
+
+    if default_value_vars:
+        _value_vars = None
+    else:
+        _value_vars = list(OrderedSubset(list(set(_self.columns) - set(_id_vars or []))))
+
+    col_level_default = not (_self.columns.nlevels > 1 and Select([True, False], fixed_domain=True))
+    if col_level_default:
+        _col_level = None
+    else:
+        _col_level = Select(list(range(0, _self.columns.nlevels)))
+
+    return _self.melt(id_vars=_id_vars, value_vars=_value_vars, var_name=_var_name,
+                      value_name=_value_name, col_level=_col_level), {
+               'self': _self, 'id_vars': _id_vars, 'value_vars': _value_vars, 'var_name': _var_name,
+               'value_name': _value_name,
+               'col_level': _col_level
+           }
+
+
+# ======================================================================= #
+# ======================================================================= #
+#                        The DataFrameGroupBy API
+# ======================================================================= #
+# ======================================================================= #
+
+pd_dfgroupby = pd.core.groupby.DataFrameGroupBy
+
+
+@generator(group='pandas', name='dfgroupby.count')
+def gen_dfgroupby_count(inputs, *args, **kwargs):
+    """DataFrameGroupBy.count(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.count(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.first')
+def gen_dfgroupby_first(inputs, *args, **kwargs):
+    """DataFrameGroupBy.first(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.first(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.last')
+def gen_dfgroupby_last(inputs, *args, **kwargs):
+    """DataFrameGroupBy.last(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.last(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.max')
+def gen_dfgroupby_max(inputs, *args, **kwargs):
+    """DataFrameGroupBy.max(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.max(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.mean')
+def gen_dfgroupby_mean(inputs, *args, **kwargs):
+    """DataFrameGroupBy.mean(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.mean(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.median')
+def gen_dfgroupby_median(inputs, *args, **kwargs):
+    """DataFrameGroupBy.median(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.median(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.min')
+def gen_dfgroupby_min(inputs, *args, **kwargs):
+    """DataFrameGroupBy.min(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.min(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.idxmin')
+def gen_dfgroupby_idxmin(inputs, *args, **kwargs):
+    """DataFrameGroupBy.idxmin(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.idxmin(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.idxmax')
+def gen_dfgroupby_idxmax(inputs, *args, **kwargs):
+    """DataFrameGroupBy.idxmax(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.idxmax(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.prod')
+def gen_dfgroupby_prod(inputs, *args, **kwargs):
+    """DataFrameGroupBy.prod(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.prod(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.size')
+def gen_dfgroupby_size(inputs, *args, **kwargs):
+    """DataFrameGroupBy.size(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.size(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.sum')
+def gen_dfgroupby_sum(inputs, *args, **kwargs):
+    """DataFrameGroupBy.sum(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    return _self.sum(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='dfgroupby.transform')
+def gen_dfgroupby_transform(inputs, *args, **kwargs):
+    """DataFrameGroupBy.transform(self, func)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd_dfgroupby)])
+    _func = Select([inp for inp in inputs if isinstance(inp, (str, dict, list, tuple, Callable))])
+    return _self.transform(func=_func), {
+        'self': _self, 'func': _func
     }

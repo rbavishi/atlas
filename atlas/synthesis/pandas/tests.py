@@ -28,7 +28,7 @@ def simple_enumerator(inputs, output, func_seq):
         prog.append((func.name, args))
         intermediates.append(val)
 
-    return intermediates[-1]
+    return intermediates[-1], prog
 
 
 class TestGenerators(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestGenerators(unittest.TestCase):
         checker = Checker.get_checker(output)
         func_seqs = [[funcs[i] for i in seq] for seq in seqs]
         for func_seq in func_seqs:
-            for val in simple_enumerator.generate(inputs, output, func_seq):
+            for val, prog in simple_enumerator.generate(inputs, output, func_seq):
                 if checker(output, val):
                     return True
 
@@ -671,7 +671,6 @@ class TestGenerators(unittest.TestCase):
         funcs = ['df.combine_first']
         seqs = [[0]]
         self.check(inputs, output, funcs, seqs)
-
 
     def test_df_apply(self):
         constants = [np.sum]
