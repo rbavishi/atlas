@@ -1443,44 +1443,13 @@ class TestGenerators(unittest.TestCase):
         self.check(inputs, output, funcs, seqs)
 
     def test_df_fillna_2(self):
-        constants = [{
-            'A': 0,
-            'B': 1,
-            'C': 2,
-            'D': 3,
-        }]
         inputs = [pd.DataFrame(
             [[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1], [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
             columns=list('ABCD'))]
-        output = inputs[0].fillna({
-            'A': 0,
-            'B': 1,
-            'C': 2,
-            'D': 3,
-        })
+        output = inputs[0].fillna(0, limit=2)
         funcs = ['df.fillna']
         seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
-
-    def test_df_fillna_3(self):
-        constants = [{
-            'A': 0,
-            'B': 1,
-            'C': 2,
-            'D': 3,
-        }]
-        inputs = [pd.DataFrame(
-            [[np.nan, 2, np.nan, 0], [3, 4, np.nan, 1], [np.nan, np.nan, np.nan, 5], [np.nan, 3, np.nan, 4]],
-            columns=list('ABCD'))]
-        output = inputs[0].fillna({
-            'A': 0,
-            'B': 1,
-            'C': 2,
-            'D': 3,
-        }, limit=1)
-        funcs = ['df.fillna']
-        seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
+        self.check(inputs, output, funcs, seqs)
 
     def test_df_pivot_table(self):
         inputs = [pd.DataFrame([(389.0, 'fly', 'a'), (24.0, 'fly', 'b'), (80.5, 'run', 'c'), (np.nan, 'jump', 'd')],

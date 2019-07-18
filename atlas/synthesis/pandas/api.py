@@ -4,7 +4,7 @@ import typing
 import dateutil
 import pandas as pd
 import numpy as np
-from typing import Callable, Sequence
+from typing import Callable
 
 from atlas import generator
 from atlas.stubs import Select, Sequence, Subset, OrderedSubset, Product
@@ -344,8 +344,8 @@ def gen_df_where(inputs, *args, **kwargs):
 
     _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
     _cond = Select([inp for inp in inputs
-                    if isinstance(inp, (Sequence, pd.DataFrame, Callable)) and is_valid_cond(inp)])
-    _other = Select([inp for inp in inputs if isinstance(inp, (Sequence, pd.DataFrame, Callable))])
+                    if isinstance(inp, (typing.Sequence, pd.DataFrame, Callable)) and is_valid_cond(inp)])
+    _other = Select([inp for inp in inputs if isinstance(inp, (typing.Sequence, pd.DataFrame, Callable))])
 
     return _self.where(_cond, other=_other, errors='ignore'), {
         'self': _self, 'cond': _cond, 'other': _other, 'errors': 'ignore'
@@ -366,8 +366,8 @@ def gen_df_mask(inputs, *args, **kwargs):
 
     _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
     _cond = Select([inp for inp in inputs
-                    if isinstance(inp, (Sequence, pd.DataFrame, Callable)) and is_valid_cond(inp)])
-    _other = Select([inp for inp in inputs if isinstance(inp, (Sequence, pd.DataFrame, Callable))])
+                    if isinstance(inp, (typing.Sequence, pd.DataFrame, Callable)) and is_valid_cond(inp)])
+    _other = Select([inp for inp in inputs if isinstance(inp, (typing.Sequence, pd.DataFrame, Callable))])
 
     return _self.mask(_cond, other=_other, errors='ignore'), {
         'self': _self, 'cond': _cond, 'other': _other, 'errors': 'ignore'
@@ -2047,3 +2047,49 @@ def gen_df_take(inputs, *args, **kwargs):
     # ------------------------------------------------------------------- #
     #  Missing Data Handling
     # ------------------------------------------------------------------- #
+
+
+@generator(group='pandas', name='df.dropna')
+def gen_df_dropna(inputs, *args, **kwargs):
+    """DataFrame.dropna(self, axis=0, how='any', thresh=None, subset=None, inplace=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _how = Select(['any', 'all'], fixed_domain=True)
+
+    default_subset = Select([True, False], fixed_domain=True)
+    if default_subset:
+        _subset = None
+    else:
+        src = _self.columns if _axis == 0 else _self.index
+        _subset = list(Subset(src, lengths=list(range(1, len(src)))))
+
+    _thresh = Select([None] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+
+    return _self.dropna(axis=_axis, how=_how, thresh=_thresh, subset=_subset), {
+        'self': _self, 'axis': _axis, 'how': _how, 'thresh': _thresh, 'subset': _subset
+    }
+
+
+@generator(group='pandas', name='df.fillna')
+def gen_df_fillna(inputs, output, *args, **kwargs):
+    """DataFrame.fillna(self, value=None, method=None, axis=None, inplace=False, limit=None, downcast=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([None, 0, 1], fixed_domain=True)
+    _method = Select([None, 'backfill', 'bfill', 'pad', 'ffill'], fixed_domain=True)
+    _limit = Select([None] + list(range(1, _self.count().sum() + 1)))
+
+    value_cands = {inp for inp in inputs if np.isscalar(inp)}
+    if isinstance(output, (pd.DataFrame, pd.Series)):
+        value_cands.update(output.values.flatten())
+
+    value_default = (_method is not None) and Select([True, False], fixed_domain=True)
+    if value_default:
+        _value = None
+    else:
+        _value = Select(value_cands)
+
+    return _self.fillna(value=_value, method=_method, axis=_axis, limit=_limit), {
+        'self': _self, 'value': _value, 'method': _method, 'axis': _axis, 'limit': _limit
+    }
