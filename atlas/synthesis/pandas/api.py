@@ -1084,3 +1084,748 @@ def gen_df_combine_first(inputs, *args, **kwargs):
     return _self.combine_first(other=_other), {
         'self': _self, 'other': _other
     }
+
+    # ------------------------------------------------------------------- #
+    #  Function application, GroupBy & Window
+    # ------------------------------------------------------------------- #
+
+
+@generator(group='pandas', name='df.apply')
+def gen_df_apply(inputs, *args, **kwargs):
+    """DataFrame.apply(self, func, axis=0, broadcast=False, raw=False, reduce=None)"""
+
+
+@generator(group='pandas', name='df.applymap')
+def gen_df_applymap(inputs, *args, **kwargs):
+    """DataFrame.applymap(self, func)"""
+
+
+@generator(group='pandas', name='df.agg')
+def gen_df_agg(inputs, *args, **kwargs):
+    """DataFrame.agg(self, func, axis=0)"""
+
+
+@generator(group='pandas', name='df.transform')
+def gen_df_transform(inputs, *args, **kwargs):
+    """DataFrame.transform(self, func)"""
+
+
+@generator(group='pandas', name='df.groupby')
+def gen_df_groupby(inputs, *args, **kwargs):
+    """DataFrame.groupby(self, by=None, axis=0, level=None, as_index=True, sort=True, group_keys=True, squeeze=False)"""
+
+    # ------------------------------------------------------------------- #
+    #  Computations/Descriptive Stats
+    # ------------------------------------------------------------------- #
+
+
+@generator(group='pandas', name='df.abs')
+def gen_df_abs(inputs, *args, **kwargs):
+    """DataFrame.abs(self)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    return _self.abs(), {
+        'self': _self
+    }
+
+
+@generator(group='pandas', name='df.all')
+def gen_df_all(inputs, *args, **kwargs):
+    """DataFrame.all(self, axis=None, bool_only=None, skipna=None, level=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _bool_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.all(axis=_axis, bool_only=_bool_only, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'bool_only': _bool_only, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.any')
+def gen_df_any(inputs, *args, **kwargs):
+    """DataFrame.any(self, axis=None, bool_only=None, skipna=None, level=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _bool_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.any(axis=_axis, bool_only=_bool_only, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'bool_only': _bool_only, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.clip')
+def gen_df_clip(inputs, output, *args, **kwargs):
+    """DataFrame.clip(self, lower=None, upper=None, axis=None, inplace=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    lower_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
+    upper_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
+
+    if isinstance(output, pd.DataFrame):
+        lower_cands.append(np.min(output.select_dtypes(include=np.number).values))
+        upper_cands.append(np.max(output.select_dtypes(include=np.number).values))
+
+    _lower = Select(lower_cands)
+    _upper = Select(upper_cands)
+
+    return _self.clip(lower=_lower, upper=_upper), {
+        'self': _self, 'lower': _lower, 'upper': _upper
+    }
+
+
+@generator(group='pandas', name='df.clip_lower')
+def gen_df_clip_lower(inputs, output, *args, **kwargs):
+    """DataFrame.clip_lower(self, threshold, axis=None, inplace=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    threshold_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
+    if isinstance(output, pd.DataFrame):
+        threshold_cands.append(np.min(output.select_dtypes(include=np.number).values))
+
+    _threshold = Select(threshold_cands)
+    return _self.clip_lower(threshold=_threshold), {
+        'self': _self, 'threshold': _threshold
+    }
+
+
+@generator(group='pandas', name='df.clip_upper')
+def gen_df_clip_upper(inputs, output, *args, **kwargs):
+    """DataFrame.clip_upper(self, threshold, axis=None, inplace=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    threshold_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
+    if isinstance(output, pd.DataFrame):
+        threshold_cands.append(np.max(output.select_dtypes(include=np.number).values))
+
+    _threshold = Select(threshold_cands)
+    return _self.clip_upper(threshold=_threshold), {
+        'self': _self, 'threshold': _threshold
+    }
+
+
+@generator(group='pandas', name='df.corr')
+def gen_df_corr(inputs, *args, **kwargs):
+    """DataFrame.corr(self, method='pearson', min_periods=1)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _min_periods = Select([1] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+    _method = Select(['pearson', 'kendall', 'spearman'], fixed_domain=True)
+
+    return _self.corr(min_periods=_min_periods, method=_method), {
+        'self': _self, 'min_periods': _min_periods, 'method': _method
+    }
+
+
+@generator(group='pandas', name='df.corrwith')
+def gen_df_corrwith(inputs, *args, **kwargs):
+    """DataFrame.corrwith(self, other, axis=0, drop=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _other = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _drop = Select([False, True], fixed_domain=True)
+    _axis = Select([0, 1], fixed_domain=True)
+
+    return _self.corrwith(_other, axis=_axis, drop=_drop), {
+        'self': _self, 'other': _other, 'axis': _axis, 'drop': _drop
+    }
+
+
+@generator(group='pandas', name='df.count')
+def gen_df_count(inputs, *args, **kwargs):
+    """DataFrame.count(self, axis=0, level=None, numeric_only=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([False, True], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 'index' else _self.columns
+        _level = Select([(src.names[i] or i) for i in range(src.nlevels)])
+
+    return _self.count(axis=_axis, level=_level, numeric_only=_numeric_only), {
+        'self': _self, 'axis': _axis, 'level': _level, 'numeric_only': _numeric_only
+    }
+
+
+@generator(group='pandas', name='df.cov')
+def gen_df_cov(inputs, *args, **kwargs):
+    """DataFrame.cov(self, min_periods=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _min_periods = Select([None] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+
+    return _self.cov(min_periods=_min_periods), {
+        'self': _self, 'min_periods': _min_periods
+    }
+
+
+@generator(group='pandas', name='df.cummax')
+def gen_df_cummax(inputs, *args, **kwargs):
+    """DataFrame.cummax(self, axis=None, skipna=True)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    return _self.cummax(axis=_axis, skipna=_skipna), {
+        'self': _self, 'axis': _axis, 'skipna': _skipna
+    }
+
+
+@generator(group='pandas', name='df.cummin')
+def gen_df_cummin(inputs, *args, **kwargs):
+    """DataFrame.cummin(self, axis=None, skipna=True)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    return _self.cummin(axis=_axis, skipna=_skipna), {
+        'self': _self, 'axis': _axis, 'skipna': _skipna
+    }
+
+
+@generator(group='pandas', name='df.cumprod')
+def gen_df_cumprod(inputs, *args, **kwargs):
+    """DataFrame.cumprod(self, axis=None, skipna=True)"""
+
+    #  Only return something if all the columns
+    #  are of integer types. Otherwise things can
+    #  get nasty and cause memory issues
+    #  For example 1000 * 1000 * 1000 * "abcd"
+    #  would wreak havoc on the system
+    #  TODO : Is there a better way without restricting functionality?
+    def validate_self(val):
+        if len(val.select_dtypes(include=np.number).columns) != len(val.columns):
+            return False
+
+        return True
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame) and validate_self(inp)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    return _self.cumprod(axis=_axis, skipna=_skipna), {
+        'self': _self, 'axis': _axis, 'skipna': _skipna
+    }
+
+
+@generator(group='pandas', name='df.cumsum')
+def gen_df_cumsum(inputs, *args, **kwargs):
+    """DataFrame.cumsum(self, axis=None, skipna=True)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    return _self.cumsum(axis=_axis, skipna=_skipna), {
+        'self': _self, 'axis': _axis, 'skipna': _skipna
+    }
+
+
+@generator(group='pandas', name='df.diff')
+def gen_df_diff(inputs, *args, **kwargs):
+    """DataFrame.diff(self, periods=1, axis=0)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _periods = Select([1] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+    _axis = Select([0, 1], fixed_domain=True)
+
+    return _self.diff(axis=_axis, periods=_periods), {
+        'self': _self, 'axis': _axis, 'periods': _periods
+    }
+
+
+@generator(group='pandas', name='df.eval')
+def gen_df_eval(inputs, *args, **kwargs):
+    """DataFrame.eval(self, expr, inplace=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _expr = Select([inp for inp in inputs if isinstance(inp, str)])
+
+    return _self.eval(_expr), {
+        'self': _self, 'expr': _expr
+    }
+
+
+@generator(group='pandas', name='df.kurt')
+def gen_df_kurt(inputs, *args, **kwargs):
+    """DataFrame.kurt(self, axis=None, skipna=None, level=None, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.kurt(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.mad')
+def gen_df_mad(inputs, *args, **kwargs):
+    """DataFrame.mad(self, axis=None, skipna=None, level=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.mad(axis=_axis, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.max')
+def gen_df_max(inputs, *args, **kwargs):
+    """DataFrame.max(self, axis=None, skipna=None, level=None, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.max(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.mean')
+def gen_df_mean(inputs, *args, **kwargs):
+    """DataFrame.max(self, axis=None, skipna=None, level=None, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.mean(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.median')
+def gen_df_median(inputs, *args, **kwargs):
+    """DataFrame.median(self, axis=None, skipna=None, level=None, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.median(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.min')
+def gen_df_min(inputs, *args, **kwargs):
+    """DataFrame.min(self, axis=None, skipna=None, level=None, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.min(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.mode')
+def gen_df_mode(inputs, *args, **kwargs):
+    """DataFrame.mode(self, axis=0, numeric_only=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+
+    return _self.mode(axis=_axis, numeric_only=_numeric_only), {
+        'self': _self, 'axis': _axis, 'numeric_only': _numeric_only
+    }
+
+
+@generator(group='pandas', name='df.pct_change')
+def gen_df_pct_change(inputs, *args, **kwargs):
+    """DataFrame.pct_change(self, periods=1, fill_method='pad', limit=None, freq=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _periods = Select([1] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+    _limit = Select([None] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+
+    return _self.pct_change(periods=_periods, limit=_limit), {
+        'self': _self, 'periods': _periods, 'limit': _limit
+    }
+
+
+@generator(group='pandas', name='df.prod')
+def gen_df_prod(inputs, *args, **kwargs):
+    """DataFrame.prod(self, axis=None, skipna=None, level=None, numeric_only=None, min_count=0)"""
+
+    #  Only return something if all the columns
+    #  are of integer types. Otherwise things can
+    #  get nasty and cause memory issues
+    #  For example 1000 * 1000 * 1000 * "abcd"
+    #  would wreak havoc on the system
+    #  TODO : Is there a better way without restricting functionality?
+    def validate_self(val):
+        if len(val.select_dtypes(include=np.number).columns) != len(val.columns):
+            return False
+
+        return True
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame) and validate_self(inp)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    _min_count = Select([0, 1] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.prod(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, min_count=_min_count), {
+        'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'min_count': _min_count
+    }
+
+
+@generator(group='pandas', name='df.quantile')
+def gen_df_quantile(inputs, *args, **kwargs):
+    """DataFrame.quantile(self, q=0.5, axis=0, numeric_only=True, interpolation='linear')"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _q = Select([0.5] + [inp for inp in inputs if isinstance(inp, (int, np.number, float, np.floating))])
+    _numeric_only = Select([True, False], fixed_domain=True)
+    _interpolation = Select(['linear', 'lower', 'higher', 'midpoint', 'nearest'])
+
+    return _self.quantile(q=_q, axis=_axis, numeric_only=_numeric_only, interpolation=_interpolation), {
+        'self': _self, 'q': _q, 'axis': _axis, 'numeric_only': _numeric_only, 'interpolation': _interpolation
+    }
+
+
+@generator(group='pandas', name='df.rank')
+def gen_df_rank(inputs, *args, **kwargs):
+    """DataFrame.rank(self, axis=0, method='average', numeric_only=None, na_option='keep', ascending=True, pct=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _method = Select(['average', 'min', 'max', 'first', 'dense'], fixed_domain=True)
+    _na_option = Select(['keep', 'top', 'bottom'], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _ascending = Select([True, False], fixed_domain=True)
+    _pct = Select([True, False], fixed_domain=True)
+
+
+@generator(group='pandas', name='df.round')
+def gen_df_round(inputs, *args, **kwargs):
+    """DataFrame.round(self, decimals=0)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _decimals = Select([0] + [inp for inp in inputs if isinstance(inp, (int, np.number, dict, pd.Series))])
+
+    return _self.round(decimals=_decimals), {
+        'self': _self, 'decimals': _decimals
+    }
+
+
+@generator(group='pandas', name='df.sem')
+def gen_df_sem(inputs, *args, **kwargs):
+    """DataFrame.sem(self, axis=None, skipna=None, level=None, ddof=1, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    if _axis == 0:
+        _ddof = Select(list(range(0, _self.shape[0])))
+    else:
+        _ddof = Select(list(range(0, _self.shape[1])))
+
+    return _self.sem(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, ddof=_ddof), {
+        'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'ddof': _ddof
+    }
+
+
+@generator(group='pandas', name='df.skew')
+def gen_df_skew(inputs, *args, **kwargs):
+    """DataFrame.skew(self, axis=None, skipna=None, level=None, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.skew(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
+        'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
+    }
+
+
+@generator(group='pandas', name='df.sum')
+def gen_df_sum(inputs, *args, **kwargs):
+    """DataFrame.sum(self, axis=None, skipna=None, level=None, numeric_only=None, min_count=0)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    _min_count = Select([0, 1] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    return _self.sum(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, min_count=_min_count), {
+        'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'min_count': _min_count
+    }
+
+
+@generator(group='pandas', name='df.std')
+def gen_df_std(inputs, *args, **kwargs):
+    """DataFrame.std(self, axis=None, skipna=None, level=None, ddof=1, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    if _axis == 0:
+        _ddof = Select(list(range(0, _self.shape[0])))
+    else:
+        _ddof = Select(list(range(0, _self.shape[1])))
+
+    return _self.std(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, ddof=_ddof), {
+        'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'ddof': _ddof
+    }
+
+
+@generator(group='pandas', name='df.var')
+def gen_df_var(inputs, *args, **kwargs):
+    """DataFrame.var(self, axis=None, skipna=None, level=None, ddof=1, numeric_only=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _numeric_only = Select([None, True, False], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 0 else _self.columns
+        levels = [(src.names[i] or i) for i in range(src.nlevels)]
+        _level = list(OrderedSubsets(levels))
+
+    if _axis == 0:
+        _ddof = Select(list(range(0, _self.shape[0])))
+    else:
+        _ddof = Select(list(range(0, _self.shape[1])))
+
+    return _self.var(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, ddof=_ddof), {
+        'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'ddof': _ddof
+    }
+
+    # ------------------------------------------------------------------- #
+    #  Reindexing/Selection/Label Manipulations
+    # ------------------------------------------------------------------- #
+
+
+@generator(group='pandas', name='df.add_prefix')
+def gen_df_add_prefix(inputs, *args, **kwargs):
+    """DataFrame.add_prefix(self, prefix)"""
+
+
+@generator(group='pandas', name='df.add_suffix')
+def gen_df_add_suffix(inputs, *args, **kwargs):
+    """DataFrame.add_suffix(self, suffix)"""
+
+
+@generator(group='pandas', name='df.align')
+def gen_df_align(inputs, *args, **kwargs):
+    """DataFrame.align(self, other, join='outer', axis=None, level=None, copy=True, fill_value=None, method=None,
+                       limit=None, fill_axis=0, broadcast_axis=None) """
+
+
+@generator(group='pandas', name='df.drop')
+def gen_df_drop(inputs, *args, **kwargs):
+    """DataFrame.drop(self, labels=None, axis=0, index=None, columns=None, level=None, inplace=False, errors='raise')"""
+
+
+@generator(group='pandas', name='df.drop_duplicates')
+def gen_df_drop_duplicates(inputs, *args, **kwargs):
+    """DataFrame.drop_duplicates(self, subset=None, keep='first', inplace=False)"""
+
+
+@generator(group='pandas', name='df.duplicated')
+def gen_df_duplicated(inputs, *args, **kwargs):
+    """DataFrame.duplicated(self, subset=None, keep='first')"""
+
+
+@generator(group='pandas', name='df.equals')
+def gen_df_equals(inputs, *args, **kwargs):
+    """DataFrame.equals(self, other)"""
+
+
+@generator(group='pandas', name='df.filter')
+def gen_df_filter(inputs, *args, **kwargs):
+    """DataFrame.filter(self, items=None, like=None, regex=None, axis=None)"""
+
+
+@generator(group='pandas', name='df.first')
+def gen_df_first(inputs, *args, **kwargs):
+    """DataFrame.first(self, offset)"""
+
+
+@generator(group='pandas', name='df.idxmax')
+def gen_df_idxmax(inputs, *args, **kwargs):
+    """DataFrame.idxmax(self, axis=0, skipna=True)"""
+
+
+@generator(group='pandas', name='df.idxmin')
+def gen_df_idxmin(inputs, *args, **kwargs):
+    """DataFrame.idxmin(self, axis=0, skipna=True)"""
+
+
+@generator(group='pandas', name='df.last')
+def gen_df_last(inputs, *args, **kwargs):
+    """DataFrame.last(self, offset)"""
+
+
+@generator(group='pandas', name='df.reindex')
+def gen_df_reindex(inputs, *args, **kwargs):
+    """DataFrame.reindex(self, labels=None, index=None, columns=None, axis=None, method=None, copy=True, level=None,
+                         fill_value=nan, limit=None, tolerance=None) """
+
+
+@generator(group='pandas', name='df.reindex_like')
+def gen_df_reindex_like(inputs, *args, **kwargs):
+    """DataFrame.reindex_like(self, other, method=None, copy=True, limit=None, tolerance=None)"""
+
+
+@generator(group='pandas', name='df.rename')
+def gen_df_rename(inputs, *args, **kwargs):
+    """DataFrame.rename(self, mapper=None, index=None, columns=None, axis=None, copy=True, inplace=False, level=None)"""
+
+
+@generator(group='pandas', name='df.reset_index')
+def gen_df_reset_index(inputs, *args, **kwargs):
+    """DataFrame.reset_index(self, level=None, drop=False, inplace=False, col_level=0, col_fill='')"""
+
+
+@generator(group='pandas', name='df.set_index')
+def gen_df_set_index(inputs, *args, **kwargs):
+    """DataFrame.set_index(self, keys, drop=True, append=False, inplace=False, verify_integrity=False)"""
+
+
+@generator(group='pandas', name='df.take')
+def gen_df_take(inputs, *args, **kwargs):
+    """DataFrame.take(self, indices, axis=0, convert=None, is_copy=True)"""
+
+    # ------------------------------------------------------------------- #
+    #  Missing Data Handling
+    # ------------------------------------------------------------------- #
