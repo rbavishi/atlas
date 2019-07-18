@@ -1664,9 +1664,9 @@ def gen_df_rank(inputs, *args, **kwargs):
 
     return _self.rank(axis=_axis, method=_method, numeric_only=_numeric_only,
                       na_option=_na_option, ascending=_ascending, pct=_pct), {
-        'self': _self, 'axis': _axis, 'method': _method, 'numeric_only': _numeric_only, 'na_option': _na_option,
-        'ascending': _ascending, 'pct': _pct
-    }
+               'self': _self, 'axis': _axis, 'method': _method, 'numeric_only': _numeric_only, 'na_option': _na_option,
+               'ascending': _ascending, 'pct': _pct
+           }
 
 
 @generator(group='pandas', name='df.round')
@@ -2303,6 +2303,64 @@ def gen_df_melt(inputs, *args, **kwargs):
                'value_name': _value_name,
                'col_level': _col_level
            }
+
+    # ------------------------------------------------------------------- #
+    #  Combining/Joining/Merging
+    # ------------------------------------------------------------------- #
+
+
+@generator(group='pandas', name='df.merge')
+def gen_df_merge(inputs, *args, **kwargs):
+    """DataFrame.merge(self, right, how='inner', on=None, left_on=None, right_on=None,
+    `                  left_index=False, right_index=False, sort=False, suffixes=('_x', '_y'),
+                       copy=True, indicator=False, validate=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _right = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _how = Select(['inner', 'outer', 'left', 'right'], fixed_domain=True)
+    _sort = Select([False, True], fixed_domain=True)
+
+    use_on = Select([True, False], fixed_domain=True)
+    if use_on:
+        common_cols = set(_self.columns) & set(_right.columns)
+        _on = list(Subset(common_cols))
+
+        return _self.merge(right=_right, how=_how, on=_on, sort=_sort), {
+            'self': _self, 'right': _right, 'how': _how, 'on': _on, 'sort': _sort
+        }
+
+    else:
+        _left_index = Select([False, True], fixed_domain=True)
+        _right_index = Select([False, True], fixed_domain=True)
+
+        _left_on = None
+        _right_on = None
+
+        if not _left_index:
+            #  Cannot use left_on if left_index is activated
+            columns = set(_self.columns)
+            lengths = None
+            if _right_index:
+                lengths = [_right.index.nlevels]
+
+            _left_on = list(Subset(columns, lengths=lengths))
+
+        if not _right_index:
+            # Cannot use right_on if right_index is activated
+            columns = set(_right.columns)
+            lengths = None
+            if _left_index:
+                lengths = [_self.index.nlevels]
+            else:
+                lengths = [len(_left_on)]
+
+            _right_on = list(OrderedSubset(columns, lengths=lengths))
+
+        return _self.merge(_right, how=_how, sort=_sort, left_index=_left_index, right_index=_right_index,
+                           left_on=_left_on, right_on=_right_on), {
+                   'self': _self, 'right': _right, 'how': _how, 'sort': _sort, 'left_index': _left_index,
+                   'right_index': _right_index, 'left_on': _left_on, 'right_on': _right_on
+               }
 
 
 # ======================================================================= #
