@@ -1,5 +1,7 @@
 import logging
+import typing
 
+import dateutil
 import pandas as pd
 import numpy as np
 from typing import Callable, Sequence
@@ -285,7 +287,7 @@ def gen_df_lookup(inputs, *args, **kwargs):
 
     _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
     _row_labels = list(OrderedSubset(_self.index,
-                                      lengths=list(range(1, min(_self.shape[0], _self.shape[1]) + 1))))
+                                     lengths=list(range(1, min(_self.shape[0], _self.shape[1]) + 1))))
     _col_labels = list(OrderedSubset(_self.columns, lengths=[len(_row_labels)]))
 
     return _self.lookup(row_labels=_row_labels, col_labels=_col_labels), {
@@ -1262,7 +1264,7 @@ def gen_df_count(inputs, *args, **kwargs):
     if level_default:
         _level = None
     else:
-        src = _self.index if _axis == 'index' else _self.columns
+        src = _self.index if _axis == 0 else _self.columns
         _level = Select([(src.names[i] or i) for i in range(src.nlevels)])
 
     return _self.count(axis=_axis, level=_level, numeric_only=_numeric_only), {
@@ -1774,7 +1776,7 @@ def gen_df_align(inputs, *args, **kwargs):
     if level_default:
         _level = None
     else:
-        src = _self.index if _axis == 'index' else _self.columns
+        src = _self.index if _axis == 0 else _self.columns
         _level = Select([(src.names[i] or i) for i in range(src.nlevels)])
 
     return _self.align(_other, join=_join, axis=_axis, level=_level, broadcast_axis=_broadcast_axis), {
@@ -1789,7 +1791,7 @@ def gen_df_drop(inputs, *args, **kwargs):
     _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
     _axis = Select([None, 0, 1], fixed_domain=True)
 
-    src = _self.index if _axis == 'index' else _self.columns
+    src = _self.index if _axis == 0 else _self.columns
     level_default = Select([True, False], fixed_domain=True)
     if level_default:
         _level = None
@@ -1799,76 +1801,248 @@ def gen_df_drop(inputs, *args, **kwargs):
     label_cands = set(src.get_level_values(_level)) if _level is not None else set(src)
     _labels = list(Subset(label_cands, lengths=list(range(1, len(label_cands)))))
 
+    return _self.drop(labels=_labels, axis=_axis, level=_level, errors='ignore'), {
+        'self': _self, 'labels': _labels, 'axis': _axis, 'level': _level, 'errors': 'ignore'
+    }
+
 
 @generator(group='pandas', name='df.drop_duplicates')
 def gen_df_drop_duplicates(inputs, *args, **kwargs):
     """DataFrame.drop_duplicates(self, subset=None, keep='first', inplace=False)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _subset = list(Subset(_self.columns))
+    _keep = Select(['first', 'last', False], fixed_domain=True)
+
+    return _self.drop_duplicates(subset=_subset, keep=_keep), {
+        'self': _self, 'subset': _subset, 'keep': _keep
+    }
 
 
 @generator(group='pandas', name='df.duplicated')
 def gen_df_duplicated(inputs, *args, **kwargs):
     """DataFrame.duplicated(self, subset=None, keep='first')"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _subset = list(Subset(_self.columns))
+    _keep = Select(['first', 'last', False], fixed_domain=True)
+
+    return _self.duplicated(subset=_subset, keep=_keep), {
+        'self': _self, 'subset': _subset, 'keep': _keep
+    }
+
 
 @generator(group='pandas', name='df.equals')
 def gen_df_equals(inputs, *args, **kwargs):
     """DataFrame.equals(self, other)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _other = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+
+    return _self.equals(_other), {
+        'self': _self, 'other': _other
+    }
 
 
 @generator(group='pandas', name='df.filter')
 def gen_df_filter(inputs, *args, **kwargs):
     """DataFrame.filter(self, items=None, like=None, regex=None, axis=None)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    mode = Select(['use_items', 'use_like', 'use_regex'], fixed_domain=True)
+    if mode == 'use_items':
+        _items = list(Subset(_self.columns))
+        return _self.filter(items=_items), {
+            'self': _self, 'items': _items
+        }
+
+    elif mode == 'use_like':
+        _axis = Select([0, 1], fixed_domain=True)
+        _like = Select([inp for inp in inputs if isinstance(inp, str)])
+        return _self.filter(like=_like, axis=_axis), {
+            'self': _self, 'like': _like, 'axis': _axis
+        }
+
+    else:
+        _axis = Select([0, 1], fixed_domain=True)
+        _regex = Select([inp for inp in inputs if isinstance(inp, str)])
+        return _self.filter(regex=_regex, axis=_axis), {
+            'self': _self, 'regex': _regex, 'axis': _axis
+        }
+
 
 @generator(group='pandas', name='df.first')
 def gen_df_first(inputs, *args, **kwargs):
     """DataFrame.first(self, offset)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _offset = Select([inp for inp in inputs
+                      if isinstance(inp, (str, pd.DateOffset, dateutil.relativedelta.relativedelta))])
+
+    return _self.first(_offset), {
+        'self': _self, 'offset': _offset
+    }
 
 
 @generator(group='pandas', name='df.idxmax')
 def gen_df_idxmax(inputs, *args, **kwargs):
     """DataFrame.idxmax(self, axis=0, skipna=True)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    return _self.idxmax(axis=_axis, skipna=_skipna), {
+        'self': _self, 'axis': _axis, 'skipna': _skipna
+    }
+
 
 @generator(group='pandas', name='df.idxmin')
 def gen_df_idxmin(inputs, *args, **kwargs):
     """DataFrame.idxmin(self, axis=0, skipna=True)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _skipna = Select([True, False], fixed_domain=True)
+
+    return _self.idxmin(axis=_axis, skipna=_skipna), {
+        'self': _self, 'axis': _axis, 'skipna': _skipna
+    }
 
 
 @generator(group='pandas', name='df.last')
 def gen_df_last(inputs, *args, **kwargs):
     """DataFrame.last(self, offset)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _offset = Select([inp for inp in inputs
+                      if isinstance(inp, (str, pd.DateOffset, dateutil.relativedelta.relativedelta))])
+
+    return _self.last(_offset), {
+        'self': _self, 'offset': _offset
+    }
+
 
 @generator(group='pandas', name='df.reindex')
-def gen_df_reindex(inputs, *args, **kwargs):
+def gen_df_reindex(inputs, output, *args, **kwargs):
     """DataFrame.reindex(self, labels=None, index=None, columns=None, axis=None, method=None, copy=True, level=None,
                          fill_value=nan, limit=None, tolerance=None) """
+
+    _fill_value = Select([np.NaN] + [inp for inp in inputs if np.isscalar(inp)])
+    _limit = Select([None] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+
+    if isinstance(output, pd.DataFrame) and Select([True, False], fixed_domain=True):
+        return _self.reindex(index=output.index, columns=output.columns, limit=_limit, fill_value=_fill_value), {
+            'self': _self, 'index': output.index, 'columns': output.columns, 'limit': _limit, 'fill_value': _fill_value
+        }
+
+    _axis = Select([0, 1], fixed_domain=True)
+    src = _self.index if _axis == 0 else _self.columns
+    if src.nlevels == 1:
+        _level = None
+    else:
+        _level = Select([(src.names[i] or i) for i in range(0, src.nlevels)])
+
+    return _self.reindex(axis=_axis, level=_level, fill_value=_fill_value, limit=_limit), {
+        'axis': _axis, 'level': _level, 'fill_value': _fill_value, 'limit': _limit
+    }
 
 
 @generator(group='pandas', name='df.reindex_like')
 def gen_df_reindex_like(inputs, *args, **kwargs):
     """DataFrame.reindex_like(self, other, method=None, copy=True, limit=None, tolerance=None)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _other = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _method = Select([None, 'bfill', 'pad', 'nearest'], fixed_domain=True)
+
+    return _self.reindex_like(_other, method=_method), {
+        'self': _self, 'other': _other, 'method': _method
+    }
+
 
 @generator(group='pandas', name='df.rename')
 def gen_df_rename(inputs, *args, **kwargs):
     """DataFrame.rename(self, mapper=None, index=None, columns=None, axis=None, copy=True, inplace=False, level=None)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    use_index_columns = Select([True, False], fixed_domain=True)
+    if use_index_columns:
+        _index = Select([inp for inp in inputs if isinstance(inp, (dict, Callable))])
+        _columns = Select([inp for inp in inputs if isinstance(inp, (dict, Callable))])
+
+        return _self.rename(index=_index, columns=_columns), {
+            'self': _self, 'index': _index, 'columns': _columns
+        }
+
+    else:
+        _axis = Select([0, 1], fixed_domain=True)
+        _mapper = Select([inp for inp in inputs if isinstance(inp, (dict, Callable))])
+        src = _self.index if _axis == 0 else _self.columns
+        if src.nlevels == 1:
+            _level = None
+        else:
+            _level = Select([(src.names[i] or i) for i in range(0, src.nlevels)])
+
+        return _self.rename(axis=_axis, mapper=_mapper, level=_level), {
+            'self': _self, 'mapper': _mapper, 'axis': _axis, 'level': _level
+        }
 
 
 @generator(group='pandas', name='df.reset_index')
 def gen_df_reset_index(inputs, *args, **kwargs):
     """DataFrame.reset_index(self, level=None, drop=False, inplace=False, col_level=0, col_fill='')"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _drop = Select([True, False], fixed_domain=True)
+    level_default = not (_self.index.nlevels > 1 and Select([True, False], fixed_domain=True))
+    if level_default:
+        _level = None
+    else:
+        index = _self.index
+        levels = [(index.names[i] or i) for i in range(index.nlevels)]
+        _level = list(Subset(levels, lengths=list(range(1, index.nlevels))))
+
+    col_level_default = Select([True, False], fixed_domain=True)
+    if col_level_default:
+        _col_level = 0
+    else:
+        colindex = _self.columns
+        _col_level = Select([(colindex.names[i] or i) for i in range(1, colindex.nlevels)])
+
+    _col_fill = Select([None] + [inp for inp in inputs if isinstance(inp, str)])
+
+    return _self.reset_index(level=_level, drop=_drop, col_level=_col_level, col_fill=_col_fill), {
+        'self': _self, 'level': _level, 'drop': _drop, 'col_level': _col_level, 'col_fill': _col_fill
+    }
+
 
 @generator(group='pandas', name='df.set_index')
 def gen_df_set_index(inputs, *args, **kwargs):
     """DataFrame.set_index(self, keys, drop=True, append=False, inplace=False, verify_integrity=False)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _drop = Select([True, False], fixed_domain=True)
+    _append = Select([False, True], fixed_domain=True)
+    _keys = list(OrderedSubset(_self.columns, lengths=list(range(1, len(_self.columns)))))
+
+    return _self.set_index(keys=_keys, drop=_drop, append=_append), {
+        'self': _self, 'keys': _keys, 'drop': _drop, 'append': _append
+    }
+
 
 @generator(group='pandas', name='df.take')
 def gen_df_take(inputs, *args, **kwargs):
     """DataFrame.take(self, indices, axis=0, convert=None, is_copy=True)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _indices = Select([inp for inp in inputs if isinstance(inp, typing.Sequence)])
+    _axis = Select([0, 1], fixed_domain=True)
+
+    return _self.take(indices=_indices, axis=_axis), {
+        'self': _self, 'indices': _indices, 'axis': _axis
+    }
 
     # ------------------------------------------------------------------- #
     #  Missing Data Handling
