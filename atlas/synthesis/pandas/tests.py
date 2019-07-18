@@ -787,49 +787,44 @@ class TestGenerators(unittest.TestCase):
         self.check(inputs, output, funcs, seqs)
 
     def test_df_clip(self):
-        constants = [(- 0.3), 0.5]
         inputs = [pd.DataFrame(np.random.randn(8, 4), index=[['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
                                                              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']])]
         output = inputs[0].clip(lower=(- 0.3), upper=0.5)
         funcs = ['df.clip']
         seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
+        self.check(inputs, output, funcs, seqs)
 
     def test_df_clip_lower(self):
-        constants = [(- 0.3), 0.5]
         inputs = [pd.DataFrame(np.random.randn(8, 4), index=[['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
                                                              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']])]
         output = inputs[0].clip_lower((- 0.3), axis=0)
         funcs = ['df.clip_lower']
         seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
+        self.check(inputs, output, funcs, seqs)
 
     def test_df_clip_lower_2(self):
-        constants = [(- 0.3), 0.5]
         inputs = [pd.DataFrame(np.random.randn(8, 4), index=[['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
                                                              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']])]
         output = inputs[0].clip_lower((- 0.3), axis=1)
         funcs = ['df.clip_lower']
         seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
+        self.check(inputs, output, funcs, seqs)
 
     def test_df_clip_upper(self):
-        constants = [(- 0.3), 0.5]
         inputs = [pd.DataFrame(np.random.randn(8, 4), index=[['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
                                                              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']])]
         output = inputs[0].clip_upper((- 0.3), axis=0)
         funcs = ['df.clip_upper']
         seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
+        self.check(inputs, output, funcs, seqs)
 
     def test_df_clip_upper_2(self):
-        constants = [(- 0.3), 0.5]
         inputs = [pd.DataFrame(np.random.randn(8, 4), index=[['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
                                                              ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']])]
         output = inputs[0].clip_upper((- 0.3), axis=1)
         funcs = ['df.clip_upper']
         seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
+        self.check(inputs, output, funcs, seqs)
 
     def test_df_corr(self):
         inputs = [pd.DataFrame(np.random.randn(8, 4), index=[['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
