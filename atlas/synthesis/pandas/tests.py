@@ -1204,24 +1204,22 @@ class TestGenerators(unittest.TestCase):
         self.check(inputs, output, funcs, seqs)
 
     def test_df_drop(self):
-        constants = ['#']
         inputs = [pd.DataFrame(np.random.randn(8, 4), columns=['a', 'b', 'c', 'd'],
                                index=[['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
                                       ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']])]
         output = inputs[0].drop(labels=['one'], axis=0, level=1)
         funcs = ['df.drop']
         seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
+        self.check(inputs, output, funcs, seqs)
 
     def test_df_drop_2(self):
-        constants = ['#']
         inputs = [pd.DataFrame(np.random.randn(8, 4), columns=['a', 'b', 'c', 'd'],
                                index=[['bar', 'bar', 'baz', 'baz', 'foo', 'foo', 'qux', 'qux'],
                                       ['one', 'two', 'one', 'two', 'one', 'two', 'one', 'two']])]
         output = inputs[0].drop(index=['bar', 'baz'], level=0)
         funcs = ['df.drop']
         seqs = [[0]]
-        self.check(inputs, output, funcs, seqs, constants=constants)
+        self.check(inputs, output, funcs, seqs)
 
     def test_df_drop_duplicates(self):
         inputs = [pd.DataFrame({
