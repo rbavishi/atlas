@@ -88,7 +88,7 @@ class DfsStrategy(Strategy):
         yield from domain
 
     @op_def
-    def Subsets(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
+    def Subset(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
                 include_empty: bool = False, **kwargs):
         if lengths is None:
             lengths = range(0 if include_empty else 1, len(domain) + 1)
@@ -97,7 +97,7 @@ class DfsStrategy(Strategy):
             yield from itertools.combinations(domain, l)
 
     @op_def
-    def OrderedSubsets(self, domain: Any, context: Any = None,
+    def OrderedSubset(self, domain: Any, context: Any = None,
                        lengths: Collection[int] = None, include_empty: bool = False, **kwargs):
 
         if lengths is None:
@@ -111,13 +111,13 @@ class DfsStrategy(Strategy):
         yield from itertools.product(*domain)
 
     @op_def
-    def Sequences(self, domain: Any, max_len: int = None, lengths: Collection[int] = None,
+    def Sequence(self, domain: Any, max_len: int = None, lengths: Collection[int] = None,
                   context: Any = None, **kwargs):
         if max_len is None and lengths is None:
-            raise SyntaxError("Sequences requires the explicit keyword argument 'max_len' or 'lengths'")
+            raise SyntaxError("Sequence requires the explicit keyword argument 'max_len' or 'lengths'")
 
         if max_len is not None and lengths is not None:
-            raise SyntaxError("Sequences takes only *one* of the 'max_len' and 'lengths' keyword arguments")
+            raise SyntaxError("Sequence takes only *one* of the 'max_len' and 'lengths' keyword arguments")
 
         if max_len is not None:
             for l in range(1, max_len + 1):

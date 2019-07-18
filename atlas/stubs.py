@@ -7,17 +7,17 @@ def Select(*args, **kwargs):
     raise_unrecognized('Select')
 
 
-def Subsets(*args, **kwargs):
-    raise_unrecognized('Subsets')
+def Subset(*args, **kwargs):
+    raise_unrecognized('Subset')
 
 
-def OrderedSubsets(*args, **kwargs):
-    raise_unrecognized('OrderedSubsets')
+def OrderedSubset(*args, **kwargs):
+    raise_unrecognized('OrderedSubset')
 
 
 def Product(*args, **kwargs):
     raise_unrecognized('Product')
 
 
-def Sequences(*args, **kwargs):
-    raise_unrecognized('Sequences')
+def Sequence(*args, **kwargs):
+    raise_unrecognized('Sequence')

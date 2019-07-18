@@ -2,8 +2,8 @@ from atlas import generator
 from atlas.exceptions import ExceptionAsContinue
 from atlas.synthesis.pandas.checker import Checker
 from atlas.utils import get_group_by_name
-from atlas.stubs import Select, Sequences, Subsets, OrderedSubsets
-from atlas.synthesis.pandas.api import *
+from atlas.stubs import Select, Sequence, Subset, OrderedSubset
+import atlas.synthesis.pandas.api
 
 api_gens = {
     gen.name: gen for gen in get_group_by_name('pandas')
@@ -12,8 +12,7 @@ api_gens = {
 
 @generator(group='pandas', name='pandas_synthesis_brute_force')
 def brute_force_enumerator(inputs, output):
-    func_seq = Sequences(list(api_gens.keys()), max_len=2, oid='func_seq_sequence')
-    print(func_seq)
+    func_seq = Sequence(list(api_gens.keys()), max_len=2, oid='func_seq_sequence')
 
     prog = []
     intermediates = []

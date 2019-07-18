@@ -5,7 +5,7 @@ import numpy as np
 from typing import Callable, Sequence
 
 from atlas import generator
-from atlas.stubs import Select, Sequences, Subsets, OrderedSubsets, Product
+from atlas.stubs import Select, Sequence, Subset, OrderedSubset, Product
 
 
 # ======================================================================= #
@@ -102,7 +102,7 @@ def gen_df_as_matrix(inputs, *args, **kwargs):
     if choose_default:
         _columns = None
     else:
-        _columns = list(OrderedSubsets(_self.columns))
+        _columns = list(OrderedSubset(_self.columns))
 
     return _self.as_matrix(columns=_columns), {'self': _self, 'columns': _columns}
 
@@ -131,11 +131,11 @@ def gen_df_select_dtypes(inputs, *args, **kwargs):
     dtypes = set(map(str, _self.dtypes))
     use_include = Select([True, False], fixed_domain=True)
     if use_include:
-        _include = Subsets(dtypes)
+        _include = Subset(dtypes)
         _exclude = None
     else:
         _include = None
-        _exclude = Subsets(dtypes)
+        _exclude = Subset(dtypes)
 
     return _self.select_dtypes(include=_include, exclude=_exclude), {
         'self': _self, 'include': _include, 'exclude': _exclude
@@ -246,8 +246,8 @@ def gen_df_loc_getitem(inputs, *args, **kwargs):
     _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
     idx_reversed = Select([True, False], fixed_domain=True)
     col_reversed = Select([True, False], fixed_domain=True)
-    idx_start, idx_end = Subsets(list(_self.index), lengths=[2])
-    col_start, col_end = Subsets(list(_self.columns), lengths=[2])
+    idx_start, idx_end = Subset(list(_self.index), lengths=[2])
+    col_start, col_end = Subset(list(_self.columns), lengths=[2])
 
     _key = (
         (slice(idx_start, idx_end, 1) if not idx_reversed else slice(idx_end, idx_start, -1)),
@@ -266,8 +266,8 @@ def gen_df_iloc_getitem(inputs, *args, **kwargs):
     _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
     idx_reversed = Select([True, False], fixed_domain=True)
     col_reversed = Select([True, False], fixed_domain=True)
-    idx_start, idx_end = Subsets(list(range(_self.shape[0])), lengths=[2])
-    col_start, col_end = Subsets(list(range(_self.shape[1])), lengths=[2])
+    idx_start, idx_end = Subset(list(range(_self.shape[0])), lengths=[2])
+    col_start, col_end = Subset(list(range(_self.shape[1])), lengths=[2])
 
     _key = (
         (slice(idx_start, idx_end, 1) if not idx_reversed else slice(idx_end, idx_start, -1)),
@@ -284,9 +284,9 @@ def gen_df_lookup(inputs, *args, **kwargs):
     """DataFrame.lookup(self, row_labels, col_labels)"""
 
     _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
-    _row_labels = list(OrderedSubsets(_self.index,
+    _row_labels = list(OrderedSubset(_self.index,
                                       lengths=list(range(1, min(_self.shape[0], _self.shape[1]) + 1))))
-    _col_labels = list(OrderedSubsets(_self.columns, lengths=[len(_row_labels)]))
+    _col_labels = list(OrderedSubset(_self.columns, lengths=[len(_row_labels)]))
 
     return _self.lookup(row_labels=_row_labels, col_labels=_col_labels), {
         'self': _self, 'row_labels': _row_labels, 'col_labels': _col_labels
@@ -306,7 +306,7 @@ def gen_df_xs(inputs, *args, **kwargs):
         _level = None
         _key = Select(list(src))
     else:
-        _level = Subsets(list(range(src.nlevels)))
+        _level = Subset(list(range(src.nlevels)))
         level_vals = [src.levels[i] for i in _level]
         _key = list(Product(level_vals))
 
@@ -393,7 +393,7 @@ def gen_df_getitem(inputs, *args, **kwargs):
     if single_col:
         _key = Select(_self.columns)
     else:
-        _key = list(OrderedSubsets(_self.columns))
+        _key = list(OrderedSubset(_self.columns))
 
     return _self.__getitem__(_key), {
         'self': _self, 'key': _key
@@ -1144,7 +1144,7 @@ def gen_df_all(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.all(axis=_axis, bool_only=_bool_only, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'bool_only': _bool_only, 'skipna': _skipna, 'level': _level
@@ -1166,7 +1166,7 @@ def gen_df_any(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.any(axis=_axis, bool_only=_bool_only, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'bool_only': _bool_only, 'skipna': _skipna, 'level': _level
@@ -1386,7 +1386,7 @@ def gen_df_kurt(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.kurt(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
@@ -1407,7 +1407,7 @@ def gen_df_mad(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.mad(axis=_axis, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'skipna': _skipna, 'level': _level
@@ -1429,7 +1429,7 @@ def gen_df_max(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.max(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
@@ -1451,7 +1451,7 @@ def gen_df_mean(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.mean(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
@@ -1473,7 +1473,7 @@ def gen_df_median(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.median(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
@@ -1495,7 +1495,7 @@ def gen_df_min(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.min(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
@@ -1557,7 +1557,7 @@ def gen_df_prod(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.prod(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, min_count=_min_count), {
         'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'min_count': _min_count
@@ -1619,7 +1619,7 @@ def gen_df_sem(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     if _axis == 0:
         _ddof = Select(list(range(0, _self.shape[0])))
@@ -1646,7 +1646,7 @@ def gen_df_skew(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.skew(axis=_axis, numeric_only=_numeric_only, skipna=_skipna, level=_level), {
         'self': _self, 'axis': _axis, 'numeric_only': _numeric_only, 'skipna': _skipna, 'level': _level
@@ -1670,7 +1670,7 @@ def gen_df_sum(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     return _self.sum(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, min_count=_min_count), {
         'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'min_count': _min_count
@@ -1692,7 +1692,7 @@ def gen_df_std(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     if _axis == 0:
         _ddof = Select(list(range(0, _self.shape[0])))
@@ -1719,7 +1719,7 @@ def gen_df_var(inputs, *args, **kwargs):
     else:
         src = _self.index if _axis == 0 else _self.columns
         levels = [(src.names[i] or i) for i in range(src.nlevels)]
-        _level = list(OrderedSubsets(levels))
+        _level = list(OrderedSubset(levels))
 
     if _axis == 0:
         _ddof = Select(list(range(0, _self.shape[0])))
@@ -1739,10 +1739,24 @@ def gen_df_var(inputs, *args, **kwargs):
 def gen_df_add_prefix(inputs, *args, **kwargs):
     """DataFrame.add_prefix(self, prefix)"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _prefix = Select([inp for inp in inputs if isinstance(inp, str)])
+
+    return _self.add_prefix(_prefix), {
+        'self': _self, 'prefix': _prefix
+    }
+
 
 @generator(group='pandas', name='df.add_suffix')
 def gen_df_add_suffix(inputs, *args, **kwargs):
     """DataFrame.add_suffix(self, suffix)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _suffix = Select([inp for inp in inputs if isinstance(inp, str)])
+
+    return _self.add_suffix(_suffix), {
+        'self': _self, 'suffix': _suffix
+    }
 
 
 @generator(group='pandas', name='df.align')
@@ -1750,10 +1764,40 @@ def gen_df_align(inputs, *args, **kwargs):
     """DataFrame.align(self, other, join='outer', axis=None, level=None, copy=True, fill_value=None, method=None,
                        limit=None, fill_axis=0, broadcast_axis=None) """
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _other = Select([inp for inp in inputs if isinstance(inp, (pd.DataFrame, pd.Series))])
+    _axis = Select([None, 0, 1], fixed_domain=True)
+    _broadcast_axis = Select([None, 0, 1], fixed_domain=True)
+    _join = Select(['outer', 'inner', 'left', 'right'], fixed_domain=True)
+
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        src = _self.index if _axis == 'index' else _self.columns
+        _level = Select([(src.names[i] or i) for i in range(src.nlevels)])
+
+    return _self.align(_other, join=_join, axis=_axis, level=_level, broadcast_axis=_broadcast_axis), {
+        'self': _self, 'other': _other, 'join': _join, 'axis': _axis, 'level': _level, 'broadcast_axis': _broadcast_axis
+    }
+
 
 @generator(group='pandas', name='df.drop')
 def gen_df_drop(inputs, *args, **kwargs):
     """DataFrame.drop(self, labels=None, axis=0, index=None, columns=None, level=None, inplace=False, errors='raise')"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([None, 0, 1], fixed_domain=True)
+
+    src = _self.index if _axis == 'index' else _self.columns
+    level_default = Select([True, False], fixed_domain=True)
+    if level_default:
+        _level = None
+    else:
+        _level = Select([(src.names[i] or i) for i in range(src.nlevels)])
+
+    label_cands = set(src.get_level_values(_level)) if _level is not None else set(src)
+    _labels = list(Subset(label_cands, lengths=list(range(1, len(label_cands)))))
 
 
 @generator(group='pandas', name='df.drop_duplicates')
