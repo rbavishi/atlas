@@ -2222,6 +2222,21 @@ def gen_df_reorder_levels(inputs, *args, **kwargs):
 def gen_df_sort_values(inputs, *args, **kwargs):
     """DataFrame.sort_values(self, by, axis=0, ascending=True, inplace=False, kind='quicksort', na_position='last')"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+    _axis = Select([0, 1], fixed_domain=True)
+    _na_position = Select(['last', 'first'], fixed_domain=True)
+
+    if _axis == 0:
+        _by = list(OrderedSubset(list(_self.columns) + [i for i in _self.index.names if i is not None]))
+    else:
+        _by = list(OrderedSubset(list(_self.index)))
+
+    _ascending = Select([True, False], fixed_domain=True)
+
+    return _self.sort_values(by=_by, axis=_axis, ascending=_ascending, na_position=_na_position), {
+        'self': _self, 'by': _by, 'axis': _axis, 'ascending': _ascending, 'na_position': _na_position
+    }
+
 
 @generator(group='pandas', name='df.stack')
 def gen_df_stack(inputs, *args, **kwargs):
