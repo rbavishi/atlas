@@ -2179,6 +2179,59 @@ def gen_df_pivot_table(inputs, *args, **kwargs):
     """DataFrame.pivot_table(self, values=None, index=None, columns=None, aggfunc='mean', fill_value=None,
                              margins=False, dropna=True, margins_name='All')"""
 
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
+
+    if _self.index.nlevels == 1 and _self.columns.nlevels == 1:
+        _margins = Select([False, True], fixed_domain=True)
+    else:
+        _margins = False
+
+    _aggfunc = Select(set(['mean', 'sum', 'min', 'max', 'median'] + [inp for inp in inputs
+                                                                     if isinstance(inp, (Callable, tuple, str))]))
+
+    _fill_value = Select([None] + [inp for inp in inputs if np.isscalar(inp)])
+    _dropna = Select([True, False], fixed_domain=True)
+    _margins_name = Select(['All'] + [inp for inp in inputs if isinstance(inp, str)])
+
+    columns_default = Select([True, False], fixed_domain=True)
+    if columns_default:
+        _columns = []
+    else:
+        _columns = list(OrderedSubset(_self.columns))
+
+    index_default = Select([True, False], fixed_domain=True)
+    if index_default:
+        _index = []
+    else:
+        _index = OrderedSubset(set(_self.columns) - set(_columns))
+
+    #  Check if aggfunc works on non-numeric stuff
+    try:
+        _ = _aggfunc(pd.Series(['a', 'b']))
+        works = True
+
+    except:
+        works = False
+
+    if not works:
+        columns = list(set(_self.select_dtypes(include=np.number).columns) - set(_columns) - set(_index))
+    else:
+        columns = list(set(_self.columns) - set(_columns) - set(_index))
+
+    col_domain = [col for col in columns if not isinstance(col, (list, tuple))]
+
+    singleton = Select([True, False], fixed_domain=True)
+    if singleton:
+        _values = Select(col_domain)
+    else:
+        _values = list(OrderedSubset(columns))
+
+    return _self.pivot_table(values=_values, index=_index, columns=_columns, aggfunc=_aggfunc, fill_value=_fill_value,
+                             margins=_margins, dropna=_dropna, margins_name=_margins_name), {
+        'self': _self, 'values': _values, 'index': _index, 'columns': _columns, 'aggfunc': _aggfunc,
+        'fill_value': _fill_value, 'margins': _margins, 'dropna': _dropna, 'margins_name': _margins_name
+    }
+
 
 @generator(group='pandas', name='df.pivot')
 def gen_df_pivot(inputs, *args, **kwargs):
