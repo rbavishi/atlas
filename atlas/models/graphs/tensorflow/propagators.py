@@ -2,10 +2,11 @@ import tensorflow as tf
 import numpy as np
 from typing import List, Dict
 
+from atlas.models.graphs.tensorflow import NetworkComponent
 from atlas.models.graphs.tensorflow.utils import SegmentBasedAttention
 
 
-class Propagator:
+class Propagator(NetworkComponent):
     """The original message passing logic as described in
     https://github.com/microsoft/gated-graph-neural-network-samples/blob/master/chem_tensorflow_sparse.py"""
 
@@ -21,6 +22,7 @@ class Propagator:
                  name: str = 'propagator',
                  **kwargs):
 
+        super().__init__()
         self.layer_timesteps = layer_timesteps
         self.redidual_connections = residual_connections or {}
         self.graph_rnn_cell = graph_rnn_cell
@@ -40,10 +42,6 @@ class Propagator:
 
         if self.edge_msg_aggregation not in ['avg', 'sum']:
             raise ValueError("Edge Message aggregation type should be one of {'avg', 'sum'}")
-
-        self.placeholders = {}
-        self.weights = {}
-        self.ops = {}
 
     def build(self, node_dimension: int, num_edge_types: int, **kwargs):
         """

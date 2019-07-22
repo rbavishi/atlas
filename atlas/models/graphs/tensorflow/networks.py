@@ -1,5 +1,5 @@
 #  We use relative imports here as the model codebase is intended to be standalone and not tied to Atlas completely
-from .propagators import Propagator
+from atlas.models.graphs.tensorflow.propagators import Propagator
 
 
 class GGNN:
