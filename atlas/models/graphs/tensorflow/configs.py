@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from typing import Iterator, Any
 
 
-class BaseConfig(Mapping[str, Any]):
+class Parameters(Mapping[str, Any]):
     def __init__(self):
         self.__dict__['mapping'] = {}
 
@@ -31,7 +31,7 @@ class BaseConfig(Mapping[str, Any]):
         return self.mapping.__iter__()
 
 
-class HyperParameters(BaseConfig):
+class HyperParameters(Parameters):
     """
     Instances of this class are meant to hold high-level hyper-parameters of the network,
     such as batch_size, node dimensions, number of hidden layers, RNN cell types etc.
@@ -40,7 +40,7 @@ class HyperParameters(BaseConfig):
     pass
 
 
-class DataParameters(BaseConfig):
+class DataParameters(Parameters):
     """
     These parameters are intended to be more a function of the training-data rather than being a hyper-parameter.
     For example, number of edge types, number of class labels.

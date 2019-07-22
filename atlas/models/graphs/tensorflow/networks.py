@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from atlas.models.graphs.tensorflow import Network
-from atlas.models.graphs.tensorflow.configs import HyperParameters, DataParameters
+from atlas.models.graphs.tensorflow.configs import Parameters
 
 
 class GGNN(Network):
@@ -11,21 +11,17 @@ class GGNN(Network):
                  propagator,
                  classifier,
                  optimizer,
-                 hyper_params: HyperParameters,
-                 data_params: DataParameters = None):
+                 params: Parameters):
 
         super().__init__()
         self.propagator = propagator
         self.classifier = classifier
         self.optimizer = optimizer
 
-        self.hyper_params = hyper_params
-        self.data_params = data_params if data_params is not None else DataParameters()
+        self.params = params
 
     def build(self):
-        params = {**self.hyper_params, **self.data_params}
-
-        self.propagator.build(**params)
-        self.classifier.build(self.propagator.ops['final_node_embeddings'], **params)
-        self.optimizer.build(self.classifier.ops['loss'], **params)
+        self.propagator.build()
+        self.classifier.build(node_embeddings=self.propagator.ops['final_node_embeddings'])
+        self.optimizer.build(loss=self.classifier.ops['loss'])
 

@@ -14,17 +14,21 @@ from atlas.models.graphs.tensorflow.utils import MLP
 class GGNNGraphClassifier(NetworkComponent):
     """Simple aggregation (mean/sum) based pooler plus fixed num-classes softmax classifier"""
 
-    def __init__(self, classifier_hidden_dims: List[int], agg: str = 'sum'):
+    def __init__(self,
+                 num_classes: int,
+                 classifier_hidden_dims: List[int],
+                 agg: str = 'sum'):
         super().__init__()
+        self.num_classes = num_classes
         self.classifier_hidden_dims = classifier_hidden_dims
         self.agg = agg
 
         if self.agg not in ['sum', 'mean']:
             raise ValueError("Aggregation must be one of {'sum', 'mean'}")
 
-    def build(self, node_embeddings, num_classes: int, **kwargs):
+    def build(self, node_embeddings, **kwargs):
         self.define_placeholders()
-        self.define_prediction_with_loss(node_embeddings, num_classes)
+        self.define_prediction_with_loss(node_embeddings)
 
     def define_placeholders(self):
         self.placeholders['node_graph_ids_list'] = tf.placeholder(tf.int32, [None], name='node_graph_ids_list')
@@ -43,14 +47,14 @@ class GGNNGraphClassifier(NetworkComponent):
         else:
             raise ValueError("Aggregation must be one of {'sum', 'mean'}")
 
-    def define_graph_logits(self, graph_embeddings, num_classes: int):
-        classifier = MLP(in_size=graph_embeddings.get_shape()[1], out_size=num_classes,
+    def define_graph_logits(self, graph_embeddings):
+        classifier = MLP(in_size=graph_embeddings.get_shape()[1], out_size=self.num_classes,
                          hid_sizes=self.classifier_hidden_dims)
         return classifier(graph_embeddings)
 
-    def define_prediction_with_loss(self, node_embeddings, num_classes: int):
+    def define_prediction_with_loss(self, node_embeddings):
         graph_embeddings = self.define_pooling(node_embeddings)
-        graph_logits = self.define_graph_logits(graph_embeddings, num_classes)
+        graph_logits = self.define_graph_logits(graph_embeddings)
 
         self.ops['loss'] = tf.reduce_mean(
             tf.nn.sparse_softmax_cross_entropy_with_logits(logits=graph_logits,

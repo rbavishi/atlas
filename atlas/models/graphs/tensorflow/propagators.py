@@ -12,6 +12,8 @@ class GGNNPropagator(NetworkComponent):
 
     def __init__(self,
                  layer_timesteps: List[int],
+                 node_dimension: int,
+                 num_edge_types: int,
                  residual_connections: Dict[int, List[int]] = None,
                  graph_rnn_cell: str = 'gru',
                  graph_rnn_activation: str = 'tanh',
@@ -24,6 +26,8 @@ class GGNNPropagator(NetworkComponent):
 
         super().__init__()
         self.layer_timesteps = layer_timesteps
+        self.node_dimension = node_dimension
+        self.num_edge_types = num_edge_types
         self.redidual_connections = residual_connections or {}
         self.graph_rnn_cell = graph_rnn_cell
         self.graph_rnn_activation = graph_rnn_activation
@@ -43,28 +47,22 @@ class GGNNPropagator(NetworkComponent):
         if self.edge_msg_aggregation not in ['avg', 'sum']:
             raise ValueError("Edge Message aggregation type should be one of {'avg', 'sum'}")
 
-    def build(self, node_dimension: int, num_edge_types: int, **kwargs):
+    def build(self, **kwargs):
         """
         Constructs the tensorflow computation by unrolling the graph for the time-steps
         indicated by ``self.layer_timesteps``
-
-        Args:
-            node_dimension (int): Dimension of the node embedding (hyper-parameter)
-            num_edge_types (int): Number of edge types to consider (usually determined by the training dataset)
-            **kwargs: Capture any extraneous arguments and discard
-
         """
-        self.define_placeholders(node_dimension, num_edge_types)
-        self.define_weights(node_dimension, num_edge_types)
+        self.define_placeholders()
+        self.define_weights()
         self.define_message_passing()
 
-    def define_placeholders(self, node_dimension: int, num_edge_types: int):
+    def define_placeholders(self):
         #  Is normally a one-hot encoding of the feature of a node, but in principle can be any arbitrary vector
-        self.placeholders['initial_node_embedding'] = tf.placeholder(tf.float32, [None, node_dimension],
+        self.placeholders['initial_node_embedding'] = tf.placeholder(tf.float32, [None, self.node_dimension],
                                                                      name='node_embeddings')
         #  We have a separate adjacency matrix for every edge type
         self.placeholders['adjacency_lists'] = [tf.placeholder(tf.int32, [None, 2], name='adjacency_e{}'.format(e))
-                                                for e in range(num_edge_types)]
+                                                for e in range(self.num_edge_types)]
 
         #  Need to create placeholders for these as dropout should not be used during inference
         self.placeholders['graph_state_dropout'] = tf.placeholder(tf.float32, None, name='graph_state_dropout')
@@ -73,7 +71,7 @@ class GGNNPropagator(NetworkComponent):
         #  Needed for various gather/segment-sum operations
         self.placeholders['num_nodes'] = tf.placeholder(tf.int32, shape=(), name='num_nodes')
 
-    def define_weights(self, node_dimension, num_edge_types):
+    def define_weights(self):
         #  We have separate edge weights, and RNN cells for each time-step
         all_edge_weights = []
         all_rnn_cells = []
@@ -85,15 +83,16 @@ class GGNNPropagator(NetworkComponent):
                 #  The shape passed to get_variable has only two dimensions due to the fan-in/fan-out structure
                 #  imposed by the ``glorot_uniform initializer``. So we have a reshaping wrapper around that
                 edge_weights = tf.reshape(tf.get_variable("edge_weights_{layer}".format(layer=l),
-                                                          [num_edge_types * node_dimension, node_dimension],
+                                                          [self.num_edge_types * self.node_dimension,
+                                                           self.node_dimension],
                                                           initializer=tf.glorot_uniform_initializer()),
-                                          [num_edge_types, node_dimension, node_dimension])
+                                          [self.num_edge_types, self.node_dimension, self.node_dimension])
 
                 edge_weights = tf.nn.dropout(edge_weights, rate=self.placeholders['edge_weight_dropout'])
                 all_edge_weights.append(edge_weights)
 
                 if self.graph_rnn_cell == 'gru':
-                    cell = tf.keras.layers.GRUCell(node_dimension, activation=self.graph_rnn_activation)
+                    cell = tf.keras.layers.GRUCell(self.node_dimension, activation=self.graph_rnn_activation)
 
                 else:
                     raise ValueError("Cell type should be one of {'gru'}")
@@ -102,7 +101,7 @@ class GGNNPropagator(NetworkComponent):
                 if self.use_propagation_attention:
                     attn = tf.get_variable("edge_type_attn_{layer]".format(layer=l),
                                            dtype=tf.float32,
-                                           initializer=tf.initializers.constant(np.ones([num_edge_types])))
+                                           initializer=tf.initializers.constant(np.ones([self.num_edge_types])))
                     edge_type_attention_weights.append(attn)
 
             all_rnn_cells.append(cell)
