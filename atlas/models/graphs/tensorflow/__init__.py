@@ -1,1 +1,1 @@
-from atlas.models.graphs.tensorflow.base import NetworkComponent
+from atlas.models.graphs.tensorflow.base import NetworkComponent, Network

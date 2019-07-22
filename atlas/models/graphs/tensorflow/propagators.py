@@ -6,7 +6,7 @@ from atlas.models.graphs.tensorflow import NetworkComponent
 from atlas.models.graphs.tensorflow.utils import SegmentBasedAttention
 
 
-class Propagator(NetworkComponent):
+class GGNNPropagator(NetworkComponent):
     """The original message passing logic as described in
     https://github.com/microsoft/gated-graph-neural-network-samples/blob/master/chem_tensorflow_sparse.py"""
 

@@ -11,7 +11,7 @@ from atlas.models.graphs.tensorflow import NetworkComponent
 from atlas.models.graphs.tensorflow.utils import MLP
 
 
-class GraphClassifier(NetworkComponent):
+class GGNNGraphClassifier(NetworkComponent):
     """Simple aggregation (mean/sum) based pooler plus fixed num-classes softmax classifier"""
 
     def __init__(self, classifier_hidden_dims: List[int], agg: str = 'sum'):
@@ -22,7 +22,7 @@ class GraphClassifier(NetworkComponent):
         if self.agg not in ['sum', 'mean']:
             raise ValueError("Aggregation must be one of {'sum', 'mean'}")
 
-    def build(self, node_embeddings, num_classes):
+    def build(self, node_embeddings, num_classes: int, **kwargs):
         self.define_placeholders()
         self.define_prediction_with_loss(node_embeddings, num_classes)
 
@@ -43,7 +43,7 @@ class GraphClassifier(NetworkComponent):
         else:
             raise ValueError("Aggregation must be one of {'sum', 'mean'}")
 
-    def define_graph_logits(self, graph_embeddings, num_classes):
+    def define_graph_logits(self, graph_embeddings, num_classes: int):
         classifier = MLP(in_size=graph_embeddings.get_shape()[1], out_size=num_classes,
                          hid_sizes=self.classifier_hidden_dims)
         return classifier(graph_embeddings)
