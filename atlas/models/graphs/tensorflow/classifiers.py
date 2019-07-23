@@ -7,7 +7,7 @@ and uses that to do single-label classification.
 import tensorflow as tf
 from typing import List
 
-from atlas.models.graphs.tensorflow import NetworkComponent
+from atlas.models.graphs.tensorflow.network import NetworkComponent
 from atlas.models.graphs.tensorflow.utils import MLP
 
 

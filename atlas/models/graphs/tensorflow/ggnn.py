@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from atlas.models.graphs.tensorflow import Network
+from atlas.models.graphs.tensorflow.network import Network
 from atlas.models.graphs.tensorflow.configs import Parameters
 
 

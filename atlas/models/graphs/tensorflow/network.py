@@ -1,11 +1,11 @@
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 
 import tensorflow as tf
 
 from atlas.models.graphs.tensorflow.configs import Parameters
 
 
-class Network:
+class Network(ABC):
     def __init__(self, params: Parameters):
         self.sess = None
         self.graph = None

@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from typing import List, Dict
 
-from atlas.models.graphs.tensorflow import NetworkComponent
+from atlas.models.graphs.tensorflow.network import NetworkComponent
 from atlas.models.graphs.tensorflow.utils import SegmentBasedAttention
 
 
@@ -99,9 +99,10 @@ class GGNNPropagator(NetworkComponent):
 
                 #  Very simplistic attention parameter. A scalar value for each edge type for every layer
                 if self.use_propagation_attention:
-                    attn = tf.get_variable("edge_type_attn_{layer]".format(layer=l),
+                    attn = tf.get_variable("edge_type_attn_{layer}".format(layer=l),
+                                           shape=[self.num_edge_types],
                                            dtype=tf.float32,
-                                           initializer=tf.initializers.constant(np.ones([self.num_edge_types])))
+                                           initializer=tf.initializers.constant(value=np.ones([self.num_edge_types])))
                     edge_type_attention_weights.append(attn)
 
             all_rnn_cells.append(cell)
@@ -113,39 +114,39 @@ class GGNNPropagator(NetworkComponent):
             self.weights['edge_type_attention_weights'] = edge_type_attention_weights
 
     def define_message_passing(self):
-        node_states_per_round = [self.placeholders['initial_node_embedding']]
+        node_embeddings_per_round = [self.placeholders['initial_node_embedding']]
 
         for layer, num_time_steps in enumerate(self.layer_timesteps):
             for step in range(num_time_steps):
-                current_node_states = node_states_per_round[-1]
-                node_states_per_round.append(self.define_round(layer, step, current_node_states))
+                current_node_embeddings = node_embeddings_per_round[-1]
+                node_embeddings_per_round.append(self.define_round(layer, step, current_node_embeddings))
 
-        self.ops['node_states_per_round'] = node_states_per_round
-        self.ops['final_node_states'] = node_states_per_round[-1]
+        self.ops['node_embeddings_per_round'] = node_embeddings_per_round
+        self.ops['final_node_embeddings'] = node_embeddings_per_round[-1]
 
-    def define_round(self, layer: int, time_step: int, node_states):
+    def define_round(self, layer: int, time_step: int, node_embeddings):
         edge_weights = self.weights['edge_weights'][layer]
-        src_node_ids, dst_node_ids, src_node_states, dst_node_states, messages = [], [], [], [], []
+        src_node_ids, dst_node_ids, src_node_embeddings, dst_node_embeddings, messages = [], [], [], [], []
 
         for e_type, adj_list in enumerate(self.placeholders['adjacency_lists']):
             src_node_ids.append(adj_list[:, 0])
             dst_node_ids.append(adj_list[:, 1])
 
-            src_node_states.append(tf.nn.embedding_lookup(params=node_states, ids=src_node_ids[-1]))
-            dst_node_states.append(tf.nn.embedding_lookup(params=node_states, ids=dst_node_ids[-1]))
+            src_node_embeddings.append(tf.nn.embedding_lookup(params=node_embeddings, ids=src_node_ids[-1]))
+            dst_node_embeddings.append(tf.nn.embedding_lookup(params=node_embeddings, ids=dst_node_ids[-1]))
 
-            messages.append(tf.matmul(src_node_states[-1], edge_weights[e_type]))
+            messages.append(tf.matmul(src_node_embeddings[-1], edge_weights[e_type]))
 
         src_node_ids = tf.concat(src_node_ids, axis=0)
-        src_node_states = tf.concat(src_node_states, axis=0)
+        src_node_embeddings = tf.concat(src_node_embeddings, axis=0)
         dst_node_ids = tf.concat(dst_node_ids, axis=0)
-        dst_node_states = tf.concat(dst_node_states, axis=0)
+        dst_node_embeddings = tf.concat(dst_node_embeddings, axis=0)
         messages = tf.concat(messages, axis=0)
 
         #  Now weigh the messages using attention if configured to do so
         if self.use_propagation_attention:
-            messages *= tf.expand_dims(self.define_message_attention(layer, src_node_ids, src_node_states,
-                                                                     dst_node_ids, dst_node_states, messages), axis=-1)
+            messages *= tf.expand_dims(self.define_message_attention(layer, src_node_ids, src_node_embeddings,
+                                                                     dst_node_ids, dst_node_embeddings, messages), axis=-1)
 
         #  Accumulate all messages for a destination node
         if self.edge_msg_aggregation == 'avg':
@@ -160,10 +161,10 @@ class GGNNPropagator(NetworkComponent):
             raise ValueError("Edge message aggregation type should be one of {'avg', 'sum'}")
 
         #  Compute new node states i.e. states for the next round of message passing (if any)
-        return self.weights['rnn_cells'][layer](incoming_messages, [node_states])
+        return self.weights['rnn_cells'][layer](incoming_messages, [node_embeddings])[0]
 
-    def define_message_attention(self, layer: int, src_node_ids, src_node_states,
-                                 dst_node_ids, dst_node_states, messages):
+    def define_message_attention(self, layer: int, src_node_ids, src_node_embeddings,
+                                 dst_node_ids, dst_node_embeddings, messages):
 
         message_edge_types = []
         for e_type, adj_list in enumerate(self.placeholders['adjacency_lists']):
@@ -174,7 +175,7 @@ class GGNNPropagator(NetworkComponent):
                                                    ids=message_edge_types)
 
         #  Basically the dot-product of src states and dst states
-        msg_attention_scores = tf.einsum('mi,mi->m', src_node_states, dst_node_states)
+        msg_attention_scores = tf.einsum('mi,mi->m', src_node_embeddings, dst_node_embeddings)
         #  Multiply by the edge attention (a scalar value based on the edge-type)
         msg_attention_scores *= edge_attn_factors
 

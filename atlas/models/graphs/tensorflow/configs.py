@@ -1,5 +1,4 @@
-from collections.abc import Mapping
-from typing import Iterator, Any
+from typing import Iterator, Any, Mapping
 
 
 class Parameters(Mapping[str, Any]):
