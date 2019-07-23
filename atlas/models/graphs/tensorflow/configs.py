@@ -29,26 +29,3 @@ class Parameters(Mapping[str, Any]):
 
     def __iter__(self) -> Iterator[str]:
         return self.mapping.__iter__()
-
-
-class HyperParameters(Parameters):
-    """
-    Instances of this class are meant to hold high-level hyper-parameters of the network,
-    such as batch_size, node dimensions, number of hidden layers, RNN cell types etc.
-    These are intended to be largely independent of the training data
-    """
-    pass
-
-
-class DataParameters(Parameters):
-    """
-    These parameters are intended to be more a function of the training-data rather than being a hyper-parameter.
-    For example, number of edge types, number of class labels.
-
-    Although in principle, HyperParameters and DataParameters will never be distinguished internally
-    during model definition, a clear separation helps in writing the preprocessors which are meant to extract
-    these data parameters out of training data sets.
-
-    There are no restrictions on moving any item from DataParameters to Hyper-parameters or vice-versa.
-    """
-    pass

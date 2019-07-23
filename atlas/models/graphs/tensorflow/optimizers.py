@@ -6,13 +6,14 @@ from atlas.models.graphs.tensorflow import NetworkComponent
 class GGNNOptimizer(NetworkComponent):
     def __init__(self,
                  learning_rate: float,
-                 clamp_gradient_norm: float = 1.0):
+                 clamp_gradient_norm: float = 1.0,
+                 **kwargs):
 
         super().__init__()
         self.learning_rate = learning_rate
         self.clamp_gradient_norm = clamp_gradient_norm
 
-    def build(self, loss, **kwargs):
+    def build(self, loss):
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         grads_and_vars = optimizer.compute_gradients(loss)
         clipped_grads = [

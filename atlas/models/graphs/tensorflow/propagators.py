@@ -47,7 +47,7 @@ class GGNNPropagator(NetworkComponent):
         if self.edge_msg_aggregation not in ['avg', 'sum']:
             raise ValueError("Edge Message aggregation type should be one of {'avg', 'sum'}")
 
-    def build(self, **kwargs):
+    def build(self):
         """
         Constructs the tensorflow computation by unrolling the graph for the time-steps
         indicated by ``self.layer_timesteps``

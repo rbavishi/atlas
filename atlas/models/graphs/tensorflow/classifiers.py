@@ -17,7 +17,8 @@ class GGNNGraphClassifier(NetworkComponent):
     def __init__(self,
                  num_classes: int,
                  classifier_hidden_dims: List[int],
-                 agg: str = 'sum'):
+                 agg: str = 'sum',
+                 **kwargs):
         super().__init__()
         self.num_classes = num_classes
         self.classifier_hidden_dims = classifier_hidden_dims
@@ -26,7 +27,7 @@ class GGNNGraphClassifier(NetworkComponent):
         if self.agg not in ['sum', 'mean']:
             raise ValueError("Aggregation must be one of {'sum', 'mean'}")
 
-    def build(self, node_embeddings, **kwargs):
+    def build(self, node_embeddings):
         self.define_placeholders()
         self.define_prediction_with_loss(node_embeddings)
 

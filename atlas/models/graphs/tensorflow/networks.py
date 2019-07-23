@@ -8,17 +8,15 @@ class GGNN(Network):
     """The original assembly of propagators and output computation as described in
     https://github.com/microsoft/gated-graph-neural-network-samples/blob/master/chem_tensorflow_sparse.py"""
     def __init__(self,
+                 params: Parameters,
                  propagator,
                  classifier,
-                 optimizer,
-                 params: Parameters):
+                 optimizer):
 
-        super().__init__()
+        super().__init__(params)
         self.propagator = propagator
         self.classifier = classifier
         self.optimizer = optimizer
-
-        self.params = params
 
     def build(self):
         self.propagator.build()
