@@ -1,13 +1,11 @@
 from abc import abstractmethod, ABC
 
 import tensorflow as tf
-from typing import Dict
-
-from atlas.models.graphs.tensorflow.configs import Parameters
+from typing import Dict, List, Optional, Any, Mapping
 
 
 class Network(ABC):
-    def __init__(self, params: Parameters):
+    def __init__(self, params: Mapping[str, Any]):
         self.sess = None
         self.graph = None
         self.tf_config = None
@@ -30,6 +28,10 @@ class Network(ABC):
     def build(self):
         pass
 
+    @abstractmethod
+    def define_batch(self, graphs: List[Dict], is_training: bool = True):
+        pass
+
 
 class NetworkComponent:
     def __init__(self):
@@ -37,5 +39,5 @@ class NetworkComponent:
         self.weights = {}
         self.ops = {}
 
-    def define_batch(self, graphs, is_training: bool = True) -> Dict:
-        return {}
+    def define_batch(self, graphs: List[Dict], is_training: bool = True) -> Optional[Dict]:
+        return None

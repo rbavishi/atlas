@@ -1,8 +1,9 @@
+from typing import List, Dict, Any, Mapping
+
 import tensorflow as tf
 
 from atlas.models.graphs.tensorflow.classifiers import GGNNGraphClassifier
 from atlas.models.graphs.tensorflow.network import Network
-from atlas.models.graphs.tensorflow.configs import Parameters
 from atlas.models.graphs.tensorflow.optimizers import GGNNOptimizer
 from atlas.models.graphs.tensorflow.propagators import GGNNPropagator
 
@@ -12,7 +13,7 @@ class GGNN(Network):
     https://github.com/microsoft/gated-graph-neural-network-samples/blob/master/chem_tensorflow_sparse.py"""
 
     def __init__(self,
-                 params: Parameters,
+                 params: Mapping[str, Any],
                  propagator=None,
                  classifier=None,
                  optimizer=None):
@@ -34,3 +35,12 @@ class GGNN(Network):
         self.propagator.build()
         self.classifier.build(node_embeddings=self.propagator.ops['final_node_embeddings'])
         self.optimizer.build(loss=self.classifier.ops['loss'])
+
+    def define_batch(self, graphs: List[Dict], is_training: bool = True):
+        batch_dict = {}
+        batch_dict.update(self.propagator.define_batch(graphs, is_training) or {})
+        batch_dict.update(self.classifier.define_batch(graphs, is_training) or {})
+        batch_dict.update(self.optimizer.define_batch(graphs, is_training) or {})
+
+        return batch_dict
+
