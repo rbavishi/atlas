@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 from atlas.models.graphs.tensorflow.network import NetworkComponent
 from atlas.models.graphs.tensorflow.utils import SegmentBasedAttention
@@ -46,6 +46,41 @@ class GGNNPropagator(NetworkComponent):
 
         if self.edge_msg_aggregation not in ['avg', 'sum']:
             raise ValueError("Edge Message aggregation type should be one of {'avg', 'sum'}")
+
+    def get_adjacency_list(self, edges: List[Tuple[int, int, int]]):
+        adj_lists: List[List[Tuple[int, int]]] = [[] for _ in range(self.num_edge_types)]
+        for src, e_type, dst in edges:
+            adj_lists[e_type].append((src, dst))
+
+        adj_lists = [np.array(sorted(l), dtype=np.int32) if len(l) > 0 else np.zeros((0, 2), dtype=np.int32)
+                     for l in adj_lists]
+
+        return adj_lists
+
+    def define_batch(self, graphs: List[Dict], is_training: bool = True) -> Dict:
+        node_offset = 0
+        adjacency_lists = [[] for _ in range(self.num_edge_types)]
+        initial_node_embeddings = []
+        for idx, g in enumerate(graphs):
+            adj_lists = [a + node_offset for a in self.get_adjacency_list(g['edges'])]
+            #  Get initial representations of nodes. Simply 1-hot encodings of node features
+            #  https://stackoverflow.com/questions/29831489/convert-array-of-indices-to-1-hot-encoded-numpy-array
+            node_embeddings = np.eye(self.node_dimension)[g['nodes']]
+
+            for e_type, adj_list in enumerate(adj_lists):
+                adjacency_lists[e_type].extend(adj_list)
+
+            initial_node_embeddings.extend(node_embeddings)
+            node_offset += len(g['nodes'])
+
+        return {
+            self.placeholders['initial_node_embedding']: np.array(initial_node_embeddings),
+            self.placeholders['adjacency_lists']: np.array(adjacency_lists),
+            self.placeholders['num_nodes']: node_offset,
+
+            self.placeholders['graph_state_dropout']: self.graph_state_dropout if is_training else 0.0,
+            self.placeholders['edge_weight_dropout']: self.edge_weight_dropout if is_training else 0.0,
+        }
 
     def build(self):
         """

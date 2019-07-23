@@ -1,6 +1,7 @@
 from abc import abstractmethod, ABC
 
 import tensorflow as tf
+from typing import Dict
 
 from atlas.models.graphs.tensorflow.configs import Parameters
 
@@ -36,3 +37,5 @@ class NetworkComponent:
         self.weights = {}
         self.ops = {}
 
+    def define_batch(self, graphs, is_training: bool = True) -> Dict:
+        return {}

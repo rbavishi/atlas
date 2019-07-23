@@ -5,7 +5,8 @@ and uses that to do single-label classification.
 """
 
 import tensorflow as tf
-from typing import List
+import numpy as np
+from typing import List, Any, Dict
 
 from atlas.models.graphs.tensorflow.network import NetworkComponent
 from atlas.models.graphs.tensorflow.utils import MLP
@@ -26,6 +27,20 @@ class GGNNGraphClassifier(NetworkComponent):
 
         if self.agg not in ['sum', 'mean']:
             raise ValueError("Aggregation must be one of {'sum', 'mean'}")
+
+    def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True):
+        labels = []
+        node_graph_ids_list = []
+        for idx, g in enumerate(graphs):
+            label = g.get('label', 0)  # Can happen when doing inference
+            labels.append(label)
+            node_graph_ids_list.extend([idx for _ in range(len(g['nodes']))])
+
+        return {
+            self.placeholders['node_graph_ids_list']: np.array(node_graph_ids_list),
+            self.placeholders['num_graphs']: len(graphs),
+            self.placeholders['labels']: np.array(labels)
+        }
 
     def build(self, node_embeddings):
         self.define_placeholders()
