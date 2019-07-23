@@ -73,14 +73,18 @@ class GGNNPropagator(NetworkComponent):
             initial_node_embeddings.extend(node_embeddings)
             node_offset += len(g['nodes'])
 
-        return {
+        result = {
             self.placeholders['initial_node_embedding']: np.array(initial_node_embeddings),
-            self.placeholders['adjacency_lists']: np.array(adjacency_lists),
             self.placeholders['num_nodes']: node_offset,
 
             self.placeholders['graph_state_dropout']: self.graph_state_dropout if is_training else 0.0,
             self.placeholders['edge_weight_dropout']: self.edge_weight_dropout if is_training else 0.0,
         }
+
+        for idx, placeholder in enumerate(self.placeholders['adjacency_lists']):
+            result[placeholder] = adjacency_lists[idx]
+
+        return result
 
     def build(self):
         """

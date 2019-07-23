@@ -44,3 +44,15 @@ class GGNN(Network):
 
         return batch_dict
 
+    def get_op(self, name: str):
+        if name == 'loss':
+            return self.classifier.ops['loss']
+        elif name == 'accuracy':
+            return self.classifier.ops['accuracy']
+        elif name == 'prediction':
+            return self.classifier.ops['prediction']
+        elif name == 'train_step':
+            return self.optimizer.ops['train_step']
+        else:
+            raise ValueError("Did not recognize op name " + name)
+
