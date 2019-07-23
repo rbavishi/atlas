@@ -12,7 +12,7 @@ class Network(ABC):
 
         self.params = params
 
-    def setup_session(self):
+    def setup(self):
         self.tf_config = tf.ConfigProto()
         self.tf_config.gpu_options.allow_growth = True
         self.graph = tf.Graph()
