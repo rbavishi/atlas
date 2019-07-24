@@ -38,6 +38,18 @@ def make_strategy(strategy: Union[str, Strategy]) -> Strategy:
 
 
 def compile_op(op: Callable, pre_hooks: List[Callable], post_hooks: List[Callable]) -> Callable:
+    """
+    Returns the op as is if there are no hooks to register. Otherwise, creates a closure that executes the hooks
+    in the appropriate order before returning the result of the operator (as defined by the strategy
+    passed to compile_func)
+    Args:
+        op (Callable): The operator call returned by the strategy
+        pre_hooks (List[Callable]): The pre-hooks to register
+        post_hooks (List[Callable]): The post-hooks to register
+
+    Returns:
+        A callable that executes the hooks (if any) along with the operator and returns result of the operator call
+    """
     if len(pre_hooks) == 0 and len(post_hooks) == 0:
         return op
 
