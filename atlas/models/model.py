@@ -1,0 +1,2 @@
+class OperatorModel:
+    pass
