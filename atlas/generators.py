@@ -13,11 +13,11 @@ from atlas.utils.inspection import getclosurevars_recursive
 from atlas.exceptions import ExceptionAsContinue
 
 
-def get_op_id(n_call: ast.Call) -> Optional[str]:
+def get_sid(n_call: ast.Call) -> Optional[str]:
     for kw in n_call.keywords:
-        if kw.arg == 'oid':
+        if kw.arg == 'sid':
             if not isinstance(kw.value, ast.Str):
-                raise Exception("Value passed to 'oid' must be a string in {}".format(astunparse.unparse(n_call)))
+                raise Exception("Value passed to 'sid' must be a string in {}".format(astunparse.unparse(n_call)))
 
             return kw.value.s
 
@@ -85,7 +85,7 @@ def compile_func(func: Callable, strategy: Strategy,
     # This matches up line numbers with original file and is thus super useful for debugging
     ast.increment_lineno(f_ast, start_lineno - 1)
 
-    #  Remove the ``@generator`` decorator to avoid recursive compilation
+    #  Remove the ``@generator`` decorator to avsid recursive compilation
     f_ast.decorator_list = [d for d in f_ast.decorator_list
                             if (not isinstance(d, ast.Name) or d.id != 'generator') and
                             (not isinstance(d, ast.Attribute) or d.attr != 'generator') and
@@ -103,11 +103,11 @@ def compile_func(func: Callable, strategy: Strategy,
             #  Rename the function call, and assign a new function to be called during execution.
             #  This new function is determined by the semantics (strategy) being used for compilation.
             #  Also determine if there any eligible hooks for this operator call.
-            op_kind = n.func.id
-            op_id = get_op_id(n)
-            new_op_name, op_id, op = strategy.process_op(op_kind, op_id)
-            op_pre_hooks = [x for x in [hook.create_hook(op_kind, op_id) for hook in pre_hooks] if x is not None]
-            op_post_hooks = [x for x in [hook.create_hook(op_kind, op_id) for hook in post_hooks] if x is not None]
+            kind = n.func.id
+            sid = get_sid(n)
+            new_op_name, sid, op = strategy.process_op(kind, sid)
+            op_pre_hooks = [x for x in [hook.create_hook(kind, sid) for hook in pre_hooks] if x is not None]
+            op_post_hooks = [x for x in [hook.create_hook(kind, sid) for hook in post_hooks] if x is not None]
 
             n.func.id = new_op_name
             ops[n.func.id] = compile_op(op, op_pre_hooks, op_post_hooks)

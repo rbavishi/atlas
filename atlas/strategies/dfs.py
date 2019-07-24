@@ -52,20 +52,20 @@ class DfsStrategy(Strategy):
     def is_finished(self):
         return self.last_unfinished == -1
 
-    def make_op(self, op_kind: str, op_id: str) -> Callable:
-        label = op_kind
-        if op_kind + "_" + op_id in dir(self):
-            label = op_kind + "_" + op_id
+    def make_op(self, kind: str, sid: str) -> Callable:
+        label = kind
+        if kind + "_" + sid in dir(self):
+            label = kind + "_" + sid
 
         handler = getattr(self, label)
 
-        def call(domain: Any, context: Any = None, oid=op_id, **kwargs):
+        def call(domain: Any, context: Any = None, sid=sid, **kwargs):
             t = self.call_id
             self.call_id += 1
 
             if t not in self.op_map:
                 try:
-                    op: PeekableGenerator = PeekableGenerator(handler(domain, context=context, oid=oid, **kwargs))
+                    op: PeekableGenerator = PeekableGenerator(handler(domain, context=context, sid=sid, **kwargs))
 
                 except StopIteration:
                     #  Operator received an empty domain
