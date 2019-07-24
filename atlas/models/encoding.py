@@ -1,2 +1,2 @@
-class OperatorEncoding:
+class OpEncoder:
     pass
