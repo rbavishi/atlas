@@ -41,8 +41,8 @@ class Strategy(ABC):
             self.op_cnt[op_name] += 1
             sid = str(self.op_cnt[op_name])
 
-        op_name: str = op_name + "_" + str(sid)
-        return op_name, sid, self.make_op(op_name, sid)
+        label: str = op_name + "_" + str(sid)
+        return label, sid, self.make_op(op_name, sid)
 
     @abstractmethod
     def make_op(self, op_name: str, sid: str) -> Callable:
