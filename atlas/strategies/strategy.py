@@ -3,6 +3,11 @@ from abc import abstractmethod, ABC
 from typing import Callable, Tuple, Dict, Any, Optional, Set
 
 
+def operator(func):
+    setattr(func, "_is_generator_op", True)
+    return func
+
+
 class Strategy(ABC):
     def __init__(self):
         self.op_cnt: Dict[str, int] = collections.defaultdict(int)
@@ -33,13 +38,8 @@ class Strategy(ABC):
             op_id = str(self.op_cnt[op_kind])
 
         op_name: str = op_kind + "_" + str(op_id)
-        return op_name, self.make_call(op_kind, op_id)
+        return op_name, self.make_op(op_kind, op_id)
 
     @abstractmethod
-    def make_call(self, op_kind: str, op_id: str) -> Callable:
+    def make_op(self, op_kind: str, op_id: str) -> Callable:
         pass
-
-    @staticmethod
-    def op_def(func):
-        setattr(func, "_is_generator_op", True)
-        return func

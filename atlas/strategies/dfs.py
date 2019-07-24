@@ -2,7 +2,7 @@ import itertools
 from typing import Dict, Any, Callable, Generator, Collection
 
 from atlas.exceptions import ExceptionAsContinue
-from atlas.strategies import Strategy, op_def
+from atlas.strategies import Strategy, operator
 
 
 class PeekableGenerator:
@@ -52,7 +52,7 @@ class DfsStrategy(Strategy):
     def is_finished(self):
         return self.last_unfinished == -1
 
-    def make_call(self, op_kind: str, op_id: str) -> Callable:
+    def make_op(self, op_kind: str, op_id: str) -> Callable:
         label = op_kind
         if op_kind + "_" + op_id in dir(self):
             label = op_kind + "_" + op_id
@@ -83,22 +83,22 @@ class DfsStrategy(Strategy):
 
         return call
 
-    @op_def
+    @operator
     def Select(self, domain: Any, context: Any = None, fixed_domain=False, **kwargs):
         yield from domain
 
-    @op_def
+    @operator
     def Subset(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
-                include_empty: bool = False, **kwargs):
+               include_empty: bool = False, **kwargs):
         if lengths is None:
             lengths = range(0 if include_empty else 1, len(domain) + 1)
 
         for l in lengths:
             yield from itertools.combinations(domain, l)
 
-    @op_def
+    @operator
     def OrderedSubset(self, domain: Any, context: Any = None,
-                       lengths: Collection[int] = None, include_empty: bool = False, **kwargs):
+                      lengths: Collection[int] = None, include_empty: bool = False, **kwargs):
 
         if lengths is None:
             lengths = range(0 if include_empty else 1, len(domain) + 1)
@@ -106,13 +106,13 @@ class DfsStrategy(Strategy):
         for l in lengths:
             yield from itertools.permutations(domain, l)
 
-    @op_def
+    @operator
     def Product(self, domain: Any, context: Any = None, **kwargs):
         yield from itertools.product(*domain)
 
-    @op_def
-    def Sequence(self, domain: Any, max_len: int = None, lengths: Collection[int] = None,
-                  context: Any = None, **kwargs):
+    @operator
+    def Sequence(self, domain: Any, context: Any = None, max_len: int = None,
+                 lengths: Collection[int] = None, **kwargs):
         if max_len is None and lengths is None:
             raise SyntaxError("Sequence requires the explicit keyword argument 'max_len' or 'lengths'")
 
