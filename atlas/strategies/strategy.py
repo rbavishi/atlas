@@ -8,10 +8,14 @@ def operator(func):
     return func
 
 
+def is_operator(func):
+    return getattr(func, "_is_generator_op", False)
+
+
 class Strategy(ABC):
     def __init__(self):
         self.op_cnt: Dict[str, int] = collections.defaultdict(int)
-        self.known_ops: Set[str] = {k for k in dir(self) if getattr(getattr(self, k), "_is_generator_op", False)}
+        self.known_ops: Set[str] = {k for k in dir(self) if is_operator(getattr(self, k))}
 
     def init(self):
         pass
