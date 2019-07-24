@@ -11,12 +11,12 @@ def is_hook(func):
 
 
 class Hook(ABC):
-    def resolve_handler(self, kind: str, sid: str):
-        return getattr(self, kind + "_" + sid,
-                       getattr(self, kind, None))
+    def resolve_handler(self, op_name: str, sid: str):
+        return getattr(self, op_name + "_" + sid,
+                       getattr(self, op_name, None))
 
-    def create_hook(self, kind: str, sid: str):
-        handler = self.resolve_handler(kind, sid)
+    def create_hook(self, op_name: str, sid: str):
+        handler = self.resolve_handler(op_name, sid)
 
         def hook_func(*args, **kwargs):
             kwargs['sid'] = sid

@@ -5,10 +5,10 @@ from atlas.strategies import Strategy, operator
 
 
 class RandStrategy(Strategy):
-    def make_op(self, kind: str, sid: str) -> Callable:
-        label = kind
-        if kind + "_" + sid in dir(self):
-            label = kind + "_" + sid
+    def make_op(self, op_name: str, sid: str) -> Callable:
+        label = op_name
+        if op_name + "_" + sid in dir(self):
+            label = op_name + "_" + sid
 
         return getattr(self, label)
 

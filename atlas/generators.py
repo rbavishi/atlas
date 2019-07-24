@@ -103,11 +103,11 @@ def compile_func(func: Callable, strategy: Strategy,
             #  Rename the function call, and assign a new function to be called during execution.
             #  This new function is determined by the semantics (strategy) being used for compilation.
             #  Also determine if there any eligible hooks for this operator call.
-            kind = n.func.id
+            op_name = n.func.id
             sid = get_sid(n)
-            new_op_name, sid, op = strategy.process_op(kind, sid)
-            op_pre_hooks = [x for x in [hook.create_hook(kind, sid) for hook in pre_hooks] if x is not None]
-            op_post_hooks = [x for x in [hook.create_hook(kind, sid) for hook in post_hooks] if x is not None]
+            new_op_name, sid, op = strategy.process_op(op_name, sid)
+            op_pre_hooks = [x for x in [hook.create_hook(op_name, sid) for hook in pre_hooks] if x is not None]
+            op_post_hooks = [x for x in [hook.create_hook(op_name, sid) for hook in post_hooks] if x is not None]
 
             n.func.id = new_op_name
             ops[n.func.id] = compile_op(op, op_pre_hooks, op_post_hooks)
