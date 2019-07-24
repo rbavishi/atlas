@@ -179,6 +179,17 @@ class Generator:
                 g.set_strategy(self.strategy, as_group=False)
 
     def register_hooks(self, *hooks: Hook, as_group: bool = True):
+        """
+        Register hooks for the generator. Hooks are functions that execute before (pre-hooks) or after (post-hooks)
+        every operator call. Hooks can contain operator-specific behavior (just like Strategies) enabling a myriad of
+        utilities such as tracing and debugging.
+
+        Args:
+            *hooks (Hook): The list of hooks to register
+            as_group (bool): Whether to set this strategy for all the generators in the group (if any).
+                ``True`` by default.
+
+        """
         self.pre_hooks.extend([h for h in hooks if isinstance(h, PreHook)])
         self.post_hooks.extend([h for h in hooks if isinstance(h, PostHook)])
         self._compiled_func = None
