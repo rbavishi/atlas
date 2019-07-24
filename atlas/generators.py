@@ -98,7 +98,7 @@ def compile_func(func: Callable, strategy: Strategy,
     known_ops: Set[str] = strategy.get_known_ops()
 
     ops = {}
-    for n in ast.walk(f_ast):
+    for n in astutils.preorder_traversal(f_ast):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
             #  Rename the function call, and assign a new function to be called during execution.
             #  This new function is determined by the semantics (strategy) being used for compilation.
