@@ -5,6 +5,7 @@ from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
 
 import astunparse
 
+from atlas.hooks import PreHook, PostHook, Hook
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
@@ -36,7 +37,26 @@ def make_strategy(strategy: Union[str, Strategy]) -> Strategy:
     raise Exception("Unrecognized strategy - {}".format(strategy))
 
 
-def compile_func(func: Callable, strategy: Strategy) -> Callable:
+def compile_op(op: Callable, pre_hooks: List[Callable], post_hooks: List[Callable]) -> Callable:
+    if len(pre_hooks) == 0 and len(post_hooks) == 0:
+        return op
+
+    def create_op(*args, **kwargs):
+        for f in pre_hooks:
+            f(*args, **kwargs)
+
+        result = op(*args, **kwargs)
+
+        for f in post_hooks:
+            f(*args, **kwargs, retval=result)
+
+        return result
+
+    return create_op
+
+
+def compile_func(func: Callable, strategy: Strategy,
+                 pre_hooks: List[PreHook] = None, post_hooks: List[PostHook] = None) -> Callable:
     """
     The compilation basically assigns functionality to each of the operator calls as
     governed by the semantics (strategy).
@@ -44,11 +64,20 @@ def compile_func(func: Callable, strategy: Strategy) -> Callable:
     Args:
         func (Callable): The function to compile
         strategy (Strategy): The strategy governing the behavior of the operators
+        pre_hooks (List[PreHook]): A list of hooks that need to be executed before an operator call
+        post_hooks (List[PostHook]): A list of hooks that need to be executed after an operator call.
+            These hooks also receive the return value of the operator call as a keyword argument 'retval'.
 
     Returns:
         The compiled function
 
     """
+
+    if pre_hooks is None:
+        pre_hooks = []
+    if post_hooks is None:
+        post_hooks = []
+
     source_code, start_lineno = inspect.getsourcelines(func)
     source_code = ''.join(source_code)
     f_ast = astutils.parse(textwrap.dedent(source_code))
@@ -73,11 +102,15 @@ def compile_func(func: Callable, strategy: Strategy) -> Callable:
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
             #  Rename the function call, and assign a new function to be called during execution.
             #  This new function is determined by the semantics (strategy) being used for compilation.
+            #  Also determine if there any eligible hooks for this operator call.
             op_kind = n.func.id
             op_id = get_op_id(n)
-            new_op_name, op = strategy.process_op(op_kind, op_id)
+            new_op_name, op_id, op = strategy.process_op(op_kind, op_id)
+            op_pre_hooks = [x for x in [hook.create_hook(op_kind, op_id) for hook in pre_hooks] if x is not None]
+            op_post_hooks = [x for x in [hook.create_hook(op_kind, op_id) for hook in post_hooks] if x is not None]
+
             n.func.id = new_op_name
-            ops[n.func.id] = op
+            ops[n.func.id] = compile_op(op, op_pre_hooks, op_post_hooks)
 
     g.update({k: v for k, v in ops.items()})
 
@@ -123,6 +156,8 @@ class Generator:
 
             register_group(self, group)
 
+        self.pre_hooks: List[PreHook] = []
+        self.post_hooks: List[PostHook] = []
         self.metadata = metadata
 
     def set_strategy(self, strategy: Union[str, Strategy], as_group: bool = True):
@@ -143,6 +178,15 @@ class Generator:
             for g in get_group_by_name(self.group):
                 g.set_strategy(self.strategy, as_group=False)
 
+    def register_hooks(self, *hooks: Hook, as_group: bool = True):
+        self.pre_hooks.extend([h for h in hooks if isinstance(h, PreHook)])
+        self.post_hooks.extend([h for h in hooks if isinstance(h, PostHook)])
+        self._compiled_func = None
+
+        if as_group and self.group is not None:
+            for g in get_group_by_name(self.group):
+                g.register_hooks(*hooks, as_group=False)
+
     def __call__(self, *args, **kwargs):
         """Functions with an ``@generator`` annotation can be called as any regular function as a result of this method.
         In case of deterministic strategies such as DFS, this will return first possible value. For model-backed
@@ -154,7 +198,7 @@ class Generator:
             **kwargs: Keyword arguments to the original function
         """
         if self._compiled_func is None:
-            self._compiled_func = compile_func(self.func, self.strategy)
+            self._compiled_func = compile_func(self.func, self.strategy, self.pre_hooks, self.post_hooks)
 
         return self._compiled_func(*args, **kwargs)
 
@@ -172,7 +216,7 @@ class Generator:
 
         """
         if self._compiled_func is None:
-            self._compiled_func = compile_func(self.func, self.strategy)
+            self._compiled_func = compile_func(self.func, self.strategy, self.pre_hooks, self.post_hooks)
 
         self.strategy.init()
         while not self.strategy.is_finished():
