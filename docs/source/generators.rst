@@ -13,4 +13,4 @@ Running/Manipulating Generators
 -------------------------------
 
 .. autoclass:: Generator
-   :members: __call__, generate, set_strategy
+   :members: set_strategy, register_hooks, __call__, generate, train
