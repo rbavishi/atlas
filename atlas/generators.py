@@ -233,8 +233,14 @@ class Generator:
         if self._compiled_func is None:
             self._compiled_func = compile_func(self.func, self.strategy, self.hooks)
 
+        for h in self.hooks:
+            h.init()
+
         self.strategy.init()
         while not self.strategy.is_finished():
+            for h in self.hooks:
+                h.init_run()
+
             self.strategy.init_run()
             try:
                 yield self._compiled_func(*args, **kwargs)
@@ -244,7 +250,13 @@ class Generator:
 
             self.strategy.finish_run()
 
+            for h in self.hooks:
+                h.finish_run()
+
         self.strategy.finish()
+
+        for h in self.hooks:
+            h.finish()
 
     def train(self, data, model: OpModel):
         """
