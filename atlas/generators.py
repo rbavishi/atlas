@@ -6,7 +6,7 @@ from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
 import astunparse
 
 from atlas.hooks import PreHook, PostHook, Hook
-from atlas.models.model import OperatorModel
+from atlas.models.model import OpModel
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
@@ -255,7 +255,7 @@ class Generator:
 
         self.strategy.finish()
 
-    def train(self, data, model: OperatorModel):
+    def train(self, data, model: OpModel):
         """
         The entry point for training a generator to bias certain execution paths based on the
         input and an end objective. This method intends to cover the class of imitation/supervised
@@ -263,7 +263,7 @@ class Generator:
 
         Args:
             data: The data to train the generator on (usually traces of generator executions)
-            model (OperatorModel): The model (operator-based) used to guide generator execution
+            model (OpModel): The model (operator-based) used to guide generator execution
 
         """
         pass
