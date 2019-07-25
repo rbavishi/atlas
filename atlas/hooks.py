@@ -5,7 +5,7 @@ class Hook(ABC):
     def init(self, f_args, f_kwargs, **kwargs):
         pass
 
-    def init_run(self):
+    def init_run(self, f_args, f_kwargs, **kwargs):
         pass
 
     def finish_run(self):

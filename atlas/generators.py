@@ -8,6 +8,7 @@ import astunparse
 from atlas.hooks import Hook
 from atlas.models.model import OpModel
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
+from atlas.tracing import DefaultTracer
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 from atlas.utils.inspection import getclosurevars_recursive
@@ -185,9 +186,7 @@ class Generator:
 
     def register_hooks(self, *hooks: Hook, as_group: bool = True):
         """
-        Register hooks for the generator. Hooks are functions that execute before (pre-hooks) or after (post-hooks)
-        every operator call. Hooks can contain operator-specific behavior (just like Strategies) enabling a myriad of
-        utilities such as tracing and debugging.
+        Register hooks for the generator.
 
         Args:
             *hooks (Hook): The list of hooks to register
@@ -201,6 +200,26 @@ class Generator:
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
                 g.register_hooks(*hooks, as_group=False)
+
+    def deregister_hook(self, hook: Hook, as_group: bool = True):
+        """
+        De-register hook for the generator.
+
+        Args:
+            hook (Hook): The list of hooks to register
+            as_group (bool): Whether to set this strategy for all the generators in the group (if any).
+                ``True`` by default.
+
+        """
+        if all(i is not hook for i in self.hooks):
+            raise ValueError("Hook was not registered.")
+
+        self.hooks.remove(hook)
+        self._compiled_func = None
+
+        if as_group and self.group is not None:
+            for g in get_group_by_name(self.group):
+                g.deregister_hook(hook, as_group=False)
 
     def __call__(self, *args, **kwargs):
         """Functions with an ``@generator`` annotation can be called as any regular function as a result of this method.
@@ -239,7 +258,7 @@ class Generator:
         self.strategy.init()
         while not self.strategy.is_finished():
             for h in self.hooks:
-                h.init_run()
+                h.init_run(args, kwargs)
 
             self.strategy.init_run()
             try:
@@ -257,6 +276,28 @@ class Generator:
 
         for h in self.hooks:
             h.finish()
+
+    def trace(self, *args, **kwargs):
+        """
+        This method returns an iterator for the result of all possible executions (all possible combinations of
+        operator choices) of the generator function for the given input i.e. ``(*args, **kwargs)`` along with a trace
+        of the choices made by the operators to produce those outputs.
+
+        Args:
+            *args: Positional arguments to the original function
+            **kwargs: Keyword arguments to the original function
+
+        Returns:
+            An iterator for all the possible values along with a trace that can be returned by the generator function.
+
+        """
+
+        tracer = DefaultTracer()
+        self.register_hooks(tracer)
+        for val in self.generate(*args, **kwargs):
+            yield val, tracer.get_last_trace()
+
+        self.deregister_hook(tracer)
 
     def train(self, data, model: OpModel):
         """
