@@ -1,5 +1,5 @@
 import itertools
-from typing import Dict, Any, Callable, Generator, Collection
+from typing import Dict, Any, Callable, Generator, Collection, Optional
 
 from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import Strategy, operator
@@ -52,14 +52,14 @@ class DfsStrategy(Strategy):
     def is_finished(self):
         return self.last_unfinished == -1
 
-    def make_op(self, op_name: str, sid: str) -> Callable:
+    def make_op(self, op_name: str, sid: str, oid: Optional[str]) -> Callable:
         label = op_name
-        if op_name + "_" + sid in dir(self):
-            label = op_name + "_" + sid
+        if oid is not None and op_name + "_" + oid in dir(self):
+            label = op_name + "_" + oid
 
         handler = getattr(self, label)
 
-        def call(domain: Any, context: Any = None, sid=sid, **kwargs):
+        def call(domain: Any, context: Any = None, **kwargs):
             t = self.call_id
             self.call_id += 1
 

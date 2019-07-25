@@ -36,14 +36,17 @@ class Strategy(ABC):
     def get_known_ops(self):
         return self.known_ops
 
-    def process_op(self, op_name: str, sid: Optional[str] = None) -> Tuple[str, str, Callable]:
-        if sid is None:
+    def process_op(self, op_name: str, oid: Optional[str] = None) -> Tuple[str, str, Callable]:
+        if oid is None:
             self.op_cnt[op_name] += 1
             sid = str(self.op_cnt[op_name])
 
+        else:
+            sid = oid
+
         label: str = op_name + "_" + str(sid)
-        return label, sid, self.make_op(op_name, sid)
+        return label, sid, self.make_op(op_name, sid, oid)
 
     @abstractmethod
-    def make_op(self, op_name: str, sid: str) -> Callable:
+    def make_op(self, op_name: str, sid: str, oid: Optional[str]) -> Callable:
         pass

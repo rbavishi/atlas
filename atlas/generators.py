@@ -14,11 +14,11 @@ from atlas.utils.inspection import getclosurevars_recursive
 from atlas.exceptions import ExceptionAsContinue
 
 
-def get_sid(n_call: ast.Call) -> Optional[str]:
+def get_user_oid(n_call: ast.Call) -> Optional[str]:
     for kw in n_call.keywords:
-        if kw.arg == 'sid':
+        if kw.arg == 'oid':
             if not isinstance(kw.value, ast.Str):
-                raise Exception("Value passed to 'sid' must be a string in {}".format(astunparse.unparse(n_call)))
+                raise Exception("Value passed to 'oid' must be a string in {}".format(astunparse.unparse(n_call)))
 
             return kw.value.s
 
@@ -117,8 +117,8 @@ def compile_func(func: Callable, strategy: Strategy,
             #  This new function is determined by the semantics (strategy) being used for compilation.
             #  Also determine if there any eligible hooks for this operator call.
             op_name = n.func.id
-            sid = get_sid(n)
-            new_op_name, sid, op = strategy.process_op(op_name, sid)
+            oid = get_user_oid(n)
+            new_op_name, sid, op = strategy.process_op(op_name, oid)
             op_pre_hooks = [x for x in [hook.create_hook(op_name, sid) for hook in pre_hooks] if x is not None]
             op_post_hooks = [x for x in [hook.create_hook(op_name, sid) for hook in post_hooks] if x is not None]
 
