@@ -2,7 +2,7 @@ from abc import ABC
 
 
 class Hook(ABC):
-    def init(self):
+    def init(self, f_args, f_kwargs, **kwargs):
         pass
 
     def init_run(self):

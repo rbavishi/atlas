@@ -234,7 +234,7 @@ class Generator:
             self._compiled_func = compile_func(self.func, self.strategy, self.hooks)
 
         for h in self.hooks:
-            h.init()
+            h.init(args, kwargs)
 
         self.strategy.init()
         while not self.strategy.is_finished():
