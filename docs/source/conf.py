@@ -57,6 +57,7 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 add_module_names = False
+autodoc_member_order = 'bysource'
 
 # Pygments style to use for synax highlighting
 pygments_style = 'sphinx'
