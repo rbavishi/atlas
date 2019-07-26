@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from atlas.models.graphs.tensorflow.network import NetworkComponent
+from atlas.models.tensorflow.graphs.network import NetworkComponent
 
 
 class GGNNOptimizer(NetworkComponent):

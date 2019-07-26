@@ -2,8 +2,8 @@ import tensorflow as tf
 import numpy as np
 from typing import List, Dict, Tuple
 
-from atlas.models.graphs.tensorflow.network import NetworkComponent
-from atlas.models.graphs.tensorflow.utils import SegmentBasedAttention
+from atlas.models.tensorflow.graphs.network import NetworkComponent
+from atlas.models.tensorflow.graphs.utils import SegmentBasedAttention
 
 
 class GGNNPropagator(NetworkComponent):

@@ -8,8 +8,8 @@ import tensorflow as tf
 import numpy as np
 from typing import List, Any, Dict
 
-from atlas.models.graphs.tensorflow.network import NetworkComponent
-from atlas.models.graphs.tensorflow.utils import MLP
+from atlas.models.tensorflow.graphs.network import NetworkComponent
+from atlas.models.tensorflow.graphs.utils import MLP
 
 
 class GGNNGraphClassifier(NetworkComponent):

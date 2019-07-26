@@ -1,11 +1,9 @@
 from typing import List, Dict, Any, Mapping
 
-import tensorflow as tf
-
-from atlas.models.graphs.tensorflow.classifiers import GGNNGraphClassifier
-from atlas.models.graphs.tensorflow.network import Network
-from atlas.models.graphs.tensorflow.optimizers import GGNNOptimizer
-from atlas.models.graphs.tensorflow.propagators import GGNNPropagator
+from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier
+from atlas.models.tensorflow.graphs.network import Network
+from atlas.models.tensorflow.graphs.optimizers import GGNNOptimizer
+from atlas.models.tensorflow.graphs.propagators import GGNNPropagator
 
 
 class GGNN(Network):
