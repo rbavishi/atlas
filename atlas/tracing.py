@@ -4,7 +4,9 @@ from atlas.hooks import Hook
 
 
 class OpTrace:
-    def __init__(self, choice, domain, context, **kwargs):
+    def __init__(self, op_name: str, sid: str, choice, domain, context, **kwargs):
+        self.op_name = op_name
+        self.sid = sid
         self.choice = choice
         self.domain = domain
         self.context = context
@@ -29,7 +31,7 @@ class DefaultTracer(Hook):
         self.cur_trace = GeneratorTrace((f_args, f_kwargs))
 
     def after_op(self, domain, context=None, retval=None, op_name: str = None, sid: str = None, **kwargs):
-        op_trace = OpTrace(retval, domain, context)
+        op_trace = OpTrace(op_name, sid, choice=retval, domain=domain, context=context)
         self.cur_trace.record_op_trace(op_trace)
 
     def get_last_trace(self):
