@@ -19,7 +19,7 @@ def get_user_oid(n_call: ast.Call) -> Optional[str]:
     for kw in n_call.keywords:
         if kw.arg == 'oid':
             if not isinstance(kw.value, ast.Str):
-                raise Exception("Value passed to 'oid' must be a string in {}".format(astunparse.unparse(n_call)))
+                raise Exception(f"Value passed to 'oid' must be a string in {astunparse.unparse(n_call)}")
 
             return kw.value.s
 
@@ -36,7 +36,7 @@ def make_strategy(strategy: Union[str, Strategy]) -> Strategy:
     elif strategy == 'dfs':
         return DfsStrategy()
 
-    raise Exception("Unrecognized strategy - {}".format(strategy))
+    raise Exception(f"Unrecognized strategy - {strategy}")
 
 
 def compile_op(op_name: str, sid: str, op: Callable, hooks: List[Hook]) -> Callable:
@@ -363,8 +363,8 @@ def generator(*args, **kwargs) -> Generator:
             to carry around in the generator object.
     """
     allowed_kwargs = {'strategy', 'name', 'group', 'metadata'}
-    error_str = "The @generator decorator should be applied either with no parentheses or " \
-                "at least one of the following keyword args - {}.".format(', '.join(allowed_kwargs))
+    error_str = f"The @generator decorator should be applied either with no parentheses or " \
+                f"at least one of the following keyword args - {', '.join(allowed_kwargs)}."
     assert (len(args) == 1 and len(kwargs) == 0 and callable(args[0])) or \
            (len(args) == 0 and len(kwargs) > 0 and set(kwargs.keys()).issubset(allowed_kwargs)), error_str
 

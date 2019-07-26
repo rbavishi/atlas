@@ -17,13 +17,13 @@ def register_group(gen: 'Generator', group: str):
 
 def get_generator_by_name(name: str) -> 'Generator':
     if name not in registered_generators:
-        raise KeyError("Could not find generator with name {}".format(name))
+        raise KeyError(f"Could not find generator with name {name}")
 
     return registered_generators[name]
 
 
 def get_group_by_name(group: str) -> List['Generator']:
     if group not in registered_groups:
-        raise KeyError("Could not find generator group with name {}".format(group))
+        raise KeyError(f"Could not find generator group with name {group}")
 
     return registered_groups[group]

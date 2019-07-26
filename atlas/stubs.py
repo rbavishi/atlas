@@ -1,6 +1,6 @@
 def raise_unrecognized(op_name):
-    raise Exception("This call to {op_name} was not recognized by Atlas. "
-                    "Please make sure you are not using aliases.".format(op_name=op_name))
+    raise Exception(f"This call to {op_name} was not recognized by Atlas. "
+                    f"Please make sure you are not using aliases.")
 
 
 def Select(*args, **kwargs):
