@@ -15,6 +15,7 @@ def is_operator(func):
 class Strategy(ABC):
     def __init__(self):
         self.op_cnt: Dict[str, int] = collections.defaultdict(int)
+        self.sid_cnt: Dict[str, int] = collections.defaultdict(int)
         self.known_ops: Set[str] = {k for k in dir(self) if is_operator(getattr(self, k))}
 
     def init(self):
@@ -42,7 +43,8 @@ class Strategy(ABC):
             sid = str(self.op_cnt[op_name])
 
         else:
-            sid = oid
+            self.sid_cnt[oid] += 1
+            sid = f'{oid}_{self.sid_cnt[oid]}'
 
         label: str = op_name + "_" + str(sid)
         return label, sid, self.make_op(op_name, sid, oid)
