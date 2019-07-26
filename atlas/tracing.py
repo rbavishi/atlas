@@ -1,3 +1,4 @@
+import textwrap
 from typing import List, Optional
 
 from atlas.hooks import Hook
@@ -13,6 +14,16 @@ class OpTrace:
 
         self.kwargs = kwargs
 
+    def __repr__(self):
+        return textwrap.dedent(f"""
+        OpTrace(op_name={self.op_name!r},
+                sid={self.sid!r},
+                choice={self.choice!r},
+                domain={self.domain!r},
+                context={self.context!r},
+                **{self.kwargs!r}
+               )""")
+
 
 class GeneratorTrace:
     def __init__(self, f_inputs=None):
@@ -21,6 +32,9 @@ class GeneratorTrace:
 
     def record_op_trace(self, op_trace: OpTrace):
         self.op_trace.append(op_trace)
+
+    def __repr__(self):
+        return repr(self.op_trace)
 
 
 class DefaultTracer(Hook):
