@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from atlas.models.encoding import OpEncoder
+from atlas.synthesis.pandas.checker import Checker
 
 
 class NodeFeatures(Enum):
@@ -338,7 +339,6 @@ class ValueCollection:
                     try:
                         #  This can fail for NaNs etc.
                         if val1 == val2:
-                            print("Adding")
                             for n1, n2 in itertools.product(nodes1, nodes2):
                                 self.edges.append(GraphEdge(n1, n2, EdgeTypes.EQUALITY))
                                 self.edges.append(GraphEdge(n2, n1, EdgeTypes.EQUALITY))
@@ -370,7 +370,6 @@ class ValueCollection:
 
 class PandasGraphEncoder(OpEncoder):
     def encode_value(self, label: str, val: Any) -> ValueEncoding:
-        print(EdgeTypes.EQUALITY.value)
         if np.isscalar(val) or val is None:
             return ScalarEncoding(label, val)
 
@@ -379,7 +378,7 @@ class PandasGraphEncoder(OpEncoder):
 
         raise TypeError(f"Cannot encode value {val} of type {type(val)} ")
 
-    def Select(self, domain, context=None, **kwargs):
+    def Select(self, domain, context=None, choice=None, mode='training', **kwargs):
         #  We expect domain to be a list of values
         #  We expect context to be a dictionary with keys as labels and values as the raw values
         #  For example {'I0': Input DataFrame, 'O': Output DataFrame}
@@ -401,5 +400,12 @@ class PandasGraphEncoder(OpEncoder):
         encoding, node_to_int = val_collection.to_dict()
         encoding['domain'] = [node_to_int[v.get_representor_node()]
                               for v in encoded_domain.values()]
+        if mode == 'training':
+            for k, v in encoded_domain.items():
+                if Checker.check(v.val, choice):
+                    encoding['choice'] = node_to_int[v.get_representor_node()]
+                    break
+            else:
+                raise ValueError(f"Passed choice {choice} could not be found in domain {domain}")
 
         return encoding
