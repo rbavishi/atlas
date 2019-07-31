@@ -182,7 +182,8 @@ class Generator:
 
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
-                g.set_strategy(self.strategy, as_group=False)
+                if g is not self:
+                    g.set_strategy(self.strategy, as_group=False)
 
     def register_hooks(self, *hooks: Hook, as_group: bool = True):
         """
@@ -199,7 +200,8 @@ class Generator:
 
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
-                g.register_hooks(*hooks, as_group=False)
+                if g is not self:
+                    g.register_hooks(*hooks, as_group=False)
 
     def deregister_hook(self, hook: Hook, as_group: bool = True):
         """
@@ -219,7 +221,8 @@ class Generator:
 
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
-                g.deregister_hook(hook, as_group=False)
+                if g is not self:
+                    g.deregister_hook(hook, as_group=False)
 
     def __call__(self, *args, **kwargs):
         """Functions with an ``@generator`` annotation can be called as any regular function as a result of this method.
