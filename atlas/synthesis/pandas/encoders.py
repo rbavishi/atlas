@@ -1,11 +1,15 @@
 import collections
 import itertools
+import logging
+import sys
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Any, Set, List, Dict
+from typing import Any, Set, List, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+from atlas.models.encoding import OpEncoder
 
 
 class NodeFeatures(Enum):
@@ -101,10 +105,6 @@ class GraphEdge:
 
 
 class ValueEncoding(ABC):
-    EQUALITY_EDGES = True
-    SUBSTR_EDGES = True
-    SUPSTR_EDGES = True
-
     def __init__(self, label: str, val: Any):
         self.label = label
         self.val = val
@@ -116,6 +116,11 @@ class ValueEncoding(ABC):
     @abstractmethod
     def build(self):
         pass
+
+    @abstractmethod
+    def get_representor_node(self):
+        pass
+
 
 
 class ScalarEncoding(ValueEncoding):
@@ -132,6 +137,9 @@ class ScalarEncoding(ValueEncoding):
         self.nodes.append(GraphNode(self.label, self.features))
         self.val_node_map[self.val].append(self.nodes[-1])
 
+    def get_representor_node(self):
+        return self.nodes[-1]
+
 
 class DataFrameEncoding(ValueEncoding):
     CELL_NODES = True
@@ -139,7 +147,6 @@ class DataFrameEncoding(ValueEncoding):
     COLUMN_NODES = True
     INDEX_NAME_NODES = False
     COLUMN_NAME_NODES = False
-    REPRESENTOR_NODE = True
 
     INNER_EQUALITY_EDGES = True
     ADJACENCY_EDGES = True
@@ -158,6 +165,7 @@ class DataFrameEncoding(ValueEncoding):
         self.cell_nodes: List[List[GraphNode]] = []  # Row-major
         self.index_name_nodes: List[GraphNode] = []  # Shape : num_levels (highest level first)
         self.column_name_nodes: List[GraphNode] = []  # Shape : num_levels (highest level first)
+        self.representor_node: Optional[GraphNode] = None
 
         self.build()
 
@@ -257,13 +265,13 @@ class DataFrameEncoding(ValueEncoding):
             for index_nodes, cell_nodes in zip(self.index_nodes, self.cell_nodes):
                 for n1, n2 in itertools.product(index_nodes, cell_nodes):
                     self.create_edge(n1, n2, EdgeTypes.INDEX)
-                    self.create_edge(n2, n1, EdgeTypes.INDEXED_FOR)
+                    self.create_edge(n2, n1, EdgeTypes.INDEX_FOR)
 
         if self.COLUMN_EDGES:
             for col_nodes, cell_nodes in zip(self.column_nodes, np.transpose(self.cell_nodes)):
                 for n1, n2 in itertools.product(col_nodes, cell_nodes):
                     self.create_edge(n1, n2, EdgeTypes.INDEX)
-                    self.create_edge(n2, n1, EdgeTypes.INDEXED_FOR)
+                    self.create_edge(n2, n1, EdgeTypes.INDEX_FOR)
 
         if self.INDEX_NAME_EDGES:
             for index_name_node, index_nodes in zip(self.index_name_nodes, np.transpose(self.index_nodes)):
@@ -303,3 +311,95 @@ class DataFrameEncoding(ValueEncoding):
     def build(self):
         self.add_nodes()
         self.add_internal_edges()
+        self.representor_node = GraphNode(self.label, {NodeRoles.REPRESENTOR})
+        self.nodes.append(self.representor_node)
+
+    def get_representor_node(self):
+        return self.representor_node
+
+
+class ValueCollection:
+    EQUALITY_EDGES = True
+    SUBSTR_EDGES = True
+    SUPSTR_EDGES = True
+
+    def __init__(self):
+        self.nodes: List[GraphNode] = []
+        self.edges: List[GraphEdge] = []
+
+        self.value_encodings: List[ValueEncoding] = []
+
+    def add_external_edges(self, v1: ValueEncoding, v2: ValueEncoding):
+        if self.EQUALITY_EDGES:
+            for val1, nodes1 in v1.val_node_map.items():
+                if val1 in v2.val_node_map:
+                    val2 = val1
+                    nodes2 = v2.val_node_map[val2]
+                    try:
+                        #  This can fail for NaNs etc.
+                        if val1 == val2:
+                            print("Adding")
+                            for n1, n2 in itertools.product(nodes1, nodes2):
+                                self.edges.append(GraphEdge(n1, n2, EdgeTypes.EQUALITY))
+                                self.edges.append(GraphEdge(n2, n1, EdgeTypes.EQUALITY))
+
+                    except Exception as e:
+                        print(f"Error comparing {val1} and {val2}", file=sys.stderr)
+                        logging.exception(e)
+
+        if self.SUBSTR_EDGES or self.SUPSTR_EDGES:
+            pass
+
+    def add_value_encoding(self, val_encoding: ValueEncoding):
+        for v in self.value_encodings:
+            self.add_external_edges(v, val_encoding)
+
+        self.nodes.extend(val_encoding.nodes)
+        self.edges.extend(val_encoding.edges)
+        self.value_encodings.append(val_encoding)
+
+    def to_dict(self) -> Tuple[Dict, Dict[GraphNode, int]]:
+        node_to_int: Dict[GraphNode, int] = {n: idx for idx, n in enumerate(self.nodes)}
+        nodes = [[f.value for f in n.features] for n in self.nodes]
+        edges = [[node_to_int[e.src],
+                  e.etype.value,
+                  node_to_int[e.dst]] for e in self.edges]
+
+        return {'edges': edges, 'nodes': nodes}, node_to_int
+
+
+class PandasGraphEncoder(OpEncoder):
+    def encode_value(self, label: str, val: Any) -> ValueEncoding:
+        print(EdgeTypes.EQUALITY.value)
+        if np.isscalar(val) or val is None:
+            return ScalarEncoding(label, val)
+
+        if isinstance(val, pd.DataFrame):
+            return DataFrameEncoding(label, val)
+
+        raise TypeError(f"Cannot encode value {val} of type {type(val)} ")
+
+    def Select(self, domain, context=None, **kwargs):
+        #  We expect domain to be a list of values
+        #  We expect context to be a dictionary with keys as labels and values as the raw values
+        #  For example {'I0': Input DataFrame, 'O': Output DataFrame}
+        if context is None:
+            context = {}
+
+        encoded_domain: Dict[str, ValueEncoding] = {f"D{idx}": self.encode_value(f"D{idx}", v)
+                                                    for idx, v in enumerate(domain)}
+        encoded_context: Dict[str, ValueEncoding] = {k: self.encode_value(k, v) for k, v in context.items()}
+
+        val_collection: ValueCollection = ValueCollection()
+        for k, v in encoded_domain.items():
+            v.build()
+            val_collection.add_value_encoding(v)
+        for k, v in encoded_context.items():
+            v.build()
+            val_collection.add_value_encoding(v)
+
+        encoding, node_to_int = val_collection.to_dict()
+        encoding['domain'] = [node_to_int[v.get_representor_node()]
+                              for v in encoded_domain.values()]
+
+        return encoding
