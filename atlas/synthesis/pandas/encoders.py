@@ -1,4 +1,5 @@
 import collections
+import itertools
 from abc import ABC, abstractmethod
 from enum import Enum, auto
 from typing import Any, Set, List, Dict
@@ -66,7 +67,7 @@ class NodeRoles(NodeFeatures):
     COLUMN_NAME = auto()
 
 
-class EdgeFeatures(Enum):
+class EdgeTypes(Enum):
     #  Naming Convention : Name of edge describes the role of src for dst
 
     ADJ_LEFT = auto()
@@ -74,6 +75,7 @@ class EdgeFeatures(Enum):
     ADJ_ABOVE = auto()
     ADJ_BELOW = auto()
     EQUALITY = auto()
+    INNER_EQUALITY = auto()
 
     INDEX = auto()  # From index to cell
     INDEX_FOR = auto()  # From cell to index
@@ -92,14 +94,16 @@ class GraphNode:
 
 
 class GraphEdge:
-    def __init__(self, src: GraphNode, dst: GraphNode, feature: EdgeFeatures):
+    def __init__(self, src: GraphNode, dst: GraphNode, etype: EdgeTypes):
         self.src = src
         self.dst = dst
-        self.feature = feature
+        self.etype = etype
 
 
 class ValueEncoding(ABC):
     EQUALITY_EDGES = True
+    SUBSTR_EDGES = True
+    SUPSTR_EDGES = True
 
     def __init__(self, label: str, val: Any):
         self.label = label
@@ -135,17 +139,14 @@ class DataFrameEncoding(ValueEncoding):
     COLUMN_NODES = True
     INDEX_NAME_NODES = False
     COLUMN_NAME_NODES = False
+    REPRESENTOR_NODE = True
 
     INNER_EQUALITY_EDGES = True
     ADJACENCY_EDGES = True
     INDEX_EDGES = True
     COLUMN_EDGES = True
-    SUBSTR_EDGES = True
-    SUPSTR_EDGES = True
     INDEX_NAME_EDGES = False
     COLUMN_NAME_EDGES = False
-
-    REPRESENTOR_NODE = True
     REPRESENTOR_EDGES = True
 
     def __init__(self, label: str, df: pd.DataFrame):
@@ -165,6 +166,9 @@ class DataFrameEncoding(ValueEncoding):
         self.nodes.append(node)
         self.val_node_map[value].append(node)
         return node
+
+    def create_edge(self, src: GraphNode, dst: GraphNode, etype: EdgeTypes):
+        self.edges.append(GraphEdge(src, dst, etype))
 
     def get_index_node(self, val, level: int, idx: int, num_levels: int):
         label = '[{},{}]'.format(idx, level - num_levels)
@@ -249,7 +253,52 @@ class DataFrameEncoding(ValueEncoding):
                 self.column_name_nodes.append(node)
 
     def add_internal_edges(self):
-        pass
+        if self.INDEX_EDGES:
+            for index_nodes, cell_nodes in zip(self.index_nodes, self.cell_nodes):
+                for n1, n2 in itertools.product(index_nodes, cell_nodes):
+                    self.create_edge(n1, n2, EdgeTypes.INDEX)
+                    self.create_edge(n2, n1, EdgeTypes.INDEXED_FOR)
+
+        if self.COLUMN_EDGES:
+            for col_nodes, cell_nodes in zip(self.column_nodes, np.transpose(self.cell_nodes)):
+                for n1, n2 in itertools.product(col_nodes, cell_nodes):
+                    self.create_edge(n1, n2, EdgeTypes.INDEX)
+                    self.create_edge(n2, n1, EdgeTypes.INDEXED_FOR)
+
+        if self.INDEX_NAME_EDGES:
+            for index_name_node, index_nodes in zip(self.index_name_nodes, np.transpose(self.index_nodes)):
+                for n in index_nodes:
+                    self.create_edge(index_name_node, n, EdgeTypes.INDEX_NAME)
+                    self.create_edge(n, index_name_node, EdgeTypes.INDEX_NAME_FOR)
+
+        if self.COLUMN_NAME_EDGES:
+            for col_name_node, col_nodes in zip(self.column_name_nodes, np.transpose(self.column_nodes)):
+                for n in col_nodes:
+                    self.create_edge(col_name_node, n, EdgeTypes.INDEX_NAME)
+                    self.create_edge(n, col_name_node, EdgeTypes.INDEX_NAME_FOR)
+
+        if self.ADJACENCY_EDGES:
+            def adjacency_to_the_right(vals):
+                for row_vals in vals:
+                    for n1, n2 in zip(row_vals, row_vals[1:]):
+                        self.create_edge(n1, n2, EdgeTypes.ADJ_RIGHT)
+                        self.create_edge(n2, n1, EdgeTypes.ADJ_LEFT)
+
+            def adjacency_below(vals):
+                for col_vals in np.transpose(vals):
+                    for n1, n2 in zip(col_vals, col_vals[1:]):
+                        self.create_edge(n1, n2, EdgeTypes.ADJ_BELOW)
+                        self.create_edge(n2, n1, EdgeTypes.ADJ_ABOVE)
+
+            for node_set in [self.index_nodes, np.transpose(self.column_nodes), self.cell_nodes]:
+                adjacency_to_the_right(node_set)
+                adjacency_below(node_set)
+
+        if self.INNER_EQUALITY_EDGES:
+            for val, nodes in self.val_node_map.items():
+                for n1, n2 in itertools.combinations(nodes, 2):
+                    self.create_edge(n1, n2, EdgeTypes.INNER_EQUALITY)
+                    self.create_edge(n2, n1, EdgeTypes.INNER_EQUALITY)
 
     def build(self):
         self.add_nodes()
