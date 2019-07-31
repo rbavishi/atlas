@@ -52,7 +52,7 @@ class DfsStrategy(Strategy):
     def is_finished(self):
         return self.last_unfinished == -1
 
-    def make_op(self, op_name: str, sid: str, oid: Optional[str]) -> Callable:
+    def make_op(self, gen: 'Generator', op_name: str, sid: str, oid: Optional[str]) -> Callable:
         label = op_name
         if oid is not None and op_name + "_" + oid in dir(self):
             label = op_name + "_" + oid

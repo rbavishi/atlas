@@ -70,12 +70,13 @@ def compile_op(op_name: str, sid: str, op: Callable, hooks: List[Hook]) -> Calla
     return create_op
 
 
-def compile_func(func: Callable, strategy: Strategy, hooks: List[Hook] = None) -> Callable:
+def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: List[Hook] = None) -> Callable:
     """
     The compilation basically assigns functionality to each of the operator calls as
     governed by the semantics (strategy).
 
     Args:
+        gen (Generator): The generator object containing the function to compile
         func (Callable): The function to compile
         strategy (Strategy): The strategy governing the behavior of the operators
         hooks (List[Hook]): A list of hooks to be installed in the generator
@@ -115,7 +116,7 @@ def compile_func(func: Callable, strategy: Strategy, hooks: List[Hook] = None) -
             #  Also determine if there any eligible hooks for this operator call.
             op_name = n.func.id
             oid = get_user_oid(n)
-            new_op_name, sid, op = strategy.process_op(op_name, oid)
+            new_op_name, sid, op = strategy.process_op(gen, op_name, oid)
             n.func.id = new_op_name
             ops[n.func.id] = compile_op(op_name, sid, op, hooks)
 
@@ -235,7 +236,7 @@ class Generator:
             **kwargs: Keyword arguments to the original function
         """
         if self._compiled_func is None:
-            self._compiled_func = compile_func(self.func, self.strategy, self.hooks)
+            self._compiled_func = compile_func(self, self.func, self.strategy, self.hooks)
 
         return self._compiled_func(*args, **kwargs)
 
@@ -253,7 +254,7 @@ class Generator:
 
         """
         if self._compiled_func is None:
-            self._compiled_func = compile_func(self.func, self.strategy, self.hooks)
+            self._compiled_func = compile_func(self, self.func, self.strategy, self.hooks)
 
         for h in self.hooks:
             h.init(args, kwargs)
