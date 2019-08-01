@@ -149,7 +149,7 @@ class Generator:
         self.strategy: Strategy = make_strategy(strategy)
         self._compiled_func: Optional[Callable] = None
 
-        self.name = name
+        self.name = name or func.__name__
         if name is not None:
             register_generator(self, name)
 
