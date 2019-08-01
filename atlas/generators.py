@@ -1,17 +1,18 @@
 import ast
 import inspect
 import textwrap
-from typing import Callable, Set, Optional, Union, Dict, List, Any
+from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
 
 import astunparse
 
-from atlas.exceptions import ExceptionAsContinue
 from atlas.hooks import Hook
+from atlas.models.model import OpModel
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
 from atlas.tracing import DefaultTracer
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 from atlas.utils.inspection import getclosurevars_recursive
+from atlas.exceptions import ExceptionAsContinue
 
 
 def get_user_oid(n_call: ast.Call) -> Optional[str]:
@@ -302,6 +303,19 @@ class Generator:
             yield val, tracer.get_last_trace()
 
         self.deregister_hook(tracer)
+
+    def train(self, data, model: OpModel):
+        """
+        The entry point for training a generator to bias certain execution paths based on the
+        input and an end objective. This method intends to cover the class of imitation/supervised
+        learning techniques where a generator is trained offline on some collected data.
+
+        Args:
+            data: The data to train the generator on (usually traces of generator executions)
+            model (OpModel): The model (operator-based) used to guide generator execution
+
+        """
+        pass
 
 
 def generator(*args, **kwargs) -> Generator:
