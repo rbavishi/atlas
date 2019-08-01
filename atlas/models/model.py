@@ -25,5 +25,5 @@ class IndependentOpModel(OpModel):
         for d in data:
             for t in d.op_traces:
                 op_encoder = self.encoder.get_encoder(t.op_name, t.sid, t.oid)
-                encoding = op_encoder(t.domain, t.context)
+                encoding = op_encoder(t.domain, t.context, choice=t.choice, mode='training')
 

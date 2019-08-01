@@ -304,18 +304,19 @@ class Generator:
 
         self.deregister_hook(tracer)
 
-    def train(self, data, model: OpModel):
+    def train(self, model: OpModel, data):
         """
         The entry point for training a generator to bias certain execution paths based on the
         input and an end objective. This method intends to cover the class of imitation/supervised
         learning techniques where a generator is trained offline on some collected data.
 
         Args:
-            data: The data to train the generator on (usually traces of generator executions)
             model (OpModel): The model (operator-based) used to guide generator execution
+            data: The data to train the generator on (usually traces of generator executions)
 
         """
-        pass
+
+        model.train(self, data)
 
 
 def generator(*args, **kwargs) -> Generator:
