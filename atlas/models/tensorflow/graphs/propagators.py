@@ -3,7 +3,7 @@ import numpy as np
 from typing import List, Dict, Tuple
 
 from atlas.models.tensorflow.graphs.network import NetworkComponent
-from atlas.models.tensorflow.graphs.utils import SegmentBasedAttention
+from atlas.models.tensorflow.graphs.utils import SegmentBasedSoftmax
 
 
 class GGNNPropagator(NetworkComponent):
@@ -220,5 +220,5 @@ class GGNNPropagator(NetworkComponent):
 
         #  Since the number of targets is dynamic, can't use native tf.softmax-like operations, so need to implement
         #  the logexpsum trick manually
-        return SegmentBasedAttention(data=msg_attention_scores, segment_ids=dst_node_ids,
-                                     num_segments=self.placeholders['num_nodes'])
+        return SegmentBasedSoftmax(data=msg_attention_scores, segment_ids=dst_node_ids,
+                                   num_segments=self.placeholders['num_nodes'])

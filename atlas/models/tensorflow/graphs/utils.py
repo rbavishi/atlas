@@ -2,10 +2,10 @@ import tensorflow as tf
 from typing import List, Optional
 
 
-def SegmentBasedAttention(data, segment_ids, num_segments):
+def SegmentBasedSoftmax(data, segment_ids, num_segments, return_log=False):
     """
-    A function to compute attention when a dynamic number of elements are involved. This creates when doing
-    normalization such as softmax as you cannot use the traditional tf.softmax like functions. So need to
+    A function to compute softmax when a dynamic number of elements are involved.
+    In these cases, you cannot use the traditional tf.softmax like functions. So need to
     implement the logexpsum trick manually
 
     Notation :
@@ -16,6 +16,7 @@ def SegmentBasedAttention(data, segment_ids, num_segments):
         data: The un-normalized scores of the elements (Shape : [N x 1])
         segment_ids: The group of elements which this score is for (Shape : [N x 1])
         num_segments: The total number of groups (G)
+        return_log: Return the logarithm of the softmax score (useful when computing losses)
 
     Returns:
         A score for each element normalized over the sum of scores of all the elements in its group (Shape : [N x 1])
@@ -40,7 +41,10 @@ def SegmentBasedAttention(data, segment_ids, num_segments):
     sum_per_segment_item = tf.gather(params=exp_score_sum_per_segment, indices=segment_ids)
     attention = exp_scores / (sum_per_segment_item + 1e-7)
 
-    return attention
+    if not return_log:
+        return attention
+
+    return attention, scores - tf.log(sum_per_segment_item + 1e-7)
 
 
 class MLP:
