@@ -145,6 +145,9 @@ class Generator:
                  metadata: Dict[Any, Any] = None,
                  **kwargs):
 
+        if not inspect.isfunction(func):
+            raise TypeError("func is not a Function object")
+
         self.func = func
         self.strategy: Strategy = make_strategy(strategy)
         self._compiled_func: Optional[Callable] = None
