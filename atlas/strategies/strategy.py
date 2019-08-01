@@ -14,8 +14,7 @@ def is_operator(func):
 
 class Strategy(ABC):
     def __init__(self):
-        self.op_cnt: Dict[str, int] = collections.defaultdict(int)
-        self.sid_cnt: Dict[str, int] = collections.defaultdict(int)
+        self.sid_cnt: Dict[Tuple[str, str], int] = collections.defaultdict(int)
         self.known_ops: Set[str] = {k for k in dir(self) if is_operator(getattr(self, k))}
 
     def init(self):
@@ -38,16 +37,16 @@ class Strategy(ABC):
         return self.known_ops
 
     def process_op(self, gen: 'Generator', op_name: str, oid: Optional[str] = None) -> Tuple[str, str, Callable]:
-        if oid is None:
-            self.op_cnt[op_name] += 1
-            sid = str(self.op_cnt[op_name])
+        path = "/".join(filter(None, [gen.group, gen.name]))
+        label = f"{op_name}"
+        if oid is not None:
+            label += f"_{oid}"
 
-        else:
-            self.sid_cnt[oid] += 1
-            sid = f'{oid}_{self.sid_cnt[oid]}'
+        self.sid_cnt[path, label] += 1
+        sid = f"{path}/{label}_{self.sid_cnt[path, label]}"
+        op_label = f"{label}_{self.sid_cnt[path, label]}"
 
-        label: str = op_name + "_" + str(sid)
-        return label, sid, self.make_op(gen, op_name, sid, oid)
+        return op_label, sid, self.make_op(gen, op_name, sid, oid)
 
     @abstractmethod
     def make_op(self, gen: 'Generator', op_name: str, sid: str, oid: Optional[str]) -> Callable:
