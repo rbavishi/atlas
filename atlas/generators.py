@@ -6,7 +6,7 @@ from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
 import astunparse
 
 from atlas.hooks import Hook
-from atlas.models.model import OpModel
+from atlas.models.models import OpModel
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
 from atlas.tracing import DefaultTracer
 from atlas.utils import astutils

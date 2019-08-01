@@ -3,29 +3,7 @@ from typing import Dict, Any, Callable, Generator, Collection, Optional
 
 from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import Strategy, operator
-
-
-class PeekableGenerator:
-    def __init__(self, gen: Generator):
-        self.gen = gen
-        self._finished: bool = False
-        self._cur_val: Any = None
-        self._next_val: Any = next(gen)
-        self.step()
-
-    def is_finished(self):
-        return self._finished
-
-    def peek(self):
-        return self._cur_val
-
-    def step(self):
-        self._cur_val = self._next_val
-
-        try:
-            self._next_val = next(self.gen)
-        except StopIteration:
-            self._finished = True
+from atlas.utils.iterutils import PeekableGenerator
 
 
 class DfsStrategy(Strategy):
