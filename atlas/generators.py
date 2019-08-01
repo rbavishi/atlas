@@ -260,6 +260,10 @@ class Generator:
         if self._compiled_func is None:
             self._compiled_func = compile_func(self, self.func, self.strategy, self.hooks)
 
+        #  Adding an extra variable to enable setting of different strategies *while*
+        #  the Python generator built using this generate() call hasn't exited.
+        compiled_func = self._compiled_func
+
         for h in self.hooks:
             h.init(args, kwargs)
 
@@ -270,7 +274,7 @@ class Generator:
 
             self.strategy.init_run()
             try:
-                yield self._compiled_func(*args, **kwargs)
+                yield compiled_func(*args, **kwargs)
 
             except ExceptionAsContinue:
                 pass
@@ -307,7 +311,7 @@ class Generator:
 
         self.deregister_hook(tracer)
 
-    def train(self, model: OpModel, data):
+    def train(self, model: OpModel, data, **kwargs):
         """
         The entry point for training a generator to bias certain execution paths based on the
         input and an end objective. This method intends to cover the class of imitation/supervised
@@ -319,7 +323,7 @@ class Generator:
 
         """
 
-        model.train(self, data)
+        model.train(self, data, **kwargs)
 
 
 def generator(*args, **kwargs) -> Generator:
