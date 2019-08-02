@@ -1,5 +1,6 @@
 import tensorflow as tf
-from typing import Mapping, Any
+import numpy as np
+from typing import Mapping, Any, List, Dict
 
 from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier
 from atlas.models.tensorflow.graphs.gnn import GGNN
@@ -7,6 +8,35 @@ from atlas.models.tensorflow.graphs.utils import MLP, SegmentBasedSoftmax
 
 
 class SelectGGNNClassifier(GGNNGraphClassifier):
+    def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True):
+        batch_data = super().define_batch(graphs, is_training)
+        batch_data.pop(self.placeholders['labels'])
+
+        node_offset = 0
+        domain = []
+        domain_labels = []
+        domain_node_graph_ids_list = []
+        for idx, g in enumerate(graphs):
+            domain.extend([i + node_offset for i in g['domain']])
+            selected_domain_node = g['choice']
+            domain_labels.extend([i == selected_domain_node for i in g['domain']])
+            domain_node_graph_ids_list.extend([idx for _ in range(len(g['domain']))])
+
+        batch_data.update({
+            self.placeholders['domain']: np.array(domain),
+            self.placeholders['domain_labels']: np.array(domain_labels),
+            self.placeholders['domain_node_graph_ids_list']: np.array(domain_node_graph_ids_list)
+        })
+
+        return batch_data
+
+    def define_placeholders(self):
+        super().define_placeholders()
+        self.placeholders['domain'] = tf.placeholder(tf.int32, [None], name='domain')
+        self.placeholders['domain_node_graph_ids_list'] = tf.placeholder(tf.int32, [None],
+                                                                         name='domain_node_graph_ids_list')
+        self.placeholders['domain_labels'] = tf.placeholder(tf.int32, [None], name='domain_labels')
+
     def define_prediction_with_loss(self, node_embeddings):
         graph_embeddings = self.define_pooling(node_embeddings)
         domain_nodes_embeddings = tf.gather(params=node_embeddings,
@@ -26,16 +56,25 @@ class SelectGGNNClassifier(GGNNGraphClassifier):
                                                num_segments=self.placeholders['num_graphs'],
                                                return_log=True)
 
-        graph_logits = self.define_graph_logits(graph_embeddings)
+        loss_per_domain_node = -tf.cast(self.placeholders['domain_labels'], tf.float32) * log_probs
+        loss_per_graph = tf.unsorted_segment_sum(data=loss_per_domain_node,
+                                                 segment_ids=self.placeholders['domain_node_graph_ids_list'],
+                                                 num_segments=self.placeholders['num_graphs'])
+        self.ops['loss'] = tf.reduce_mean(loss_per_graph)
 
-        self.ops['loss'] = tf.reduce_mean(
-            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=graph_logits,
-                                                           labels=self.placeholders['labels'])
-        )
+        domain_node_max_scores = tf.unsorted_segment_max(data=domain_node_logits,
+                                                         segment_ids=self.placeholders['domain_node_graph_ids_list'],
+                                                         num_segments=self.placeholders['num_graphs'])
+        copied_domain_node_max_scores = tf.gather(params=domain_node_max_scores,
+                                                  indices=self.placeholders['domain_node_graph_ids_list'])
 
-        probabilities = self.ops['probabilities'] = tf.nn.softmax(graph_logits)
-        correct_prediction = tf.equal(tf.argmax(probabilities, -1, output_type=tf.int32), self.placeholders['labels'])
-        self.ops['accuracy'] = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+        selected_domain_nodes = tf.cast(tf.equal(copied_domain_node_max_scores, domain_node_logits), dtype=tf.float32)
+        correct_prediction_per_node = selected_domain_nodes * tf.cast(self.placeholders['domain_labels'], tf.float32)
+        correct_prediction = tf.unsorted_segment_max(data=correct_prediction_per_node,
+                                                     segment_ids=self.placeholders['domain_node_graph_ids_list'],
+                                                     num_segments=self.placeholders['num_graphs'])
+
+        self.ops['accuracy'] = tf.reduce_mean(correct_prediction)
 
 
 class SelectGGNN(GGNN):

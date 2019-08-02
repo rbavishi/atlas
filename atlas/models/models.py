@@ -1,8 +1,7 @@
 from abc import abstractmethod, ABC
-from typing import Any, Collection
+from typing import Any
 
 from atlas.models.encoding import OpEncoder
-from atlas.tracing import GeneratorTrace
 
 
 class OpModel(ABC):
@@ -13,9 +12,4 @@ class OpModel(ABC):
     def train(self, gen: 'Generator', data: Any, **kwargs):
         pass
 
-
-class TraceImitationOpModel(OpModel, ABC):
-    @abstractmethod
-    def train(self, gen: 'Generator', traces: Collection[GeneratorTrace], **kwargs):
-        pass
 
