@@ -57,15 +57,20 @@ class GGNNPropagator(NetworkComponent):
 
         return adj_lists
 
+    def construct_node_embedding(self, features: List[int]):
+        embedding = [0] * self.node_dimension
+        for i in features:
+            embedding[i] = 1
+
+        return embedding
+
     def define_batch(self, graphs: List[Dict], is_training: bool = True) -> Dict:
         node_offset = 0
         adjacency_lists = [[] for _ in range(self.num_edge_types)]
         initial_node_embeddings = []
         for idx, g in enumerate(graphs):
             adj_lists = [a + node_offset for a in self.get_adjacency_list(g['edges'])]
-            #  Get initial representations of nodes. Simply 1-hot encodings of node features
-            #  https://stackoverflow.com/questions/29831489/convert-array-of-indices-to-1-hot-encoded-numpy-array
-            node_embeddings = np.eye(self.node_dimension)[g['nodes']]
+            node_embeddings = [self.construct_node_embedding(f) for f in g['nodes']]
 
             for e_type, adj_list in enumerate(adj_lists):
                 adjacency_lists[e_type].extend(adj_list)

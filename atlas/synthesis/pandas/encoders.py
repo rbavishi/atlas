@@ -9,12 +9,13 @@ from typing import Any, Set, List, Dict, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from atlas.models.encoding import OpEncoder
+from atlas.models.encoding import OpEncoder, StatefulEncoder
 from atlas.synthesis.pandas.checker import Checker
 
 
 class NodeFeatures(Enum):
-    pass
+    def _generate_next_value_(name, start, count, last_values):
+        return name
 
 
 class NodeDataTypes(NodeFeatures):
@@ -73,6 +74,9 @@ class NodeRoles(NodeFeatures):
 
 
 class EdgeTypes(Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return name
+
     #  Naming Convention : Name of edge describes the role of src for dst
 
     ADJ_LEFT = auto()
@@ -368,7 +372,30 @@ class ValueCollection:
         return {'edges': edges, 'nodes': nodes}, node_to_int
 
 
-class PandasGraphEncoder(OpEncoder):
+class PandasGraphEncoder(StatefulEncoder):
+    def __init__(self):
+        self.edge_type_mapping = {}
+        self.node_feature_mapping = {}
+
+    def get_num_edge_types(self):
+        return len(self.edge_type_mapping)
+
+    def get_num_node_features(self):
+        return len(self.node_feature_mapping)
+
+    def convert_edge_type(self, etype: str) -> int:
+        if etype not in self.edge_type_mapping:
+            self.edge_type_mapping[etype] = len(self.edge_type_mapping)
+
+        return self.edge_type_mapping[etype]
+
+    def convert_node_features(self, features: List[str]) -> List[int]:
+        for feature in features:
+            if feature not in self.node_feature_mapping:
+                self.node_feature_mapping[feature] = len(self.node_feature_mapping)
+
+        return [self.node_feature_mapping[f] for f in features]
+
     def encode_value(self, label: str, val: Any) -> ValueEncoding:
         if np.isscalar(val) or val is None:
             return ScalarEncoding(label, val)
@@ -377,6 +404,12 @@ class PandasGraphEncoder(OpEncoder):
             return DataFrameEncoding(label, val)
 
         raise TypeError(f"Cannot encode value {val} of type {type(val)} ")
+
+    def post_process(self, encoding: Dict[str, Any]):
+        for e in encoding['edges']:
+            e[1] = self.convert_edge_type(e[1])
+
+        encoding['nodes'] = [self.convert_node_features(n) for n in encoding['nodes']]
 
     def Select(self, domain, context=None, choice=None, mode='training', **kwargs):
         #  We expect domain to be a list of values
@@ -408,4 +441,5 @@ class PandasGraphEncoder(OpEncoder):
             else:
                 raise ValueError(f"Passed choice {choice} could not be found in domain {domain}")
 
+        self.post_process(encoding)
         return encoding

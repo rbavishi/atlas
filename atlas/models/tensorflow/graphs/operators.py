@@ -8,6 +8,9 @@ from atlas.models.tensorflow.graphs.utils import MLP, SegmentBasedSoftmax
 
 
 class SelectGGNNClassifier(GGNNGraphClassifier):
+    def __init__(self, classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
+        super().__init__(num_classes=-1, classifier_hidden_dims=classifier_hidden_dims, agg=agg, **kwargs)
+
     def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True):
         batch_data = super().define_batch(graphs, is_training)
         batch_data.pop(self.placeholders['labels'])
