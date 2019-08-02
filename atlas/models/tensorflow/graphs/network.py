@@ -40,7 +40,7 @@ class Network(ABC):
             yield len(cur_batch), self.define_batch(cur_batch, is_training)
 
     def train(self, training_data: Iterable[Dict], validation_data: Iterable[Dict], num_epochs: int):
-        for epoch in range(num_epochs):
+        for epoch in range(1, num_epochs + 1):
             train_loss = valid_loss = 0
             train_acc = valid_acc = 0
             train_total_graphs = valid_total_graphs = 0
@@ -50,31 +50,29 @@ class Network(ABC):
 
             for num_graphs, batch_data in self.get_batch_iterator(iter(training_data),
                                                                   self.params['batch_size'], is_training=True):
-
                 batch_loss, batch_acc, _ = self.sess.run(training_fetch_list, feed_dict=batch_data)
                 train_loss += batch_loss * num_graphs
                 train_acc += batch_acc * num_graphs
                 train_total_graphs += num_graphs
-                print("[Training] Loss : {:.4f} Accuracy : {:.4f}".format(train_loss / train_total_graphs,
-                                                                          train_acc / train_total_graphs),
+                print(f"[Training({epoch}/{num_epochs})] "
+                      f"Loss: {train_loss/train_total_graphs: .6f} Accuracy: {train_acc / train_total_graphs: .4f}",
                       end='\r')
 
-            print("[Training] Loss : {:.4f} Accuracy : {:.4f}".format(train_loss / train_total_graphs,
-                                                                      train_acc / train_total_graphs))
+            print(f"[Training({epoch}/{num_epochs})] "
+                  f"Loss: {train_loss / train_total_graphs: .6f} Accuracy: {train_acc / train_total_graphs: .4f}")
 
             for num_graphs, batch_data in self.get_batch_iterator(iter(validation_data),
                                                                   self.params['batch_size'], is_training=False):
-
                 batch_loss, batch_acc = self.sess.run(validation_fetch_list, feed_dict=batch_data)
                 valid_loss += batch_loss * num_graphs
                 valid_acc += batch_acc * num_graphs
                 valid_total_graphs += num_graphs
-                print("[Validation] Loss : {:.4f} Accuracy : {:.4f}".format(valid_loss / valid_total_graphs,
-                                                                            valid_acc / valid_total_graphs),
+                print(f"[Validation({epoch}/{num_epochs})] "
+                      f"Loss: {valid_loss / valid_total_graphs: .6f} Accuracy: {valid_acc / valid_total_graphs: .4f}",
                       end='\r')
 
-            print("[Validation] Loss : {:.4f} Accuracy : {:.4f}".format(valid_loss / valid_total_graphs,
-                                                                        valid_acc / valid_total_graphs))
+            print(f"[Validation({epoch}/{num_epochs})] "
+                  f"Loss: {valid_loss / valid_total_graphs: .6f} Accuracy: {valid_acc / valid_total_graphs: .4f}")
 
     @abstractmethod
     def build(self):
