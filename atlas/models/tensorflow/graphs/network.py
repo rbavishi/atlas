@@ -1,3 +1,4 @@
+import pickle
 from abc import abstractmethod, ABC
 
 import tensorflow as tf
@@ -12,7 +13,9 @@ class Network(ABC):
 
         self.params = params
 
-    def setup(self):
+        self._path: Optional[str] = None
+
+    def setup_graph(self):
         self.tf_config = tf.ConfigProto()
         self.tf_config.gpu_options.allow_growth = True
         self.graph = tf.Graph()
@@ -21,8 +24,15 @@ class Network(ABC):
         with self.graph.as_default():
             tf.set_random_seed(self.params.get('random_seed', 0))
             self.build()
+
+    def initialize_variables(self):
+        with self.graph.as_default():
             self.sess.run(tf.group(tf.global_variables_initializer(),
                                    tf.local_variables_initializer()))
+
+    def setup(self):
+        self.setup_graph()
+        self.initialize_variables()
 
     def get_batch_iterator(self, graph_iter: Iterator[Dict],
                            batch_size: int, is_training: bool = True) -> Iterator[Dict]:
@@ -40,6 +50,9 @@ class Network(ABC):
             yield len(cur_batch), self.define_batch(cur_batch, is_training)
 
     def train(self, training_data: Iterable[Dict], validation_data: Iterable[Dict], num_epochs: int):
+        if self.sess is None:
+            self.setup()
+
         for epoch in range(1, num_epochs + 1):
             train_loss = valid_loss = 0
             train_acc = valid_acc = 0
@@ -86,6 +99,31 @@ class Network(ABC):
     def get_op(self, name: str):
         pass
 
+    def save(self, path: str):
+        if self.sess is not None:
+            with self.graph.as_default():
+                saver = tf.train.Saver()
+                saver.save(self.sess, f"{path}.model")
+
+        self._path = path
+        with open(path, 'wb') as f:
+            pickle.dump(self, f)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('sess')
+        state.pop('tf_config')
+        state.pop('graph')
+
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.setup_graph()
+        with self.graph.as_default():
+            saver = tf.train.Saver()
+            saver.restore(self.sess, f"{self._path}.model")
+
 
 class NetworkComponent:
     def __init__(self):
@@ -95,3 +133,17 @@ class NetworkComponent:
 
     def define_batch(self, graphs: List[Dict], is_training: bool = True) -> Optional[Dict]:
         return None
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('placeholders')
+        state.pop('weights')
+        state.pop('ops')
+
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.placeholders = {}
+        self.weights = {}
+        self.ops = {}
