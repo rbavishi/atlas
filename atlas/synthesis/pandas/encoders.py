@@ -127,7 +127,6 @@ class ValueEncoding(ABC):
         pass
 
 
-
 class ScalarEncoding(ValueEncoding):
     def __init__(self, label: str, val: Any, features: Set[NodeFeatures] = None):
         super().__init__(label, val)
