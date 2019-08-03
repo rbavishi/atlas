@@ -208,7 +208,7 @@ class Generator:
                 if g is not self:
                     g.register_hooks(*hooks, as_group=False)
 
-    def deregister_hook(self, hook: Hook, as_group: bool = True):
+    def deregister_hook(self, hook: Hook, as_group: bool = True, ignore_errors: bool = False):
         """
         De-register hook for the generator.
 
@@ -216,18 +216,21 @@ class Generator:
             hook (Hook): The list of hooks to register
             as_group (bool): Whether to set this strategy for all the generators in the group (if any).
                 ``True`` by default.
+            ignore_errors (bool): Do not raise exception if the hook was not registered before
 
         """
         if all(i is not hook for i in self.hooks):
-            raise ValueError("Hook was not registered.")
+            if not ignore_errors:
+                raise ValueError("Hook was not registered.")
 
-        self.hooks.remove(hook)
-        self._compiled_func = None
+        else:
+            self.hooks.remove(hook)
+            self._compiled_func = None
 
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
                 if g is not self:
-                    g.deregister_hook(hook, as_group=False)
+                    g.deregister_hook(hook, as_group=False, ignore_errors=True)
 
     def __call__(self, *args, **kwargs):
         """Functions with an ``@generator`` annotation can be called as any regular function as a result of this method.
@@ -246,7 +249,7 @@ class Generator:
 
     def generate(self, *args, **kwargs):
         """
-        This method returns an iterator for the result of all possible executions (all possible combinations of
+        Create an iterator for the result of all possible executions (all possible combinations of
         operator choices) of the generator function for the given input i.e. ``(*args, **kwargs)``
 
         Args:
