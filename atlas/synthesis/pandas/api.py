@@ -2234,7 +2234,7 @@ def gen_df_pivot_table(inputs, *args, **kwargs):
 
 
 @generator(group='pandas', name='df.pivot')
-def gen_df_pivot(inputs, *args, **kwargs):
+def gen_df_pivot(inputs, output, *args, **kwargs):
     """DataFrame.pivot(self, index=None, columns=None, values=None)"""
 
     def dup_filter(cand):
@@ -2243,13 +2243,15 @@ def gen_df_pivot(inputs, *args, **kwargs):
         except:
             return True
 
-    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)])
-    _columns = Select(_self.columns)
-    _index = Select([None] + list(filter(dup_filter, set(_self.columns) - {_columns})))
+    _self = Select([inp for inp in inputs if isinstance(inp, pd.DataFrame)], oid='input_selection')
+
+    c = {'I0': _self, 'O': output}
+    _columns = Select(_self.columns, context=c)
+    _index = Select([None] + list(filter(dup_filter, set(_self.columns) - {_columns})), context=c)
     if _self.index.nlevels > 1 and _index is None:
         _values = None
     else:
-        _values = Select(set(_self.columns) | {None})
+        _values = Select(set(_self.columns) | {None}, context=c)
 
     return _self.pivot(columns=_columns, index=_index, values=_values), {
         'self': _self, 'columns': _columns, 'index': _index, 'values': _values
