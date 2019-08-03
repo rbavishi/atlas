@@ -17,9 +17,9 @@ class Hook(ABC):
         pass
 
     def before_op(self, domain, context=None, generator: 'Generator' = None,
-                  op_name: str = None, sid: str = None, **kwargs):
+                  sid: str = None, **kwargs):
         pass
 
     def after_op(self, domain, context=None, retval=None, generator: 'Generator' = None,
-                 op_name: str = None, sid: str = None, **kwargs):
+                 sid: str = None, **kwargs):
         pass
