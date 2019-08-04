@@ -15,7 +15,7 @@ class Replay(Strategy):
         self.set_known_ops()
 
     def set_known_ops(self):
-        self.known_ops = {o.op_name for t in self.traces for o in t.op_traces}
+        self.known_ops = {o.op_type for t in self.traces for o in t.op_traces}
 
     def is_finished(self):
         return (not self.repeat) and self._trace_num == len(self.traces) - 1
@@ -28,8 +28,8 @@ class Replay(Strategy):
         self._cur_trace: GeneratorTrace = self.traces[self._trace_num]
         self.op_choice_map = {t.sid: t.choice for t in self._cur_trace.op_traces}
 
-    def make_op(self, gen: 'Generator', op_name: str, sid: str, oid: Optional[str]) -> Callable:
-        def wrapper(*args, **kwargs):
+    def make_op(self, op_kind: str, oid: Optional[str]) -> Callable:
+        def wrapper(*args, sid: str = '', **kwargs):
             if sid not in self.op_choice_map:
                 raise KeyError(f"Could not find Op with SID {sid} in trace {self._cur_trace}")
 

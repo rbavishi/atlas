@@ -36,18 +36,6 @@ class Strategy(ABC):
     def get_known_ops(self):
         return self.known_ops
 
-    def process_op(self, gen: 'Generator', op_name: str, oid: Optional[str] = None) -> Tuple[str, str, Callable]:
-        path = "/".join(filter(None, [gen.group, gen.name]))
-        label = f"{op_name}"
-        if oid is not None:
-            label += f"_{oid}"
-
-        self.sid_cnt[path, label] += 1
-        sid = f"{path}/{label}_{self.sid_cnt[path, label]}"
-        op_label = f"{label}_{self.sid_cnt[path, label]}"
-
-        return op_label, sid, self.make_op(gen, op_name, sid, oid)
-
     @abstractmethod
-    def make_op(self, gen: 'Generator', op_name: str, sid: str, oid: Optional[str]) -> Callable:
+    def make_op(self, op_type: str, oid: Optional[str]) -> Callable:
         pass

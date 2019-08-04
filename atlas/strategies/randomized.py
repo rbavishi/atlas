@@ -5,10 +5,10 @@ from atlas.strategies import Strategy, operator
 
 
 class RandStrategy(Strategy):
-    def make_op(self, gen: 'Generator', op_name: str, sid: str, oid: Optional[str]) -> Callable:
-        label = op_name
-        if oid is not None and op_name + "_" + oid in dir(self):
-            label = op_name + "_" + oid
+    def make_op(self, op_type: str, oid: Optional[str]) -> Callable:
+        label = op_type
+        if oid is not None and op_type + "_" + oid in dir(self):
+            label = op_type + "_" + oid
 
         return getattr(self, label)
 

@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Any
 
 import atlas
 
@@ -16,10 +17,8 @@ class Hook(ABC):
     def finish(self):
         pass
 
-    def before_op(self, domain, context=None, generator: 'Generator' = None,
-                  sid: str = None, **kwargs):
+    def before_op(self, domain, context=None, sid: str = None, **kwargs):
         pass
 
-    def after_op(self, domain, context=None, retval=None, generator: 'Generator' = None,
-                 sid: str = None, **kwargs):
+    def after_op(self, domain, context=None, sid: str = None, retval: Any = None, **kwargs):
         pass
