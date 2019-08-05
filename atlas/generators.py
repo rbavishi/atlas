@@ -7,7 +7,6 @@ from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
 import astunparse
 
 from atlas.hooks import Hook
-from atlas.models.models import OpModel
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
 from atlas.tracing import DefaultTracer
 from atlas.utils import astutils
@@ -314,20 +313,6 @@ class Generator:
             yield val, tracer.get_last_trace()
 
         self.deregister_hook(tracer)
-
-    def train(self, model: OpModel, data, **kwargs):
-        """
-        The entry point for training a generator to bias certain execution paths based on the
-        input and an end objective. This method intends to cover the class of imitation/supervised
-        learning techniques where a generator is trained offline on some collected data.
-
-        Args:
-            model (OpModel): The model (operator-based) used to guide generator execution
-            data: The data to train the generator on (usually traces of generator executions)
-
-        """
-
-        model.train(self, data, **kwargs)
 
 
 def generator(*args, **kwargs) -> Generator:
