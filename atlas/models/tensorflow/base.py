@@ -56,3 +56,5 @@ class TensorflowModel(ABC):
         with model.graph.as_default():
             saver = tf.train.Saver()
             saver.restore(model.sess, f"{path}.weights")
+
+        return model

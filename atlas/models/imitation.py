@@ -1,6 +1,9 @@
 import datetime
 import json
 import os
+import pickle
+import shutil
+
 import tqdm
 from abc import ABC, abstractmethod
 from typing import Collection, Dict, Optional, Set, Any
@@ -39,10 +42,17 @@ class DefaultOpModel(ABC):
 
         """
 
+        os.makedirs(path, exist_ok=True)
+        with open(f"{path}/loader.pkl", 'wb') as f:
+            pickle.dump(self.load, f)
+
     @classmethod
     @abstractmethod
     def load(cls, path: str) -> 'DefaultOpModel':
-        pass
+        with open(f"{path}/loader.pkl", 'rb') as f:
+            loader = pickle.load(f)
+
+        return loader(path)
 
 
 class DefaultIndependentOpModel(TraceImitationModel, ABC):
@@ -53,6 +63,7 @@ class DefaultIndependentOpModel(TraceImitationModel, ABC):
         self.path = path
         os.makedirs(path, exist_ok=True)
         self.model_map: Dict[str, DefaultOpModel] = {}
+        self.modeled_sids: Dict[str, str] = {}
 
     def train(self, training_traces: Collection[GeneratorTrace],
               validation_traces: Collection[GeneratorTrace] = None,
@@ -65,7 +76,7 @@ class DefaultIndependentOpModel(TraceImitationModel, ABC):
             validation_datasets = {}
 
         #  Now, train each operator model separately
-        modeled_sids: Dict[str, str] = {}
+        self.modeled_sids: Dict[str, str] = {}
         for sid, dataset in training_datasets.items():
             print(f"[+] Training model for {sid}")
             model: DefaultOpModel = self.get_op_model(sid)
@@ -74,11 +85,11 @@ class DefaultIndependentOpModel(TraceImitationModel, ABC):
                 model.train(dataset, validation_datasets.get(sid, None), **kwargs)
                 model_dir = f"{self.path}/models/{sid}"
                 os.makedirs(model_dir, exist_ok=True)
-                model.save(f"{model_dir}/model")
-                modeled_sids[sid] = model_dir
+                model.save(f"{model_dir}")
+                self.modeled_sids[sid] = model_dir
 
         with open(f"{self.path}/model_list.json", "w") as f:
-            json.dump(modeled_sids, f)
+            json.dump(self.modeled_sids, f)
 
     def infer(self, domain: Any, context: Any = None, sid: str = ''):
         if sid not in self.model_map:
@@ -114,3 +125,30 @@ class DefaultIndependentOpModel(TraceImitationModel, ABC):
             return getattr(self, op_type)(sid)
 
         return None
+
+    def save(self, path: str):
+        super().save(path)
+
+        if path != self.path:
+            with open(f"{path}/model_list.json", "w") as f:
+                json.dump(self.modeled_sids, f)
+
+            shutil.rmtree(f"{path}/models", ignore_errors=True)
+            shutil.copytree(f"{self.path}/models", f"{path}/models")
+
+    @classmethod
+    def load(cls, path: str):
+        model = cls(path)
+        with open(f"{path}/model_list.json", "r") as f:
+            model.modeled_sids = json.load(f)
+
+        model.load_models()
+
+        return model
+
+    def load_models(self):
+        for sid, model_dir in self.modeled_sids.items():
+            if sid in self.model_map:
+                continue
+
+            self.model_map[sid] = DefaultOpModel.load(model_dir)
