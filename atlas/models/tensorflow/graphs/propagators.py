@@ -87,7 +87,11 @@ class GGNNPropagator(NetworkComponent):
         }
 
         for idx, placeholder in enumerate(self.placeholders['adjacency_lists']):
-            result[placeholder] = adjacency_lists[idx]
+            if len(adjacency_lists[idx]) > 0:
+
+                result[placeholder] = adjacency_lists[idx]
+            else:
+                result[placeholder] = np.zeros((0, 2), dtype=np.int32)
 
         return result
 
