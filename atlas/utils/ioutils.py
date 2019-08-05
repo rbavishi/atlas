@@ -2,7 +2,7 @@ import multiprocessing
 import pickle
 import random
 import struct
-from typing import BinaryIO, Callable, Any
+from typing import BinaryIO, Callable, Any, Collection
 
 
 class IndexedFileWriter:
@@ -26,8 +26,9 @@ class IndexedFileWriter:
         self.index_f.close()
 
 
-class IndexedFileReader:
+class IndexedFileReader(Collection):
     def __init__(self, path, index_path=None, loader=pickle.load):
+        self.path = path
         self.f = open(path, 'rb')
         if index_path is None:
             self.index_f = open(path + '.index', 'rb')
@@ -76,3 +77,11 @@ class IndexedFileReader:
                 batch = [self.__getitem__(j) for j in range(i, min(total, i + batch_size))]
                 for res in p.imap(fn, batch):
                     yield res
+
+    def __contains__(self, x) -> bool:
+        for i in iter(self):
+            if i is x:
+                return True
+
+        return False
+
