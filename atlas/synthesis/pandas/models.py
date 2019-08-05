@@ -1,8 +1,10 @@
 import os
+import pickle
 from abc import ABC
 from typing import Optional, Collection, Any, Dict
 
 from atlas.models.imitation import DefaultIndependentOpModel, DefaultOpModel
+from atlas.models.tensorflow import TensorflowModel
 from atlas.models.tensorflow.graphs.gnn import GGNN
 from atlas.models.tensorflow.graphs.operators import SelectGGNN
 from atlas.synthesis.pandas.encoders import PandasGraphEncoder
@@ -14,7 +16,6 @@ class BasePandasOperatorModel(DefaultOpModel, ABC):
     def __init__(self, sid: str, encoder: PandasGraphEncoder, model: GGNN):
         super().__init__(sid)
         self.encoder = encoder
-        self.encoder_func = encoder.get_encoder(self.sid)
         self.model = model
 
     def dump_encodings(self, data: Collection[OpTrace], path: str = None):
@@ -29,8 +30,9 @@ class BasePandasOperatorModel(DefaultOpModel, ABC):
             path = 'train.pkl'
 
         encoding_file = IndexedFileWriter(path)
+        encoder_func = self.encoder.get_encoder(self.sid)
         for op in data:
-            encoding_file.append(self.encoder_func(
+            encoding_file.append(encoder_func(
                 domain=op.domain,
                 context=op.context,
                 choice=op.choice,
@@ -53,20 +55,39 @@ class BasePandasOperatorModel(DefaultOpModel, ABC):
         self.model.train(encoded_train, encoded_valid, num_epochs=num_epochs)
 
     def save(self, path: str):
-        self.model.save(path)
+        super().save(path)
+        self.model.save(f"{path}.tf")
+        with open(f"{path}.encoder", 'wb') as f:
+            pickle.dump(self.encoder, f)
+        with open(f"{path}.metadata", "wb") as f:
+            pickle.dump({'sid': self.sid}, f)
+
+    @classmethod
+    def load(cls, path: str):
+        with open(f"{path}.metadata", 'rb') as f:
+            metadata = pickle.load(f)
+        with open(f"{path}.encoder", 'rb') as f:
+            encoder = pickle.load(f)
+
+        model = TensorflowModel.load(f"{path}.tf")
+        return cls(metadata['sid'], encoder, model)
 
 
 class PandasSelect(BasePandasOperatorModel):
-    def __init__(self, sid: str, encoder: PandasGraphEncoder, config: Dict):
-        super().__init__(sid, encoder, SelectGGNN(config))
+    def __init__(self, sid: str, encoder: PandasGraphEncoder, model: GGNN = None, config: Dict = None):
+        print(model is None)
+        super().__init__(sid, encoder, model or SelectGGNN(config))
+
+    def infer(self, domain, context: Any = None, sid: str = ''):
+        encoding = self.encoder.get_encoder(self.sid)(domain, context, mode='inference', sid=sid)
+        inference = self.model.infer([encoding])[0]
+        print(inference, sid)
+        return [val for val, prob in sorted(inference, key=lambda x: -x[1])]
 
 
 class PandasModelBasic(DefaultIndependentOpModel):
     def __init__(self, path: str = None):
         super().__init__(path)
-
-    def infer(self, domain: Any, context: Any = None, sid: str = ''):
-        pass
 
     def Select_input_selection(self, *args, **kwargs):
         return None
@@ -91,4 +112,4 @@ class PandasModelBasic(DefaultIndependentOpModel):
             'num_edge_types': encoder.get_num_edge_types()
         }
 
-        return PandasSelect(sid, encoder, config)
+        return PandasSelect(sid, encoder, config=config)

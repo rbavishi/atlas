@@ -74,6 +74,12 @@ class NodeRoles(NodeFeatures):
     COLUMN_NAME = auto()
 
 
+class NodeSources(NodeFeatures):
+    INPUT = auto()
+    OUTPUT = auto()
+    DOMAIN = auto()
+
+
 class EdgeTypes(Enum):
     def _generate_next_value_(name, start, count, last_values):
         return name
@@ -380,7 +386,8 @@ class PandasGraphEncoder:
         for idx, etype in enumerate(EdgeTypes.__members__.keys()):
             self.edge_type_mapping[etype] = idx
 
-        for idx, feature in enumerate({**NodeDataTypes.__members__, **NodeRoles.__members__}.keys()):
+        for idx, feature in enumerate({**NodeDataTypes.__members__,
+                                       **NodeRoles.__members__, **NodeSources.__members__}.keys()):
             self.node_feature_mapping[feature] = idx
 
     def get_num_edge_types(self):
@@ -444,6 +451,14 @@ class PandasGraphEncoder:
             v.build()
             val_collection.add_value_encoding(v)
 
+        for node in val_collection.nodes:
+            if node.label.startswith("I"):
+                node.features.add(NodeSources.INPUT)
+            elif node.label.startswith("O"):
+                node.features.add(NodeSources.OUTPUT)
+            elif node.label.startswith("D"):
+                node.features.add(NodeSources.DOMAIN)
+
         encoding, node_to_int = val_collection.to_dict()
         encoding['domain'] = [node_to_int[v.get_representor_node()]
                               for v in encoded_domain.values()]
@@ -454,6 +469,10 @@ class PandasGraphEncoder:
                     break
             else:
                 raise ValueError(f"Passed choice {choice} could not be found in domain {domain}")
+
+        else:
+            encoding['mapping'] = {node_to_int[encoded_domain[f"D{idx}"].get_representor_node()]: v
+                                   for idx, v in enumerate(domain)}
 
         self.post_process(encoding)
         return encoding
