@@ -1,46 +1,78 @@
-from typing import Optional
+import os
+from abc import ABC
+from typing import Optional, Collection, Any, Dict
 
-from atlas.models.imitation import DefaultIndependentOpModel
+from atlas.models.imitation import DefaultIndependentOpModel, DefaultOpModel
+from atlas.models.tensorflow.graphs.gnn import GGNN
 from atlas.models.tensorflow.graphs.operators import SelectGGNN
 from atlas.synthesis.pandas.encoders import PandasGraphEncoder
-from atlas.utils.ioutils import IndexedFileReader
+from atlas.tracing import OpTrace
+from atlas.utils.ioutils import IndexedFileReader, IndexedFileWriter
+
+
+class BasePandasOperatorModel(DefaultOpModel, ABC):
+    def __init__(self, sid: str, encoder: PandasGraphEncoder, model: GGNN):
+        super().__init__(sid)
+        self.encoder = encoder
+        self.encoder_func = encoder.get_encoder(self.sid)
+        self.model = model
+
+    def dump_encodings(self, data: Collection[OpTrace], path: str = None):
+        if isinstance(data, IndexedFileReader):
+            if path is None:
+                path = f"{data.path}.encoded"
+
+            if os.path.exists(path):
+                return IndexedFileReader(path)
+
+        if path is None:
+            path = 'train.pkl'
+
+        encoding_file = IndexedFileWriter(path)
+        for op in data:
+            encoding_file.append(self.encoder_func(
+                domain=op.domain,
+                context=op.context,
+                choice=op.choice,
+                sid=op.sid
+            ))
+
+        encoding_file.close()
+        return IndexedFileReader(path)
+
+    def train(self, train_op_traces: Collection[OpTrace],
+              validation_op_traces: Optional[Collection[OpTrace]] = None,
+              num_epochs: int = 10, **kwargs):
+
+        encoded_train = self.dump_encodings(train_op_traces)
+        if validation_op_traces is not None:
+            encoded_valid = self.dump_encodings(validation_op_traces)
+        else:
+            encoded_valid = None
+
+        self.model.train(encoded_train, encoded_valid, num_epochs=num_epochs)
+
+    def save(self, path: str):
+        self.model.save(path)
+
+
+class PandasSelect(BasePandasOperatorModel):
+    def __init__(self, sid: str, encoder: PandasGraphEncoder, config: Dict):
+        super().__init__(sid, encoder, SelectGGNN(config))
 
 
 class PandasModelBasic(DefaultIndependentOpModel):
-    def __init__(self, encoder: PandasGraphEncoder):
-        super().__init__(encoder)
+    def __init__(self, path: str = None):
+        super().__init__(path)
 
-    def get_specific_op_model(self, op_name: str, oid: Optional[str], **kwargs):
-        resolution_order = []
-        if oid is not None:
-            resolution_order.append(f"{op_name}_{oid}")
-
-        resolution_order.append(op_name)
-        for label in resolution_order:
-            if hasattr(self, label):
-                handler = getattr(self, label)
-                return handler(op_name=op_name, oid=oid, **kwargs)
-
-        return None
-
-    def train_op(self, data_dir: str,
-                 op_name: str, oid: Optional[str], sid: str, gen_name: str, gen_group: Optional[str],
-                 num_epochs: int = 10):
-
-        model = self.get_specific_op_model(op_name=op_name, oid=oid, sid=sid, gen_name=gen_name, gen_group=gen_group)
-        if model is None:
-            print(f"Skipping training for {sid}")
-            return
-
-        print(f"Training model for {sid}")
-        path = f"{data_dir}/{sid}"
-        model.train(IndexedFileReader(f"{path}/training_encoded.pkl"),
-                    IndexedFileReader(f"{path}/validation_encoded.pkl"), num_epochs)
+    def infer(self, domain: Any, context: Any = None, sid: str = ''):
+        pass
 
     def Select_input_selection(self, *args, **kwargs):
         return None
 
-    def Select(self, op_name: str, oid: Optional[str], sid: str, **kwargs):
+    def Select(self, sid: str):
+        encoder = PandasGraphEncoder()
         config = {
             'random_seed': 0,
             'learning_rate': 0.001,
@@ -55,8 +87,8 @@ class PandasModelBasic(DefaultIndependentOpModel):
             'graph_rnn_cell': 'gru',
             'graph_rnn_activation': 'tanh',
             'edge_weight_dropout': 0.8,
-            'num_edge_types': self.encoder.get_num_edge_types(),
-            'num_node_features': self.encoder.get_num_node_features(),
+            'num_node_features': encoder.get_num_node_features(),
+            'num_edge_types': encoder.get_num_edge_types()
         }
 
-        return SelectGGNN(config)
+        return PandasSelect(sid, encoder, config)

@@ -4,13 +4,14 @@ import logging
 import sys
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Any, Set, List, Dict, Optional, Tuple
+from typing import Any, Set, List, Dict, Optional, Tuple, Collection
 
 import numpy as np
 import pandas as pd
 
-from atlas.models.encoding import OpEncoder, StatefulEncoder
 from atlas.synthesis.pandas.checker import Checker
+from atlas.tracing import OpTrace
+from atlas.utils.genutils import unpack_sid
 
 
 class NodeFeatures(Enum):
@@ -371,10 +372,16 @@ class ValueCollection:
         return {'edges': edges, 'nodes': nodes}, node_to_int
 
 
-class PandasGraphEncoder(StatefulEncoder):
+class PandasGraphEncoder:
     def __init__(self):
         self.edge_type_mapping = {}
         self.node_feature_mapping = {}
+
+        for idx, etype in enumerate(EdgeTypes.__members__.keys()):
+            self.edge_type_mapping[etype] = idx
+
+        for idx, feature in enumerate({**NodeDataTypes.__members__, **NodeRoles.__members__}.keys()):
+            self.node_feature_mapping[feature] = idx
 
     def get_num_edge_types(self):
         return len(self.edge_type_mapping)
@@ -384,14 +391,14 @@ class PandasGraphEncoder(StatefulEncoder):
 
     def convert_edge_type(self, etype: str) -> int:
         if etype not in self.edge_type_mapping:
-            self.edge_type_mapping[etype] = len(self.edge_type_mapping)
+            raise KeyError(f"Could not map edge type {etype}")
 
         return self.edge_type_mapping[etype]
 
     def convert_node_features(self, features: List[str]) -> List[int]:
         for feature in features:
             if feature not in self.node_feature_mapping:
-                self.node_feature_mapping[feature] = len(self.node_feature_mapping)
+                raise KeyError(f"Could not map node feature {feature}")
 
         return [self.node_feature_mapping[f] for f in features]
 
@@ -409,6 +416,14 @@ class PandasGraphEncoder(StatefulEncoder):
             e[1] = self.convert_edge_type(e[1])
 
         encoding['nodes'] = [self.convert_node_features(n) for n in encoding['nodes']]
+
+    def get_encoder(self, sid: str):
+        unpacked = unpack_sid(sid)
+        op_type, oid = unpacked.op_type, unpacked.oid
+        if oid is not None and hasattr(self, f"{op_type}_{oid}"):
+            return getattr(self, f"{op_type}_{oid}")
+
+        return getattr(self, op_type)
 
     def Select(self, domain, context=None, choice=None, mode='training', **kwargs):
         #  We expect domain to be a list of values
