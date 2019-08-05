@@ -19,6 +19,22 @@ def gen_ndarray_flatten(inputs, *args, **kwargs):
         'self': _self, 'order': _order
     }
 
+@generator(group='numpy', name='ndarray.transpose')
+def gen_ndarray_transpose(inputs, *args, **kwargs):
+    """ndarray.transpose(self, *axes)"""
+
+    _self = Select([inp for inp in inputs if isinstance(inp, np.ndarray)])
+
+    _axes = None
+    use_axis = Select([True, False])
+    if use_axis:
+        axis_indices = range(len(_self.shape))
+        _axes = OrderedSubset(axis_indices, lengths=[len(axis_indices)])
+
+    return _self.transpose(_axes), {
+        'self': _self, 'axes': _axes
+    }
+
 @generator(group='numpy', name='ndarray.reshape')
 def gen_ndarray_reshape(inputs, *args, **kwargs):
     """ndarray.reshape(self, shape, order='C')"""

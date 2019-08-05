@@ -70,3 +70,17 @@ class TestGenerators(unittest.TestCase):
         funcs = ['ndarray.flatten']
         seqs = [[0]]
         self.check(inputs, output, funcs, seqs)
+
+    def test_ndarray_transpose(self):
+        inputs = [np.array([[0,1], [3,4]])]
+        output = inputs[0].transpose()
+        funcs = ['ndarray.transpose']
+        seqs = [[0]]
+        self.check(inputs, output, funcs, seqs)
+
+    def test_ndarray_transpose_complex(self):
+        inputs = [np.array(range(28)).reshape([2, 2, 7])]
+        output = inputs[0].transpose(0,2,1)
+        funcs = ['ndarray.transpose']
+        seqs = [[0]]
+        self.check(inputs, output, funcs, seqs)
