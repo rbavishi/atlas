@@ -1,12 +1,13 @@
 import itertools
-from typing import Dict, Any, Callable, Generator, Collection, Optional
+from typing import Dict, Any, Callable, Collection, Optional
 
 from atlas.exceptions import ExceptionAsContinue
-from atlas.strategies import Strategy, operator
+from atlas.strategies import operator
+from atlas.strategies.strategy import IteratorBasedStrategy
 from atlas.utils.iterutils import PeekableGenerator
 
 
-class DfsStrategy(Strategy):
+class DfsStrategy(IteratorBasedStrategy):
     def __init__(self):
         super().__init__()
         self.call_id: int = 0
@@ -43,7 +44,17 @@ class DfsStrategy(Strategy):
 
             if t not in self.op_map:
                 try:
-                    op: PeekableGenerator = PeekableGenerator(handler(domain, context=context, sid=sid, **kwargs))
+                    iterator = None
+                    if self.model is not None:
+                        try:
+                            iterator = self.model.infer(domain, context=context, sid=sid)
+                        except NotImplementedError:
+                            pass
+
+                    if iterator is None:
+                        iterator = handler(domain, context=context, sid=sid, **kwargs)
+
+                    op: PeekableGenerator = PeekableGenerator(iter(iterator))
 
                 except StopIteration:
                     #  Operator received an empty domain

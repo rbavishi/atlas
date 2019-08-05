@@ -2,6 +2,8 @@ import collections
 from abc import abstractmethod, ABC
 from typing import Callable, Tuple, Dict, Any, Optional, Set
 
+from atlas.models.core import GeneratorModel
+
 
 def operator(func):
     setattr(func, "_is_generator_op", True)
@@ -14,7 +16,6 @@ def is_operator(func):
 
 class Strategy(ABC):
     def __init__(self):
-        self.sid_cnt: Dict[Tuple[str, str], int] = collections.defaultdict(int)
         self.known_ops: Set[str] = {k for k in dir(self) if is_operator(getattr(self, k))}
 
     def init(self):
@@ -39,3 +40,12 @@ class Strategy(ABC):
     @abstractmethod
     def make_op(self, op_type: str, oid: Optional[str]) -> Callable:
         pass
+
+
+class IteratorBasedStrategy(Strategy, ABC):
+    def __init__(self):
+        super().__init__()
+        self.model: Optional[GeneratorModel] = None
+
+    def set_model(self, model: Optional[GeneratorModel]):
+        self.model = model
