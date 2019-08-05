@@ -75,7 +75,6 @@ class BasePandasOperatorModel(DefaultOpModel, ABC):
 
 class PandasSelect(BasePandasOperatorModel):
     def __init__(self, sid: str, encoder: PandasGraphEncoder, model: GGNN = None, config: Dict = None):
-        print(model is None)
         super().__init__(sid, encoder, model or SelectGGNN(config))
 
     def infer(self, domain, context: Any = None, sid: str = ''):
