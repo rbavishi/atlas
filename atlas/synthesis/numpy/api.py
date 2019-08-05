@@ -10,6 +10,15 @@ from atlas.stubs import Select, Sequence, Subset, OrderedSubset, Product
 from atlas.synthesis.numpy.utils import get_non_1_prime_factors
 
 
+@generator(group='numpy', name='ndarray.flatten')
+def gen_ndarray_flatten(inputs, *args, **kwargs):
+    """ndarray.flatten(self, order='C')"""
+    _self = Select([inp for inp in inputs if isinstance(inp, np.ndarray)])
+    _order = Select(['C', 'F', 'A', 'K'])
+    return _self.flatten( order=_order), {
+        'self': _self, 'order': _order
+    }
+
 @generator(group='numpy', name='ndarray.reshape')
 def gen_ndarray_reshape(inputs, *args, **kwargs):
     """ndarray.reshape(self, shape, order='C')"""

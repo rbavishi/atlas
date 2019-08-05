@@ -62,3 +62,11 @@ class TestGenerators(unittest.TestCase):
         funcs = ['ndarray.reshape']
         seqs = [[0]]
         self.check(inputs, output, funcs, seqs)
+
+
+    def test_ndarray_flatten(self):
+        inputs = [np.array([[0,1], [3,4]])]
+        output = inputs[0].flatten()
+        funcs = ['ndarray.flatten']
+        seqs = [[0]]
+        self.check(inputs, output, funcs, seqs)
