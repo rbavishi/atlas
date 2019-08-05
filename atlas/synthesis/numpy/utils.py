@@ -12,9 +12,8 @@ def is_prime(n):
     return True
 
 def get_non_1_prime_factors(n):
-    print("calling for ", n)
     factor_list = []
-    for d in [2] + list(range(3, ceil(sqrt(n))+1, 2)):
+    for d in [2] + list(range(3, ceil(sqrt(n))+2, 2)):
         m = n
         while m % d == 0:
             factor_list.append(d)
