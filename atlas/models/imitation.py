@@ -1,8 +1,9 @@
 import datetime
+import json
 import os
 import tqdm
 from abc import ABC, abstractmethod
-from typing import Collection, Dict, Optional
+from typing import Collection, Dict, Optional, Set, Any
 
 from atlas.models.core import GeneratorModel
 from atlas.tracing import GeneratorTrace, OpTrace
@@ -26,6 +27,10 @@ class DefaultOpModel(ABC):
         pass
 
     @abstractmethod
+    def infer(self, domain, context: Any = None, sid: str = ''):
+        pass
+
+    @abstractmethod
     def save(self, path: str):
         """
         Save model in an inference-suitable format
@@ -33,6 +38,11 @@ class DefaultOpModel(ABC):
             path: The path to store the model in.
 
         """
+
+    @classmethod
+    @abstractmethod
+    def load(cls, path: str) -> 'DefaultOpModel':
+        pass
 
 
 class DefaultIndependentOpModel(TraceImitationModel, ABC):
@@ -42,8 +52,10 @@ class DefaultIndependentOpModel(TraceImitationModel, ABC):
 
         self.path = path
         os.makedirs(path, exist_ok=True)
+        self.model_map: Dict[str, DefaultOpModel] = {}
 
-    def train(self, training_traces: Collection[GeneratorTrace], validation_traces: Collection[GeneratorTrace] = None,
+    def train(self, training_traces: Collection[GeneratorTrace],
+              validation_traces: Collection[GeneratorTrace] = None,
               **kwargs):
         #  First, go over all the traces and create separate data-sets for each operator
         training_datasets: Dict[str, Collection[OpTrace]] = self.create_operator_datasets(training_traces)
@@ -53,13 +65,26 @@ class DefaultIndependentOpModel(TraceImitationModel, ABC):
             validation_datasets = {}
 
         #  Now, train each operator model separately
-        model_map: Dict[str, DefaultOpModel] = {}
+        modeled_sids: Dict[str, str] = {}
         for sid, dataset in training_datasets.items():
             print(f"[+] Training model for {sid}")
             model: DefaultOpModel = self.get_op_model(sid)
             if model is not None:
-                model_map[sid] = model
-                model.train(dataset, validation_datasets.get(sid, None))
+                self.model_map[sid] = model
+                model.train(dataset, validation_datasets.get(sid, None), **kwargs)
+                model_dir = f"{self.path}/models/{sid}"
+                os.makedirs(model_dir, exist_ok=True)
+                model.save(f"{model_dir}/model")
+                modeled_sids[sid] = model_dir
+
+        with open(f"{self.path}/model_list.json", "w") as f:
+            json.dump(modeled_sids, f)
+
+    def infer(self, domain: Any, context: Any = None, sid: str = ''):
+        if sid not in self.model_map:
+            return None
+
+        return self.model_map[sid].infer(domain, context, sid)
 
     def create_operator_datasets(self, traces: Collection[GeneratorTrace]) -> Dict[str, Collection[OpTrace]]:
         file_maps: Dict[str, IndexedFileWriter] = {}

@@ -20,7 +20,7 @@ class Network(TensorflowModel, ABC):
         for g in graph_iter:
             cur_batch.append(g)
             node_offset += len(g['nodes'])
-            if node_offset > batch_size:
+            if node_offset > batch_size > 0:
                 yield len(cur_batch), self.define_batch(cur_batch, is_training)
                 node_offset = 0
 
@@ -64,6 +64,10 @@ class Network(TensorflowModel, ABC):
 
             print(f"[Validation({epoch}/{num_epochs})] "
                   f"Loss: {valid_loss / valid_total_graphs: .6f} Accuracy: {valid_acc / valid_total_graphs: .4f}")
+
+    def infer(self, data: Iterable[Dict]):
+        num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
+        return self.sess.run([self.get_op('predictions'), self.get_op('probabilities')], feed_dict=batch_data)
 
     @abstractmethod
     def build(self):

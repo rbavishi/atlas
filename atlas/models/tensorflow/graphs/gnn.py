@@ -47,8 +47,10 @@ class GGNN(Network):
             return self.classifier.ops['loss']
         elif name == 'accuracy':
             return self.classifier.ops['accuracy']
-        elif name == 'prediction':
-            return self.classifier.ops['prediction']
+        elif name == 'predictions':
+            return self.classifier.ops['predictions']
+        elif name == 'probabilities':
+            return self.classifier.ops['probabilities']
         elif name == 'train_step':
             return self.optimizer.ops['train_step']
         else:

@@ -1,6 +1,8 @@
+import collections
+
 import tensorflow as tf
 import numpy as np
-from typing import Mapping, Any, List, Dict
+from typing import Mapping, Any, List, Dict, Iterable
 
 from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier
 from atlas.models.tensorflow.graphs.gnn import GGNN
@@ -21,7 +23,7 @@ class SelectGGNNClassifier(GGNNGraphClassifier):
         domain_node_graph_ids_list = []
         for idx, g in enumerate(graphs):
             domain.extend([i + node_offset for i in g['domain']])
-            selected_domain_node = g['choice']
+            selected_domain_node = g.get('choice', 0)
             domain_labels.extend([i == selected_domain_node for i in g['domain']])
             domain_node_graph_ids_list.extend([idx for _ in range(len(g['domain']))])
 
@@ -58,6 +60,7 @@ class SelectGGNNClassifier(GGNNGraphClassifier):
                                                segment_ids=self.placeholders['domain_node_graph_ids_list'],
                                                num_segments=self.placeholders['num_graphs'],
                                                return_log=True)
+        self.ops['probabilities'] = probs
 
         loss_per_domain_node = -tf.cast(self.placeholders['domain_labels'], tf.float32) * log_probs
         loss_per_graph = tf.unsorted_segment_sum(data=loss_per_domain_node,
@@ -86,3 +89,24 @@ class SelectGGNN(GGNN):
             classifier = SelectGGNNClassifier(**params)
 
         super().__init__(params, propagator, classifier, optimizer)
+
+    def infer(self, data: Iterable[Dict]):
+        num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
+        results = self.sess.run([self.classifier.ops['probabilities'],
+                                 self.classifier.placeholders['domain_node_graph_ids_list']],
+                                feed_dict=batch_data)
+
+        per_graph_results = collections.defaultdict(list)
+        for prob, graph_id in zip(*results):
+            per_graph_results[graph_id].append(prob)
+
+        inference = []
+        for idx, graph in enumerate(iter(data)):
+            if 'mapping' in graph:
+                mapping = graph['mapping']
+                inference.append([(mapping[domain_node], prob)
+                                 for domain_node, prob in zip(graph['domain'], per_graph_results[idx])])
+
+        return inference
+
+
