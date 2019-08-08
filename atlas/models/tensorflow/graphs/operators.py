@@ -26,6 +26,7 @@ class SelectGGNNClassifier(GGNNGraphClassifier):
             selected_domain_node = g.get('choice', 0)
             domain_labels.extend([i == selected_domain_node for i in g['domain']])
             domain_node_graph_ids_list.extend([idx for _ in range(len(g['domain']))])
+            node_offset += len(g['nodes'])
 
         batch_data.update({
             self.placeholders['domain']: np.array(domain),
