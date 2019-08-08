@@ -4,13 +4,12 @@ import logging
 import sys
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Any, Set, List, Dict, Optional, Tuple, Collection
+from typing import Any, Set, List, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 
 from atlas.synthesis.pandas.checker import Checker
-from atlas.tracing import OpTrace
 from atlas.utils.genutils import unpack_sid
 
 
@@ -108,12 +107,18 @@ class GraphNode:
         self.label = label
         self.features = features
 
+    def __repr__(self):
+        return self.label
+
 
 class GraphEdge:
     def __init__(self, src: GraphNode, dst: GraphNode, etype: EdgeTypes):
         self.src = src
         self.dst = dst
         self.etype = etype
+
+    def __repr__(self):
+        return f"({self.src}, {self.etype.value}, {self.dst})"
 
 
 class ValueEncoding(ABC):
@@ -159,7 +164,7 @@ class DataFrameEncoding(ValueEncoding):
     INDEX_NAME_NODES = False
     COLUMN_NAME_NODES = False
 
-    INNER_EQUALITY_EDGES = True
+    INNER_EQUALITY_EDGES = False
     ADJACENCY_EDGES = True
     INDEX_EDGES = True
     COLUMN_EDGES = True
@@ -177,8 +182,6 @@ class DataFrameEncoding(ValueEncoding):
         self.index_name_nodes: List[GraphNode] = []  # Shape : num_levels (highest level first)
         self.column_name_nodes: List[GraphNode] = []  # Shape : num_levels (highest level first)
         self.representor_node: Optional[GraphNode] = None
-
-        self.build()
 
     def create_node(self, value: Any, label: str, features: Set[NodeFeatures]):
         node = GraphNode(self.label + ":" + label, features)
