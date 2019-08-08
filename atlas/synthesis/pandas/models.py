@@ -106,7 +106,7 @@ class PandasModelBasic(DefaultIndependentOpModel):
             'layer_timesteps': [1, 1, 1],
             'graph_rnn_cell': 'gru',
             'graph_rnn_activation': 'tanh',
-            'edge_weight_dropout': 0.8,
+            'edge_weight_dropout': 0.1,
             'num_node_features': encoder.get_num_node_features(),
             'num_edge_types': encoder.get_num_edge_types()
         }
