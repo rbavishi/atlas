@@ -101,7 +101,8 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
 
     #  Get all the external dependencies of this function.
     #  We rely on a modified closure function adopted from the ``inspect`` library.
-    g = getclosurevars_recursive(func).globals.copy()
+    closure_vars = getclosurevars_recursive(func)
+    g = {**closure_vars.nonlocals.copy(), **closure_vars.globals.copy()}
     known_ops: Set[str] = strategy.get_known_ops()
     sid_index_map: Dict[Tuple[str, ...], int] = collections.defaultdict(int)
 
