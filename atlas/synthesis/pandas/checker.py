@@ -1,18 +1,15 @@
-from typing import Any, Callable, Sized, Iterable, Collection
-import pandas as pd
-import numpy as np
-from autopandas_v2.generators.dsl.values import Value
+import logging
+from typing import Any, Callable, Collection
 
-from autopandas_v2.utils import logger
+import numpy as np
+import pandas as pd
+
 pd_groupby = pd.core.groupby.GroupBy
 
 
 class Checker:
     @staticmethod
     def check(v1: Any, v2: Any) -> bool:
-        if isinstance(v1, Value):
-            return Checker.check(v1.val, v2)
-
         return Checker.get_checker(v1)(v1, v2)
 
     @staticmethod
@@ -43,10 +40,7 @@ class Checker:
         except (AssertionError, TypeError, ValueError):
             return False
         except Exception as e:
-            logger.warn("DataFrame Comparison Failed")
-            logger.log(v1)
-            logger.log(v2)
-            logger.log(e)
+            logging.exception(e)
             return False
 
     @staticmethod
@@ -60,10 +54,7 @@ class Checker:
         except (AssertionError, TypeError, ValueError):
             return False
         except Exception as e:
-            logger.warn("Series Comparison Failed")
-            logger.log(v1)
-            logger.log(v2)
-            logger.log(e)
+            logging.exception(e)
             return False
 
     @staticmethod
@@ -76,10 +67,7 @@ class Checker:
         except (AssertionError, TypeError, ValueError, NameError):
             return False
         except Exception as e:
-            logger.warn("GroupBy Comparison Failed")
-            logger.log(v1)
-            logger.log(v2)
-            logger.log(e)
+            logging.exception(e)
             return False
 
     @staticmethod
@@ -93,10 +81,7 @@ class Checker:
         except (AssertionError, TypeError, ValueError):
             return False
         except Exception as e:
-            logger.warn("Index Comparison Failed")
-            logger.log(v1)
-            logger.log(v2)
-            logger.log(e)
+            logging.exception(e)
             return False
 
     @staticmethod
@@ -107,10 +92,7 @@ class Checker:
         try:
             return np.array_equal(v1, v2)
         except Exception as e:
-            logger.warn("NDArray Comparison Failed")
-            logger.log(v1)
-            logger.log(v2)
-            logger.log(e)
+            logging.exception(e)
             return False
 
     @staticmethod
@@ -127,10 +109,7 @@ class Checker:
                     return False
 
         except Exception as e:
-            logger.warn("Collection Comparison Failed")
-            logger.log(v1)
-            logger.log(v2)
-            logger.log(e)
+            logging.exception(e)
             return False
 
         return True
@@ -149,10 +128,7 @@ class Checker:
         except (AssertionError, TypeError, ValueError, NameError):
             return False
         except Exception as e:
-            logger.warn("Default Comparison Failed")
-            logger.log(v1)
-            logger.log(v2)
-            logger.log(e)
+            logging.exception(e)
             return False
 
 
