@@ -24,7 +24,7 @@ class SelectGGNNClassifier(GGNNGraphClassifier):
         for idx, g in enumerate(graphs):
             domain.extend([i + node_offset for i in g['domain']])
             selected_domain_node = g.get('choice', 0)
-            domain_labels.extend([i == selected_domain_node for i in g['domain']])
+            domain_labels.extend([int(i == selected_domain_node) for i in g['domain']])
             domain_node_graph_ids_list.extend([idx for _ in range(len(g['domain']))])
             node_offset += len(g['nodes'])
 
@@ -75,11 +75,12 @@ class SelectGGNNClassifier(GGNNGraphClassifier):
         copied_domain_node_max_scores = tf.gather(params=domain_node_max_scores,
                                                   indices=self.placeholders['domain_node_graph_ids_list'])
 
-        selected_domain_nodes = tf.cast(tf.equal(copied_domain_node_max_scores, domain_node_logits), dtype=tf.float32)
-        correct_prediction_per_node = selected_domain_nodes * tf.cast(self.placeholders['domain_labels'], tf.float32)
-        correct_prediction = tf.unsorted_segment_max(data=correct_prediction_per_node,
-                                                     segment_ids=self.placeholders['domain_node_graph_ids_list'],
-                                                     num_segments=self.placeholders['num_graphs'])
+        selected_domain_nodes = tf.cast(tf.equal(copied_domain_node_max_scores, domain_node_logits), dtype=tf.int32)
+        correct_prediction_per_node = tf.cast(tf.equal(selected_domain_nodes, self.placeholders['domain_labels']),
+                                              tf.float32)
+        correct_prediction = tf.unsorted_segment_prod(data=correct_prediction_per_node,
+                                                      segment_ids=self.placeholders['domain_node_graph_ids_list'],
+                                                      num_segments=self.placeholders['num_graphs'])
 
         self.ops['accuracy'] = tf.reduce_mean(correct_prediction)
 
@@ -106,8 +107,6 @@ class SelectGGNN(GGNN):
             if 'mapping' in graph:
                 mapping = graph['mapping']
                 inference.append([(mapping[domain_node], prob)
-                                 for domain_node, prob in zip(graph['domain'], per_graph_results[idx])])
+                                  for domain_node, prob in zip(graph['domain'], per_graph_results[idx])])
 
         return inference
-
-
