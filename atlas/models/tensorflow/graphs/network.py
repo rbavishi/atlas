@@ -5,6 +5,7 @@ import tensorflow as tf
 from typing import Dict, List, Optional, Any, Mapping, Iterable, Iterator
 
 from atlas.models.tensorflow import TensorflowModel
+from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper, SimpleEarlyStopper
 
 
 class Network(TensorflowModel, ABC):
@@ -27,11 +28,16 @@ class Network(TensorflowModel, ABC):
         if len(cur_batch) > 0:
             yield len(cur_batch), self.define_batch(cur_batch, is_training)
 
-    def train(self, training_data: Iterable[Dict], validation_data: Iterable[Dict], num_epochs: int):
+    def train(self, training_data: Iterable[Dict], validation_data: Iterable[Dict], num_epochs: int,
+              early_stopper: EarlyStopper = None):
         if self.sess is None:
             self.setup()
 
-        for epoch in range(1, num_epochs + 1):
+        if num_epochs < 0:
+            if early_stopper is None:
+                early_stopper = SimpleEarlyStopper()
+
+        for epoch in range(1, (num_epochs if num_epochs > 0 else 2**32) + 1):
             train_loss = valid_loss = 0
             train_acc = valid_acc = 0
             train_total_graphs = valid_total_graphs = 0
@@ -64,6 +70,10 @@ class Network(TensorflowModel, ABC):
 
             print(f"[Validation({epoch}/{num_epochs})] "
                   f"Loss: {valid_loss / valid_total_graphs: .6f} Accuracy: {valid_acc / valid_total_graphs: .4f}")
+
+            if early_stopper is not None:
+                if early_stopper.evaluate(valid_acc / valid_total_graphs, valid_loss / valid_total_graphs):
+                    break
 
     def infer(self, data: Iterable[Dict]):
         num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
