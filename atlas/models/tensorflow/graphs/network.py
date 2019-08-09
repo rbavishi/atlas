@@ -1,7 +1,4 @@
-import pickle
 from abc import abstractmethod, ABC
-
-import tensorflow as tf
 from typing import Dict, List, Optional, Any, Mapping, Iterable, Iterator
 
 from atlas.models.tensorflow import TensorflowModel
