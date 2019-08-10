@@ -41,7 +41,6 @@ UnpackedSID = namedtuple("UnpackedSID", ['gen_group', 'gen_name', 'op_type', 'oi
 
 
 def unpack_sid(sid: str) -> UnpackedSID:
-    print(sid)
     gen_group, gen_name, base = sid.split('/')
     op_type, oid, index = base.split('@')
     return UnpackedSID(
