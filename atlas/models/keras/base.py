@@ -43,7 +43,7 @@ class KerasModel(TrainableModel, ABC):
         self.model = tf.keras.models.load_model(ckpt_path)
 
     def infer(self, data: Collection, **kwargs):
-        return self.model.infer(self.preprocess(data, mode='inference'))
+        return self.model.predict(self.preprocess(data, mode='inference'))
 
     def save(self, path_dir: str):
         super().save(path_dir)
