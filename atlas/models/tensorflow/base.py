@@ -3,8 +3,10 @@ import pickle
 import tensorflow as tf
 from abc import ABC, abstractmethod
 
+from atlas.models import TrainableModel
 
-class TensorflowModel(ABC):
+
+class TensorflowModel(TrainableModel, ABC):
     def __init__(self, random_seed: int = 0):
         self.sess = None
         self.graph = None
@@ -47,8 +49,8 @@ class TensorflowModel(ABC):
         with open(path, 'wb') as f:
             pickle.dump(self, f)
 
-    @staticmethod
-    def load(path: str):
+    @classmethod
+    def load(cls, path: str):
         with open(path, 'rb') as f:
             model = pickle.load(f)
 
