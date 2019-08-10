@@ -46,7 +46,7 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
         train_datasets: Dict[str, Collection[OpTrace]] = self.create_operator_datasets(train_traces)
         val_datasets: Dict[str, Collection[OpTrace]] = {}
         if val_traces is not None:
-            val_datasets: Dict[str, Collection[OpTrace]] = self.create_operator_datasets(val_traces)
+            val_datasets: Dict[str, Collection[OpTrace]] = self.create_operator_datasets(val_traces, mode='validation')
 
         for sid, dataset in train_datasets.items():
             print(f"[+] Training model for {sid}")
