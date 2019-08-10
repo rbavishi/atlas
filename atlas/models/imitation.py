@@ -66,7 +66,8 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
 
         return self.model_map[sid].infer(domain, context, sid)
 
-    def create_operator_datasets(self, traces: Collection[GeneratorTrace]) -> Dict[str, Collection[OpTrace]]:
+    def create_operator_datasets(self, traces: Collection[GeneratorTrace],
+                                 mode: str = 'training') -> Dict[str, Collection[OpTrace]]:
         file_maps: Dict[str, IndexedFileWriter] = {}
         path_maps: Dict[str, str] = {}
         for trace in tqdm.tqdm(traces):
@@ -74,8 +75,8 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
                 if op.sid not in file_maps:
                     path = f"{self.work_dir}/data/{op.sid}"
                     os.makedirs(path, exist_ok=True)
-                    file_maps[op.sid] = IndexedFileWriter(f"{path}/op_data.pkl")
-                    path_maps[op.sid] = f"{path}/op_data.pkl"
+                    file_maps[op.sid] = IndexedFileWriter(f"{path}/{mode}_op_data.pkl")
+                    path_maps[op.sid] = f"{path}/{mode}_op_data.pkl"
 
                 file_maps[op.sid].append(op)
 
