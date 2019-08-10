@@ -40,7 +40,10 @@ class GeneratorTrace:
         self.op_traces.append(op_trace)
 
     def __repr__(self):
-        return repr(self.op_traces)
+        return textwrap.dedent(f"""
+        GeneratorTrace(inputs={self.f_inputs},
+                       op_traces={self.op_traces!r}
+        """)
 
 
 class DefaultTracer(Hook):
