@@ -41,3 +41,14 @@ class GeneratorBasic(unittest.TestCase):
             return Select(["0", "1"]) + lower_bit()
 
         self.assertEqual(list(upper_bit.generate()), ["00", "01", "10", "11"])
+
+    def test_gen_composition_2(self):
+        @generator(group='binary')
+        def upper_bit():
+            return Select(["0", "1"]) + lower_bit()
+
+        @generator(group='binary')
+        def lower_bit():
+            return Select(["0", "1"])
+
+        self.assertEqual(list(upper_bit.generate()), ["00", "01", "10", "11"])
