@@ -99,7 +99,7 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
     def save(self, path: str):
         super().save(path)
         with open(f"{path}/model_list.json", "w") as f:
-            json.dump({os.path.relpath(k, self.work_dir): v for k, v in self.modeled_sids.items()}, f)
+            json.dump({k: os.path.relpath(v, self.work_dir) for k, v in self.modeled_sids.items()}, f)
 
         if path != self.work_dir:
             self._safe_del = True
@@ -113,7 +113,7 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
     def load(cls, path: str):
         model = cls(path)
         with open(f"{path}/model_list.json", "r") as f:
-            model.modeled_sids = {f"{path}/{k}": v for k, v in json.load(f).items()}
+            model.modeled_sids = {k: f"{path}/v" for k, v in json.load(f).items()}
 
         model.load_models()
 
