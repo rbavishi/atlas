@@ -113,7 +113,7 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
     def load(cls, path: str):
         model = cls(path)
         with open(f"{path}/model_list.json", "r") as f:
-            model.modeled_sids = {k: f"{path}/v" for k, v in json.load(f).items()}
+            model.modeled_sids = {k: f"{path}/{v}" for k, v in json.load(f).items()}
 
         model.load_models()
 
