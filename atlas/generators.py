@@ -7,7 +7,9 @@ from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
 import astunparse
 
 from atlas.hooks import Hook
+from atlas.models import GeneratorModel
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
+from atlas.strategies.strategy import IteratorBasedStrategy
 from atlas.tracing import DefaultTracer
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name, create_sid
@@ -141,6 +143,7 @@ class Generator:
     def __init__(self,
                  func: Callable,
                  strategy: Union[str, Strategy] = 'dfs',
+                 model: GeneratorModel = None,
                  name: str = None,
                  group: str = None,
                  metadata: Dict[Any, Any] = None,
@@ -151,6 +154,7 @@ class Generator:
 
         self.func = func
         self.strategy: Strategy = make_strategy(strategy)
+        self.model = model
         self._compiled_func: Optional[Callable] = None
 
         self.name = name or func.__name__
@@ -190,6 +194,17 @@ class Generator:
             for g in get_group_by_name(self.group):
                 if g is not self:
                     g.set_strategy(self.strategy, as_group=False)
+
+    def set_model(self, model:  GeneratorModel):
+        """
+        Set a model to be used by the generator (strategy). Note that a model can work only with a strategy
+        that is an instance of the IteratorBasedStrategy abstract class. DfsStrategy is an example of such a strategy
+        Args:
+            model (GeneratorModel): The model to use
+
+        """
+        self.model = model
+        self._compiled_func = None
 
     def register_hooks(self, *hooks: Hook, as_group: bool = True):
         """
@@ -243,6 +258,9 @@ class Generator:
             *args: Positional arguments to the original function
             **kwargs: Keyword arguments to the original function
         """
+        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
+            self.strategy.set_model(self.model)
+
         if self._compiled_func is None:
             self._compiled_func = compile_func(self, self.func, self.strategy, self.hooks)
 
@@ -261,6 +279,9 @@ class Generator:
             An iterator for all the possible values that can be returned by the generator function.
 
         """
+        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
+            self.strategy.set_model(self.model)
+
         if self._compiled_func is None:
             self._compiled_func = compile_func(self, self.func, self.strategy, self.hooks)
 
