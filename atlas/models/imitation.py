@@ -49,16 +49,18 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
             val_datasets: Dict[str, Collection[OpTrace]] = self.create_operator_datasets(val_traces, mode='validation')
 
         for sid, dataset in train_datasets.items():
-            print(f"[+] Training model for {sid}")
             model: TrainableModel = self.get_op_model(sid)
-            if model is not None:
-                model_dir = f"{self.work_dir}/models/{sid}"
-                os.makedirs(model_dir, exist_ok=True)
-                self.model_map[sid] = model
-                self.modeled_sids[sid] = model_dir
+            if model is None:
+                continue
 
-                model.train(dataset, val_datasets.get(sid, None), **kwargs)
-                model.save(f"{model_dir}")
+            print(f"[+] Training model for {sid}")
+            model_dir = f"{self.work_dir}/models/{sid}"
+            os.makedirs(model_dir, exist_ok=True)
+            self.model_map[sid] = model
+            self.modeled_sids[sid] = model_dir
+
+            model.train(dataset, val_datasets.get(sid, None), **kwargs)
+            model.save(f"{model_dir}")
 
     def infer(self, domain: Any, context: Any = None, sid: str = ''):
         if sid not in self.model_map:
