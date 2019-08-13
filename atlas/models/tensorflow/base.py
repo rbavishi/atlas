@@ -41,22 +41,23 @@ class TensorflowModel(TrainableModel, ABC):
         pass
 
     def save(self, path: str):
+        super().save(path)
         if self.sess is not None:
             with self.graph.as_default():
                 saver = tf.train.Saver()
-                saver.save(self.sess, f"{path}.weights")
+                saver.save(self.sess, f"{path}/model.weights")
 
-        with open(path, 'wb') as f:
+        with open(f"{path}/model", 'wb') as f:
             pickle.dump(self, f)
 
     @classmethod
     def load(cls, path: str):
-        with open(path, 'rb') as f:
+        with open(f"{path}/model", 'rb') as f:
             model = pickle.load(f)
 
         model.setup_graph()
         with model.graph.as_default():
             saver = tf.train.Saver()
-            saver.restore(model.sess, f"{path}.weights")
+            saver.restore(model.sess, f"{path}/model.weights")
 
         return model
