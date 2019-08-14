@@ -5,13 +5,13 @@ import pickle
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from typing import Collection, Dict, Optional, Any
+from typing import Collection, Dict, Optional, Any, List
 
 import tqdm
 
 from atlas.models import GeneratorModel, TrainableModel
 from atlas.tracing import GeneratorTrace, OpTrace
-from atlas.utils.genutils import unpack_sid
+from atlas.utils.oputils import unpack_sid
 from atlas.utils.ioutils import IndexedFileWriter, IndexedFileReader
 
 
@@ -62,11 +62,11 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
             model.train(dataset, val_datasets.get(sid, None), **kwargs)
             model.save(f"{model_dir}")
 
-    def infer(self, domain: Any, context: Any = None, sid: str = ''):
+    def infer(self, domain: Any, context: Any = None, sid: str = '', **kwargs):
         if sid not in self.model_map:
             return None
 
-        return self.model_map[sid].infer(domain, context, sid)
+        return self.model_map[sid].infer(domain, context, sid, **kwargs)
 
     def create_operator_datasets(self, traces: Collection[GeneratorTrace],
                                  mode: str = 'training') -> Dict[str, Collection[OpTrace]]:

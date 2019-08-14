@@ -1,7 +1,7 @@
 import os
 import pickle
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 
 class Saveable(ABC):
@@ -36,5 +36,5 @@ class GeneratorModel(TrainableModel, ABC):
         pass
 
     @abstractmethod
-    def infer(self, domain: Any, context: Any = None, sid: str = ''):
+    def infer(self, domain: Any, context: Any = None, sid: str = '', **kwargs):
         pass
