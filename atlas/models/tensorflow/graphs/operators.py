@@ -110,3 +110,62 @@ class SelectGGNN(GGNN):
                                   for domain_node, prob in zip(graph['domain'], per_graph_results[idx])])
 
         return inference
+
+
+class SubsetGGNNClassifier(GGNNGraphClassifier):
+    def __init__(self, classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
+        super().__init__(num_classes=-1, classifier_hidden_dims=classifier_hidden_dims, agg=agg, **kwargs)
+
+    def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True):
+        batch_data = super().define_batch(graphs, is_training)
+        batch_data.pop(self.placeholders['labels'])
+
+        node_offset = 0
+        domain = []
+        domain_labels = []
+        domain_node_graph_ids_list = []
+        for idx, g in enumerate(graphs):
+            domain.extend([i + node_offset for i in g['domain']])
+            selected_domain_nodes = g.get('choice', 0)
+            domain_labels.extend([int(i in selected_domain_nodes) for i in g['domain']])
+            domain_node_graph_ids_list.extend([idx for _ in range(len(g['domain']))])
+            node_offset += len(g['nodes'])
+
+        batch_data.update({
+            self.placeholders['domain']: np.array(domain),
+            self.placeholders['domain_labels']: np.array(domain_labels),
+            self.placeholders['domain_node_graph_ids_list']: np.array(domain_node_graph_ids_list)
+        })
+
+        return batch_data
+
+    def define_placeholders(self):
+        super().define_placeholders()
+        self.placeholders['domain'] = tf.placeholder(tf.int32, [None], name='domain')
+        self.placeholders['domain_node_graph_ids_list'] = tf.placeholder(tf.int32, [None],
+                                                                         name='domain_node_graph_ids_list')
+        self.placeholders['domain_labels'] = tf.placeholder(tf.int32, [None], name='domain_labels')
+
+    def define_prediction_with_loss(self, node_embeddings):
+        graph_embeddings = self.define_pooling(node_embeddings)
+        domain_nodes_embeddings = tf.gather(params=node_embeddings,
+                                            indices=self.placeholders['domain'])
+        graph_embeddings_copied = tf.gather(params=graph_embeddings,
+                                            indices=self.placeholders['domain_node_graph_ids_list'])
+
+        mlp_domain_nodes = MLP(
+            in_size=domain_nodes_embeddings.get_shape()[1] + graph_embeddings_copied.get_shape()[1],
+            out_size=2, hid_sizes=self.classifier_hidden_dims)
+
+        domain_node_logits = mlp_domain_nodes(tf.concat([domain_nodes_embeddings,
+                                                         graph_embeddings_copied], axis=-1))
+        individual_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=domain_node_logits,
+                                                                         labels=self.placeholders['domain_labels'])
+        loss = self.ops['loss'] = tf.reduce_mean(individual_loss)
+        probs = self.ops['probabilities'] = tf.nn.softmax(domain_node_logits)
+        flat_correct_predictions = tf.cast(tf.equal(tf.argmax(probs, -1, ), self.placeholders['domain_labels']),
+                                           tf.float32)
+        correct_predictions = tf.unsorted_segment_prod(data=flat_correct_predictions,
+                                                       segment_ids=self.placeholders['domain_node_graph_ids_list'],
+                                                       num_segments=self.placeholders['num_graphs'])
+        self.ops['accuracy'] = tf.reduce_mean(correct_predictions)
