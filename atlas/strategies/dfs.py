@@ -1,5 +1,5 @@
 import itertools
-from typing import Dict, Any, Callable, Collection, Optional
+from typing import Dict, Any, Callable, Collection, Optional, List
 
 from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import operator
@@ -31,46 +31,38 @@ class DfsStrategy(IteratorBasedStrategy):
     def is_finished(self):
         return self.last_unfinished == -1
 
-    def make_op(self, op_type: str, oid: Optional[str]) -> Callable:
-        label = op_type
-        if oid is not None and op_type + "_" + oid in dir(self):
-            label = op_type + "_" + oid
+    def generic_call(self, domain, context=None, sid: str = '',
+                     labels: Optional[List[str]] = None, handler: Optional[Callable] = None, **kwargs):
+        t = self.call_id
+        self.call_id += 1
 
-        handler = getattr(self, label)
+        if t not in self.op_map:
+            try:
+                iterator = None
+                if self.model is not None:
+                    try:
+                        iterator = self.model.infer(domain, context=context, sid=sid, labels=labels, **kwargs)
+                    except NotImplementedError:
+                        pass
 
-        def call(domain: Any, context: Any = None, sid: str = '', **kwargs):
-            t = self.call_id
-            self.call_id += 1
+                if iterator is None:
+                    iterator = handler(domain, context=context, sid=sid, labels=labels, **kwargs)
 
-            if t not in self.op_map:
-                try:
-                    iterator = None
-                    if self.model is not None:
-                        try:
-                            iterator = self.model.infer(domain, context=context, sid=sid)
-                        except NotImplementedError:
-                            pass
+                op: PeekableGenerator = PeekableGenerator(iter(iterator))
 
-                    if iterator is None:
-                        iterator = handler(domain, context=context, sid=sid, **kwargs)
+            except StopIteration:
+                #  Operator received an empty domain
+                raise ExceptionAsContinue
 
-                    op: PeekableGenerator = PeekableGenerator(iter(iterator))
+            self.op_map[t] = op
 
-                except StopIteration:
-                    #  Operator received an empty domain
-                    raise ExceptionAsContinue
+        else:
+            op = self.op_map[t]
 
-                self.op_map[t] = op
+        if not op.is_finished():
+            self.last_unfinished = t
 
-            else:
-                op = self.op_map[t]
-
-            if not op.is_finished():
-                self.last_unfinished = t
-
-            return op.peek()
-
-        return call
+        return op.peek()
 
     @operator
     def Select(self, domain: Any, context: Any = None, fixed_domain=False, **kwargs):

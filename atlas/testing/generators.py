@@ -25,7 +25,7 @@ class GeneratorBasic(unittest.TestCase):
         def binary(length: int):
             s = ""
             for i in range(length):
-                s += Select(["0", "1"], oid='reversed')
+                s += Select(["0", "1"], labels='reversed')
 
             return s
 

@@ -12,18 +12,27 @@ from atlas.strategies import Strategy, RandStrategy, DfsStrategy
 from atlas.strategies.strategy import IteratorBasedStrategy
 from atlas.tracing import DefaultTracer
 from atlas.utils import astutils
-from atlas.utils.genutils import register_generator, register_group, get_group_by_name, create_sid
+from atlas.utils.genutils import register_generator, register_group, get_group_by_name
+from atlas.utils.oputils import create_sid
 from atlas.utils.inspection import getclosurevars_recursive
 from atlas.exceptions import ExceptionAsContinue
 
 
-def get_user_provided_oid(n_call: ast.Call) -> Optional[str]:
+def get_user_provided_labels(n_call: ast.Call) -> Optional[List[str]]:
     for kw in n_call.keywords:
-        if kw.arg == 'oid':
-            if not isinstance(kw.value, ast.Str):
-                raise Exception(f"Value passed to 'oid' must be a string in {astunparse.unparse(n_call)}")
+        if kw.arg == 'labels':
+            if not isinstance(kw.value, (ast.Str, ast.List)):
+                raise Exception(f"Value passed to 'labels' must be a string or list of strings in "
+                                f"{astunparse.unparse(n_call)}")
 
-            return kw.value.s
+            if isinstance(kw.value, ast.Str):
+                return [kw.value.s]
+            else:
+                if not all(isinstance(i, ast.Str) for i in kw.value.elts):
+                    raise SyntaxError(f"Value passed to 'labels' must be a string or list of strings in "
+                                      f"{astunparse.unparse(n_call)}")
+
+                return [i.s for i in kw.value.elts]
 
     return None
 
@@ -54,16 +63,20 @@ def compile_op(op: Callable, sid: str, hooks: List[Hook]) -> Callable:
     Returns:
         A callable that executes the hooks (if any) along with the operator and returns result of the operator call
     """
-    def create_op(*args, **kwargs):
-        for h in hooks:
-            h.before_op(*args, **kwargs, sid=sid)
+    if len(hooks) == 0:
+        return op
 
-        result = op(*args, **kwargs, sid=sid)
+    else:
+        def create_op(*args, **kwargs):
+            for h in hooks:
+                h.before_op(*args, **kwargs, sid=sid)
 
-        for h in hooks:
-            h.after_op(*args, **kwargs, sid=sid, retval=result)
+            result = op(*args, **kwargs)
 
-        return result
+            for h in hooks:
+                h.after_op(*args, **kwargs, sid=sid, retval=result)
+
+            return result
 
     return create_op
 
@@ -109,22 +122,31 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
     sid_index_map: Dict[Tuple[str, ...], int] = collections.defaultdict(int)
 
     ops = {}
+    handlers = {}
     for n in astutils.preorder_traversal(f_ast):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
             #  Rename the function call, and assign a new function to be called during execution.
             #  This new function is determined by the semantics (strategy) being used for compilation.
             #  Also determine if there any eligible hooks for this operator call.
             op_type = n.func.id
-            oid = get_user_provided_oid(n)
-            sid_key = (gen.group, gen.name, op_type, oid)
+            labels = get_user_provided_labels(n)
+            sid_key = (gen.group, gen.name, op_type, labels[0] if labels else None)
             sid_index_map[sid_key] += 1
             sid: str = create_sid(gen_name=gen.name, gen_group=gen.group,
-                                  op_type=op_type, oid=oid, index=sid_index_map[sid_key])
-            op = strategy.make_op(op_type, oid)
+                                  op_type=op_type, label=labels[0] if labels else None,
+                                  index=sid_index_map[sid_key])
+            n.keywords.append(ast.keyword(arg='sid', value=ast.Str(sid)))
+            n.keywords.append(ast.keyword(arg='handler', value=ast.Name(f"_handler_{len(handlers)}", ctx=ast.Load())))
+            ast.fix_missing_locations(n)
+            handler = strategy.get_op_handler(sid, labels)
+            handlers[f"_handler_{len(handlers)}"] = handler
+
+            op = strategy.generic_call
             n.func.id = f"Op_{len(ops)}"
             ops[n.func.id] = compile_op(op, sid, hooks)
 
     g.update({k: v for k, v in ops.items()})
+    g.update({k: v for k, v in handlers.items()})
 
     module = ast.Module()
     module.body = [f_ast]

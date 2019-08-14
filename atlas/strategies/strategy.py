@@ -1,8 +1,8 @@
-import collections
 from abc import abstractmethod, ABC
-from typing import Callable, Tuple, Dict, Any, Optional, Set
+from typing import Callable, Optional, Set, List
 
 from atlas.models.core import GeneratorModel
+from atlas.utils.oputils import DefaultOpMethodResolver
 
 
 def operator(func):
@@ -14,7 +14,7 @@ def is_operator(func):
     return getattr(func, "_is_generator_op", False)
 
 
-class Strategy(ABC):
+class Strategy(ABC, DefaultOpMethodResolver):
     def __init__(self):
         self.known_ops: Set[str] = {k for k in dir(self) if is_operator(getattr(self, k))}
 
@@ -37,8 +37,9 @@ class Strategy(ABC):
     def get_known_ops(self):
         return self.known_ops
 
-    @abstractmethod
-    def make_op(self, op_type: str, oid: Optional[str]) -> Callable:
+    def generic_call(self, domain, context=None, sid: str = '',
+                     labels: Optional[List[str]] = None, handler: Optional[Callable] = None,
+                     *args, **kwargs):
         pass
 
 

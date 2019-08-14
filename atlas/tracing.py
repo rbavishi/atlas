@@ -3,7 +3,7 @@ from typing import List, Optional, Any
 
 import atlas
 from atlas.hooks import Hook
-from atlas.utils.genutils import unpack_sid
+from atlas.utils.oputils import unpack_sid
 
 
 class OpTrace:
