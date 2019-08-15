@@ -2,12 +2,13 @@ import random
 from typing import Callable, Optional, List
 
 from atlas.strategies import Strategy, operator
+from atlas.utils.oputils import OpInfo
 
 
 class RandStrategy(Strategy):
-    def generic_call(self, domain, context=None, sid: str = '',
-                     labels: Optional[List[str]] = None, handler: Optional[Callable] = None, **kwargs):
-        return handler(domain, context, sid, labels)
+    def generic_call(self, domain, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                     *args, **kwargs):
+        return handler(domain, context, op_info)
 
     def is_finished(self):
         return False

@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from typing import Callable, Optional, Set, List
 
 from atlas.models.core import GeneratorModel
-from atlas.utils.oputils import DefaultOpMethodResolver
+from atlas.utils.oputils import DefaultOpMethodResolver, OpInfo
 
 
 def operator(func):
@@ -37,8 +37,7 @@ class Strategy(ABC, DefaultOpMethodResolver):
     def get_known_ops(self):
         return self.known_ops
 
-    def generic_call(self, domain, context=None, sid: str = '',
-                     labels: Optional[List[str]] = None, handler: Optional[Callable] = None,
+    def generic_call(self, domain, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
                      *args, **kwargs):
         pass
 

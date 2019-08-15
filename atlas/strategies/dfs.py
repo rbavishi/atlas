@@ -5,6 +5,7 @@ from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import operator
 from atlas.strategies.strategy import IteratorBasedStrategy
 from atlas.utils.iterutils import PeekableGenerator
+from atlas.utils.oputils import OpInfo
 
 
 class DfsStrategy(IteratorBasedStrategy):
@@ -31,8 +32,8 @@ class DfsStrategy(IteratorBasedStrategy):
     def is_finished(self):
         return self.last_unfinished == -1
 
-    def generic_call(self, domain, context=None, sid: str = '',
-                     labels: Optional[List[str]] = None, handler: Optional[Callable] = None, **kwargs):
+    def generic_call(self, domain, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                     *args, **kwargs):
         t = self.call_id
         self.call_id += 1
 
@@ -41,12 +42,12 @@ class DfsStrategy(IteratorBasedStrategy):
                 iterator = None
                 if self.model is not None:
                     try:
-                        iterator = self.model.infer(domain, context=context, sid=sid, labels=labels, **kwargs)
+                        iterator = self.model.infer(domain, context=context, op_info=op_info, **kwargs)
                     except NotImplementedError:
                         pass
 
                 if iterator is None:
-                    iterator = handler(domain, context=context, sid=sid, labels=labels, **kwargs)
+                    iterator = handler(domain, context=context, op_info=op_info, **kwargs)
 
                 op: PeekableGenerator = PeekableGenerator(iter(iterator))
 
