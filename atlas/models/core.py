@@ -3,6 +3,8 @@ import pickle
 from abc import ABC, abstractmethod
 from typing import Any, Optional, List
 
+from atlas.utils.oputils import OpInfo
+
 
 class Saveable(ABC):
     @abstractmethod
@@ -36,5 +38,5 @@ class GeneratorModel(TrainableModel, ABC):
         pass
 
     @abstractmethod
-    def infer(self, domain: Any, context: Any = None, sid: str = '', **kwargs):
+    def infer(self, domain: Any, context: Any = None, op_info: OpInfo = None, **kwargs):
         pass

@@ -11,7 +11,7 @@ import tqdm
 
 from atlas.models import GeneratorModel, TrainableModel
 from atlas.tracing import GeneratorTrace, OpTrace
-from atlas.utils.oputils import unpack_sid
+from atlas.utils.oputils import unpack_sid, OpInfo
 from atlas.utils.ioutils import IndexedFileWriter, IndexedFileReader
 
 
@@ -62,7 +62,8 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
             model.train(dataset, val_datasets.get(sid, None), **kwargs)
             model.save(f"{model_dir}")
 
-    def infer(self, domain: Any, context: Any = None, sid: str = '', **kwargs):
+    def infer(self, domain: Any, context: Any = None, op_info: OpInfo = None, **kwargs):
+        sid: str = op_info.sid
         if sid not in self.model_map:
             return None
 
@@ -89,9 +90,9 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
 
     def get_op_model(self, sid: str) -> Optional[TrainableModel]:
         unpacked = unpack_sid(sid)
-        op_type, oid = unpacked.op_type, unpacked.oid
-        if oid is not None and hasattr(self, f"{op_type}_{oid}"):
-            return getattr(self, f"{op_type}_{oid}")(sid)
+        op_type, label = unpacked.op_type, unpacked.label
+        if label is not None and hasattr(self, f"{op_type}_{label}"):
+            return getattr(self, f"{op_type}_{label}")(sid)
 
         if hasattr(self, op_type):
             return getattr(self, op_type)(sid)
