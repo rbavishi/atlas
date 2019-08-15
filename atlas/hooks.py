@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import Any
 
-import atlas
+from atlas.utils.oputils import OpInfo
 
 
 class Hook(ABC):
@@ -17,8 +17,8 @@ class Hook(ABC):
     def finish(self):
         pass
 
-    def before_op(self, domain, context=None, sid: str = None, **kwargs):
+    def before_op(self, domain, context=None, op_info: OpInfo = None, **kwargs):
         pass
 
-    def after_op(self, domain, context=None, sid: str = None, retval: Any = None, **kwargs):
+    def after_op(self, domain, context=None, op_info: OpInfo = None, retval: Any = None, **kwargs):
         pass

@@ -1,29 +1,22 @@
 import textwrap
 from typing import List, Optional, Any
 
-import atlas
 from atlas.hooks import Hook
-from atlas.utils.oputils import unpack_sid
+from atlas.utils.oputils import OpInfo
 
 
 class OpTrace:
-    def __init__(self, choice, domain, context, sid: str, op_type: str, oid: Optional[str],
-                 gen_group: Optional[str], gen_name: str, index: int, **kwargs):
+    def __init__(self, choice, domain, context, op_info: OpInfo, **kwargs):
         self.choice = choice
         self.domain = domain
         self.context = context
-        self.sid = sid
-        self.op_type = op_type
-        self.oid = oid
-        self.gen_group = gen_group
-        self.gen_name = gen_name
-        self.index = index
+        self.op_info = op_info
 
         self.kwargs = kwargs
 
     def __repr__(self):
         return textwrap.dedent(f"""
-        OpTrace(sid={self.sid!r},
+        OpTrace(op_info={self.op_info!r},
                 choice={self.choice!r},
                 domain={self.domain!r},
                 context={self.context!r},
@@ -53,15 +46,8 @@ class DefaultTracer(Hook):
     def init_run(self, f_args, f_kwargs, **kwargs):
         self.cur_trace = GeneratorTrace((f_args, f_kwargs))
 
-    def after_op(self, domain, context=None, sid: str = None, retval: Any = None, **kwargs):
-        unpacked = unpack_sid(sid)
-        gen_group = unpacked.gen_group
-        gen_name = unpacked.gen_name
-        op_type = unpacked.op_type
-        oid = unpacked.oid
-        index = unpacked.index
-        op_trace = OpTrace(sid=sid, choice=retval, domain=domain, context=context, op_type=op_type, oid=oid,
-                           gen_group=gen_group, gen_name=gen_name, index=index)
+    def after_op(self, domain, context=None, op_info: OpInfo = None, retval: Any = None, **kwargs):
+        op_trace = OpTrace(op_info=op_info, choice=retval, domain=domain, context=context)
         self.cur_trace.record_op_trace(op_trace)
 
     def get_last_trace(self):
