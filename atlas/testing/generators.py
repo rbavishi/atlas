@@ -4,6 +4,10 @@ from atlas import generator
 from atlas.strategies import DfsStrategy
 
 
+def Select(*args, **kwargs):
+    pass
+
+
 class GeneratorBasic(unittest.TestCase):
     def test_gen_single_1(self):
         @generator(strategy='dfs')
