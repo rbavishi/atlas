@@ -56,3 +56,14 @@ class GeneratorBasic(unittest.TestCase):
             return Select(["0", "1"])
 
         self.assertEqual(list(upper_bit.generate()), ["00", "01", "10", "11"])
+
+    def test_gen_hooks_basic_1(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+        self.assertEqual([i[0] for i in list(binary.trace(2))], ["00", "01", "10", "11"])
