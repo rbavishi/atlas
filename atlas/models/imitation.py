@@ -1,17 +1,16 @@
 import datetime
 import json
 import os
-import pickle
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from typing import Collection, Dict, Optional, Any, List
+from typing import Collection, Dict, Optional, Any
 
 import tqdm
 
 from atlas.models import GeneratorModel, TrainableModel
 from atlas.tracing import GeneratorTrace, OpTrace
-from atlas.utils.oputils import unpack_sid, OpInfo
+from atlas.operators import unpack_sid, OpInfo
 from atlas.utils.ioutils import IndexedFileWriter, IndexedFileReader
 
 

@@ -1,8 +1,8 @@
 import random
-from typing import Callable, Optional, List
+from typing import Callable, Optional
 
 from atlas.strategies import Strategy, operator
-from atlas.utils.oputils import OpInfo
+from atlas.operators import OpInfo
 
 
 class RandStrategy(Strategy):

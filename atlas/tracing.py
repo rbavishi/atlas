@@ -2,7 +2,7 @@ import textwrap
 from typing import List, Optional, Any
 
 from atlas.hooks import Hook
-from atlas.utils.oputils import OpInfo
+from atlas.operators import OpInfo
 
 
 class OpTrace:

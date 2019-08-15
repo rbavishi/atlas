@@ -1,11 +1,11 @@
 import itertools
-from typing import Dict, Any, Callable, Collection, Optional, List
+from typing import Dict, Any, Callable, Collection, Optional
 
 from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import operator
 from atlas.strategies.strategy import IteratorBasedStrategy
 from atlas.utils.iterutils import PeekableGenerator
-from atlas.utils.oputils import OpInfo
+from atlas.operators import OpInfo
 
 
 class DfsStrategy(IteratorBasedStrategy):

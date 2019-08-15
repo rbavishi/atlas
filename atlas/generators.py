@@ -1,8 +1,7 @@
 import ast
-import collections
 import inspect
 import textwrap
-from typing import Callable, Set, Optional, Union, Dict, List, Any, Tuple
+from typing import Callable, Set, Optional, Union, Dict, List, Any
 
 import astunparse
 
@@ -13,7 +12,7 @@ from atlas.strategies.strategy import IteratorBasedStrategy
 from atlas.tracing import DefaultTracer
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
-from atlas.utils.oputils import create_sid, OpInfo, OpInfoConstructor
+from atlas.operators import OpInfo, OpInfoConstructor
 from atlas.utils.inspection import getclosurevars_recursive
 from atlas.exceptions import ExceptionAsContinue
 

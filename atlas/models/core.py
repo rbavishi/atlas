@@ -1,9 +1,9 @@
 import os
 import pickle
 from abc import ABC, abstractmethod
-from typing import Any, Optional, List
+from typing import Any
 
-from atlas.utils.oputils import OpInfo
+from atlas.operators import OpInfo
 
 
 class Saveable(ABC):
