@@ -27,8 +27,8 @@ class GNN(TensorflowModel, ABC):
 
     def train(self, training_data: Iterable[Dict], validation_data: Iterable[Dict], num_epochs: int = 1,
               early_stopper: EarlyStopper = None, **kwargs):
-        super().train(training_data, validation_data,
-                      batch_size=self.params['batch_size'], num_epochs=num_epochs, early_stopper=early_stopper)
+        return super().train(training_data, validation_data,
+                             batch_size=self.params['batch_size'], num_epochs=num_epochs, early_stopper=early_stopper)
 
     def infer(self, data: Iterable[Dict]):
         num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))

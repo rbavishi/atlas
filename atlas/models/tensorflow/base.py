@@ -3,7 +3,7 @@ import pickle
 import tensorflow as tf
 from abc import ABC, abstractmethod
 
-from typing import Iterator, Iterable
+from typing import Iterator, Iterable, Dict, List
 
 from atlas.models import TrainableModel
 from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper, SimpleEarlyStopper
@@ -65,10 +65,14 @@ class TensorflowModel(TrainableModel, ABC):
             if early_stopper is None:
                 early_stopper = SimpleEarlyStopper()
 
+        history: List[Dict] = []
+
         for epoch in range(1, (num_epochs if num_epochs > 0 else 2**32) + 1):
+            history.append({'epoch': epoch})
+
             train_loss = valid_loss = 0
             train_acc = valid_acc = 0
-            num_datapoints = valid_total_graphs = 0
+            num_datapoints = 0
 
             training_fetch_list = [self.ops['loss'], self.ops['accuracy'], self.ops['train_step']]
             validation_fetch_list = [self.ops['loss'], self.ops['accuracy']]
@@ -86,22 +90,35 @@ class TensorflowModel(TrainableModel, ABC):
             print(f"[Training({epoch}/{num_epochs})] "
                   f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}")
 
+            history[-1].update({
+                'train_loss': train_loss / num_datapoints,
+                'train_acc': train_acc / num_datapoints,
+            })
+
+            num_datapoints = 0
             for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(validation_data),
                                                                             batch_size, is_training=False):
                 batch_loss, batch_acc = self.sess.run(validation_fetch_list, feed_dict=batch_data)
                 valid_loss += batch_loss * num_datapoints_batch
                 valid_acc += batch_acc * num_datapoints_batch
-                valid_total_graphs += num_datapoints_batch
+                num_datapoints += num_datapoints_batch
                 print(f"[Validation({epoch}/{num_epochs})] "
-                      f"Loss: {valid_loss / valid_total_graphs: .6f} Accuracy: {valid_acc / valid_total_graphs: .4f}",
+                      f"Loss: {valid_loss / num_datapoints: .6f} Accuracy: {valid_acc / num_datapoints: .4f}",
                       end='\r')
 
             print(f"[Validation({epoch}/{num_epochs})] "
-                  f"Loss: {valid_loss / valid_total_graphs: .6f} Accuracy: {valid_acc / valid_total_graphs: .4f}")
+                  f"Loss: {valid_loss / num_datapoints: .6f} Accuracy: {valid_acc / num_datapoints: .4f}")
+
+            history[-1].update({
+                'valid_loss': valid_loss / num_datapoints,
+                'valid_acc': valid_acc / num_datapoints,
+            })
 
             if early_stopper is not None:
-                if early_stopper.evaluate(valid_acc / valid_total_graphs, valid_loss / valid_total_graphs):
+                if early_stopper.evaluate(valid_acc / num_datapoints, valid_loss / num_datapoints):
                     break
+
+        return history
 
     @abstractmethod
     def infer(self, data: Iterator):
