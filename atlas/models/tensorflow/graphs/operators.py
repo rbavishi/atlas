@@ -127,7 +127,7 @@ class SubsetGGNNClassifier(GGNNGraphClassifier):
         domain_node_graph_ids_list = []
         for idx, g in enumerate(graphs):
             domain.extend([i + node_offset for i in g['domain']])
-            selected_domain_nodes = g.get('choice', 0)
+            selected_domain_nodes = g.get('choices', [])
             domain_labels.extend([int(i in selected_domain_nodes) for i in g['domain']])
             domain_node_graph_ids_list.extend([idx for _ in range(len(g['domain']))])
             node_offset += len(g['nodes'])
@@ -148,6 +148,7 @@ class SubsetGGNNClassifier(GGNNGraphClassifier):
         self.placeholders['domain_labels'] = tf.placeholder(tf.int32, [None], name='domain_labels')
 
     def define_prediction_with_loss(self, node_embeddings):
+        node_embeddings = tf.identity(node_embeddings)
         graph_embeddings = self.define_pooling(node_embeddings)
         domain_nodes_embeddings = tf.gather(params=node_embeddings,
                                             indices=self.placeholders['domain'])
@@ -164,9 +165,18 @@ class SubsetGGNNClassifier(GGNNGraphClassifier):
                                                                          labels=self.placeholders['domain_labels'])
         loss = self.ops['loss'] = tf.reduce_mean(individual_loss)
         probs = self.ops['probabilities'] = tf.nn.softmax(domain_node_logits)
-        flat_correct_predictions = tf.cast(tf.equal(tf.argmax(probs, -1, ), self.placeholders['domain_labels']),
+        flat_correct_predictions = tf.cast(tf.equal(tf.argmax(probs, -1, output_type=tf.int32),
+                                                    self.placeholders['domain_labels']),
                                            tf.float32)
         correct_predictions = tf.unsorted_segment_prod(data=flat_correct_predictions,
                                                        segment_ids=self.placeholders['domain_node_graph_ids_list'],
                                                        num_segments=self.placeholders['num_graphs'])
         self.ops['accuracy'] = tf.reduce_mean(correct_predictions)
+
+
+class SubsetGGNN(GGNN):
+    def __init__(self, params: Mapping[str, Any], propagator=None, classifier=None, optimizer=None):
+        if classifier is None:
+            classifier = SubsetGGNNClassifier(**params)
+
+        super().__init__(params, propagator, classifier, optimizer)
