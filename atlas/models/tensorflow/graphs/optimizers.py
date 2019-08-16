@@ -1,9 +1,9 @@
 import tensorflow as tf
 
-from atlas.models.tensorflow.graphs.network import NetworkComponent
+from atlas.models.tensorflow.graphs.gnn import GNNComponent
 
 
-class GGNNOptimizer(NetworkComponent):
+class GGNNOptimizer(GNNComponent):
     def __init__(self,
                  learning_rate: float,
                  clamp_gradient_norm: float = 1.0,

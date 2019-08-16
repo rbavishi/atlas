@@ -3,7 +3,10 @@ import pickle
 import tensorflow as tf
 from abc import ABC, abstractmethod
 
+from typing import Iterator, Iterable
+
 from atlas.models import TrainableModel
+from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper, SimpleEarlyStopper
 
 
 class TensorflowModel(TrainableModel, ABC):
@@ -11,6 +14,10 @@ class TensorflowModel(TrainableModel, ABC):
         self.sess = None
         self.graph = None
         self.tf_config = None
+
+        self.placeholders = {}
+        self.weights = {}
+        self.ops = {}
 
         self.random_seed = random_seed
 
@@ -40,6 +47,66 @@ class TensorflowModel(TrainableModel, ABC):
     def build(self):
         pass
 
+    @abstractmethod
+    def get_batch_iterator(self, data_iter: Iterator, batch_size: int, is_training: bool = True) -> Iterator:
+        pass
+
+    def train(self,
+              training_data: Iterable, validation_data: Iterable,
+              batch_size: int = 128,
+              num_epochs: int = 1,
+              early_stopper: EarlyStopper = None,
+              **kwargs):
+
+        if self.sess is None:
+            self.setup()
+
+        if num_epochs < 0:
+            if early_stopper is None:
+                early_stopper = SimpleEarlyStopper()
+
+        for epoch in range(1, (num_epochs if num_epochs > 0 else 2**32) + 1):
+            train_loss = valid_loss = 0
+            train_acc = valid_acc = 0
+            num_datapoints = valid_total_graphs = 0
+
+            training_fetch_list = [self.ops['loss'], self.ops['accuracy'], self.ops['train_step']]
+            validation_fetch_list = [self.ops['loss'], self.ops['accuracy']]
+
+            for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(training_data),
+                                                                            batch_size, is_training=True):
+                batch_loss, batch_acc, _ = self.sess.run(training_fetch_list, feed_dict=batch_data)
+                train_loss += batch_loss * num_datapoints_batch
+                train_acc += batch_acc * num_datapoints_batch
+                num_datapoints += num_datapoints_batch
+                print(f"[Training({epoch}/{num_epochs})] "
+                      f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}",
+                      end='\r')
+
+            print(f"[Training({epoch}/{num_epochs})] "
+                  f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}")
+
+            for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(validation_data),
+                                                                            batch_size, is_training=False):
+                batch_loss, batch_acc = self.sess.run(validation_fetch_list, feed_dict=batch_data)
+                valid_loss += batch_loss * num_datapoints_batch
+                valid_acc += batch_acc * num_datapoints_batch
+                valid_total_graphs += num_datapoints_batch
+                print(f"[Validation({epoch}/{num_epochs})] "
+                      f"Loss: {valid_loss / valid_total_graphs: .6f} Accuracy: {valid_acc / valid_total_graphs: .4f}",
+                      end='\r')
+
+            print(f"[Validation({epoch}/{num_epochs})] "
+                  f"Loss: {valid_loss / valid_total_graphs: .6f} Accuracy: {valid_acc / valid_total_graphs: .4f}")
+
+            if early_stopper is not None:
+                if early_stopper.evaluate(valid_acc / valid_total_graphs, valid_loss / valid_total_graphs):
+                    break
+
+    @abstractmethod
+    def infer(self, data: Iterator):
+        pass
+
     def save(self, path: str):
         super().save(path)
         if self.sess is not None:
@@ -61,3 +128,20 @@ class TensorflowModel(TrainableModel, ABC):
             saver.restore(model.sess, f"{path}/model.weights")
 
         return model
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('sess')
+        state.pop('tf_config')
+        state.pop('graph')
+        state.pop('placeholders')
+        state.pop('weights')
+        state.pop('ops')
+
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.placeholders = {}
+        self.weights = {}
+        self.ops = {}

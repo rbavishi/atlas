@@ -1,58 +1,61 @@
-from typing import List, Dict, Any, Mapping
+from abc import ABC, abstractmethod
+from typing import Mapping, Any, Iterator, Dict, Iterable, List, Optional
 
-from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier
-from atlas.models.tensorflow.graphs.network import Network
-from atlas.models.tensorflow.graphs.optimizers import GGNNOptimizer
-from atlas.models.tensorflow.graphs.propagators import GGNNPropagator
+from atlas.models.tensorflow import TensorflowModel
+from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper
 
 
-class GGNN(Network):
-    """The original assembly of propagators and output computation as described in
-    https://github.com/microsoft/gated-graph-neural-network-samples/blob/master/chem_tensorflow_sparse.py"""
+class GNN(TensorflowModel, ABC):
+    def __init__(self, params: Mapping[str, Any]):
+        super().__init__()
+        self.params = params
 
-    def __init__(self,
-                 params: Mapping[str, Any],
-                 propagator=None,
-                 classifier=None,
-                 optimizer=None):
+    def get_batch_iterator(self, graph_iter: Iterator[Dict],
+                           batch_size: int, is_training: bool = True) -> Iterator[Dict]:
 
-        super().__init__(params)
-        self.propagator = propagator
-        self.classifier = classifier
-        self.optimizer = optimizer
+        node_offset = 0
+        cur_batch = []
+        for g in graph_iter:
+            cur_batch.append(g)
+            node_offset += len(g['nodes'])
+            if node_offset > batch_size > 0:
+                yield len(cur_batch), self.define_batch(cur_batch, is_training)
+                node_offset = 0
 
-        #  Setup default components for ease of use
-        if self.propagator is None:
-            self.propagator = GGNNPropagator(**params)
-        if self.classifier is None:
-            self.classifier = GGNNGraphClassifier(**params)
-        if self.optimizer is None:
-            self.optimizer = GGNNOptimizer(**params)
+        if len(cur_batch) > 0:
+            yield len(cur_batch), self.define_batch(cur_batch, is_training)
+
+    def train(self, training_data: Iterable[Dict], validation_data: Iterable[Dict], num_epochs: int = 1,
+              early_stopper: EarlyStopper = None, **kwargs):
+        super().train(training_data, validation_data,
+                      batch_size=self.params['batch_size'], num_epochs=num_epochs, early_stopper=early_stopper)
+
+    def infer(self, data: Iterable[Dict]):
+        num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
+        return self.sess.run([self.ops['predictions'], self.ops['probabilities']], feed_dict=batch_data)
 
     def build(self):
-        self.propagator.build()
-        self.classifier.build(node_embeddings=self.propagator.ops['final_node_embeddings'])
-        self.optimizer.build(loss=self.classifier.ops['loss'])
+        self.build_graph()
+        for k, v in self.__dict__.items():
+            if isinstance(v, GNNComponent):
+                self.ops.update(v.ops)
+                self.placeholders.update(v.placeholders)
+                self.weights.update(v.weights)
 
+    @abstractmethod
+    def build_graph(self):
+        pass
+
+    @abstractmethod
     def define_batch(self, graphs: List[Dict], is_training: bool = True):
-        batch_dict = {}
-        batch_dict.update(self.propagator.define_batch(graphs, is_training) or {})
-        batch_dict.update(self.classifier.define_batch(graphs, is_training) or {})
-        batch_dict.update(self.optimizer.define_batch(graphs, is_training) or {})
+        pass
 
-        return batch_dict
 
-    def get_op(self, name: str):
-        if name == 'loss':
-            return self.classifier.ops['loss']
-        elif name == 'accuracy':
-            return self.classifier.ops['accuracy']
-        elif name == 'predictions':
-            return self.classifier.ops['predictions']
-        elif name == 'probabilities':
-            return self.classifier.ops['probabilities']
-        elif name == 'train_step':
-            return self.optimizer.ops['train_step']
-        else:
-            raise ValueError("Did not recognize op name " + name)
+class GNNComponent:
+    def __init__(self):
+        self.placeholders = {}
+        self.weights = {}
+        self.ops = {}
 
+    def define_batch(self, graphs: List[Dict], is_training: bool = True) -> Optional[Dict]:
+        return None

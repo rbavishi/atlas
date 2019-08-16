@@ -5,7 +5,7 @@ import numpy as np
 from typing import Mapping, Any, List, Dict, Iterable
 
 from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier
-from atlas.models.tensorflow.graphs.gnn import GGNN
+from atlas.models.tensorflow.graphs.ggnn import GGNN
 from atlas.models.tensorflow.graphs.utils import MLP, SegmentBasedSoftmax
 
 
@@ -44,6 +44,7 @@ class SelectGGNNClassifier(GGNNGraphClassifier):
         self.placeholders['domain_labels'] = tf.placeholder(tf.int32, [None], name='domain_labels')
 
     def define_prediction_with_loss(self, node_embeddings):
+        node_embeddings = tf.identity(node_embeddings)
         graph_embeddings = self.define_pooling(node_embeddings)
         domain_nodes_embeddings = tf.gather(params=node_embeddings,
                                             indices=self.placeholders['domain'])

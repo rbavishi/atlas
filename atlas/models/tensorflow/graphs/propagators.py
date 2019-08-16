@@ -2,11 +2,11 @@ import tensorflow as tf
 import numpy as np
 from typing import List, Dict, Tuple
 
-from atlas.models.tensorflow.graphs.network import NetworkComponent
+from atlas.models.tensorflow.graphs.gnn import GNNComponent
 from atlas.models.tensorflow.graphs.utils import SegmentBasedSoftmax
 
 
-class GGNNPropagator(NetworkComponent):
+class GGNNPropagator(GNNComponent):
     """The original message passing logic as described in
     https://github.com/microsoft/gated-graph-neural-network-samples/blob/master/chem_tensorflow_sparse.py"""
 

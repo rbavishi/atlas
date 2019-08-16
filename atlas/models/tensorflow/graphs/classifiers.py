@@ -8,11 +8,11 @@ import tensorflow as tf
 import numpy as np
 from typing import List, Any, Dict
 
-from atlas.models.tensorflow.graphs.network import NetworkComponent
+from atlas.models.tensorflow.graphs.gnn import GNNComponent
 from atlas.models.tensorflow.graphs.utils import MLP
 
 
-class GGNNGraphClassifier(NetworkComponent):
+class GGNNGraphClassifier(GNNComponent):
     """Simple aggregation (mean/sum) based pooler plus fixed num-classes softmax classifier"""
 
     def __init__(self,
