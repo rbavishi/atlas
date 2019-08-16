@@ -5,7 +5,7 @@ from atlas.models.tensorflow.graphs.gnn import GNNComponent
 
 class GGNNOptimizer(GNNComponent):
     def __init__(self,
-                 learning_rate: float,
+                 learning_rate: float = 0.001,
                  clamp_gradient_norm: float = 1.0,
                  **kwargs):
 
