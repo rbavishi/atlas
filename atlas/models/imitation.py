@@ -74,13 +74,14 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
         path_maps: Dict[str, str] = {}
         for trace in tqdm.tqdm(traces):
             for op in trace.op_traces:
-                if op.sid not in file_maps:
-                    path = f"{self.work_dir}/data/{op.sid}"
+                sid = op.op_info.sid
+                if sid not in file_maps:
+                    path = f"{self.work_dir}/data/{sid}"
                     os.makedirs(path, exist_ok=True)
-                    file_maps[op.sid] = IndexedFileWriter(f"{path}/{mode}_op_data.pkl")
-                    path_maps[op.sid] = f"{path}/{mode}_op_data.pkl"
+                    file_maps[sid] = IndexedFileWriter(f"{path}/{mode}_op_data.pkl")
+                    path_maps[sid] = f"{path}/{mode}_op_data.pkl"
 
-                file_maps[op.sid].append(op)
+                file_maps[sid].append(op)
 
         for v in file_maps.values():
             v.close()

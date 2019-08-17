@@ -59,3 +59,17 @@ class GNNComponent:
 
     def define_batch(self, graphs: List[Dict], is_training: bool = True) -> Optional[Dict]:
         return None
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('placeholders')
+        state.pop('weights')
+        state.pop('ops')
+
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.placeholders = {}
+        self.weights = {}
+        self.ops = {}
