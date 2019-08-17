@@ -273,7 +273,6 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
 
         #  Shape is (batch_size, max_length, 2H)
         rnn_input = tf.concat([tiled_domain_nodes_pooled_copied, tiled_graph_embeddings_copied], axis=-1)
-        print(rnn_input.get_shape())
         #  Shape is (batch_size, max_length, 2H)
         rnn_output = tf.keras.layers.LSTM(self.classifier_hidden_dims[0], return_sequences=True)(rnn_input)
         #  Shape is (max_length, batch_size, 2H)
@@ -286,7 +285,6 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
             out_size=1, hid_sizes=self.classifier_hidden_dims)
 
         #  Shape is (num-nodes-in-batch, max_length, 1)
-        print(tiled_domain_nodes_embeddings.get_shape())
         domain_node_logits = mlp_domain_nodes(tf.concat([rnn_output_copied,
                                                          tiled_domain_nodes_embeddings], axis=-1))
         #  Shape is (num-nodes-in-batch, max_length)
