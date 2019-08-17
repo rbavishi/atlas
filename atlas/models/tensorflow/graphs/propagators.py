@@ -173,6 +173,7 @@ class GGNNPropagator(GNNComponent):
         self.ops['final_node_embeddings'] = node_embeddings_per_round[-1]
 
     def define_round(self, layer: int, time_step: int, node_embeddings):
+        node_embeddings = tf.identity(node_embeddings)
         edge_weights = self.weights['edge_weights'][layer]
         src_node_ids, dst_node_ids, src_node_embeddings, dst_node_embeddings, messages = [], [], [], [], []
 
