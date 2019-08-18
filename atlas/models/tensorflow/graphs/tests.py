@@ -241,3 +241,13 @@ class SanityTests(unittest.TestCase):
         model = OrderedSubsetGGNN(config)
         history = model.train(training, validation, 200)
         self.assertGreaterEqual(history[-1]['valid_acc'], 0.90)
+
+        #  Now test inference
+        acc = 0
+        for i in validation:
+            #  Inference has the form [[(val, prob), (val, prob) ... (for every domain node) ] ... for every graph]
+            inferred = sorted(model.infer([i], top_k=10)[0], key=lambda x: -x[1])
+            if inferred[0][0] == i['choice'][:-1]:  # Don't compare the terminal node
+                acc += 1
+
+        self.assertGreaterEqual(acc / len(validation), 0.90)

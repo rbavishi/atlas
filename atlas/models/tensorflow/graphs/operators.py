@@ -240,7 +240,7 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
             domain_node_timestep_graph_ids_list_unshifted.extend([[idx for _ in range(max_length)]
                                                                   for _ in range(len(g['domain']))])
 
-            selected_domain_nodes = g.get('choice', [])
+            selected_domain_nodes = g.get('choice', [])[:]
             loss_mask_single = [1] * len(selected_domain_nodes) + [0] * (max_length - len(selected_domain_nodes))
             loss_mask.extend([loss_mask_single for _ in range(len(g['domain']))])
             acc_mask_single = [0] * len(selected_domain_nodes) + [1] * (max_length - len(selected_domain_nodes))
@@ -362,3 +362,41 @@ class OrderedSubsetGGNN(GGNN):
 
         super().__init__(params, propagator, classifier, optimizer)
 
+    def infer(self, data: Iterable[Dict], top_k: int = 100):
+        num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
+        results = self.sess.run([self.classifier.ops['probabilities'],
+                                 self.classifier.placeholders['domain_node_graph_ids_list']],
+                                feed_dict=batch_data)
+
+        per_graph_results = collections.defaultdict(list)
+        inference = []
+        for prob, graph_id in zip(*results):
+            per_graph_results[graph_id].append(prob)
+
+        for graph_id, graph in enumerate(data):
+            inference.append(self.beam_search(top_k, per_graph_results[graph_id], graph['domain']))
+
+        return inference
+
+    def beam_search(self, beam_size: int, probs: List[List[float]],
+                    mapping: List[Any]) -> List[Tuple[List[Any], float]]:
+        beam = [([], 1.0)]
+        results = []
+        timesteps = len(probs[0])
+        for step in range(timesteps):
+            dst = []
+            for node_idx, node_probs in enumerate(probs[:-1]):
+                node_prob = node_probs[step]
+                for cur, prob in beam:
+                    if node_idx in cur:
+                        continue
+
+                    dst.append((cur + [node_idx], prob * node_prob))
+
+            term_prob = probs[-1][step]
+            for cur, prob in beam:
+                results.append(([mapping[i] for i in cur], prob * term_prob))
+
+            beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
+
+        return sorted(results, key=lambda x: -x[1])[:beam_size]
