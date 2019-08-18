@@ -2,7 +2,7 @@ import collections
 
 import tensorflow as tf
 import numpy as np
-from typing import Mapping, Any, List, Dict, Iterable
+from typing import Mapping, Any, List, Dict, Iterable, Tuple
 
 from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier
 from atlas.models.tensorflow.graphs.ggnn import GGNN
@@ -109,6 +109,9 @@ class SelectGGNN(GGNN):
                 mapping = graph['mapping']
                 inference.append([(mapping[domain_node], prob)
                                   for domain_node, prob in zip(graph['domain'], per_graph_results[idx])])
+            else:
+                inference.append([(domain_node, prob)
+                                  for domain_node, prob in zip(graph['domain'], per_graph_results[idx])])
 
         return inference
 
@@ -180,6 +183,35 @@ class SubsetGGNN(GGNN):
             classifier = SubsetGGNNClassifier(**params)
 
         super().__init__(params, propagator, classifier, optimizer)
+
+    def infer(self, data: Iterable[Dict], top_k: int = 100):
+        num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
+        results = self.sess.run([self.classifier.ops['probabilities'],
+                                 self.classifier.placeholders['domain_node_graph_ids_list']],
+                                feed_dict=batch_data)
+
+        per_graph_results = collections.defaultdict(list)
+        inference = []
+        for prob, graph_id in zip(*results):
+            per_graph_results[graph_id].append(prob)
+
+        for graph_id, graph in enumerate(data):
+            inference.append(self.beam_search(top_k, per_graph_results[graph_id], graph['domain']))
+
+        return inference
+
+    def beam_search(self, beam_size: int, probs: List[Tuple[float, float]],
+                    mapping: List[Any]) -> List[Tuple[List[Any], float]]:
+        beam = [([], 1.0)]
+        for idx, (discard_prob, keep_prob) in enumerate(probs):
+            dst = []
+            for cur, prob in beam:
+                dst.append((cur, prob * discard_prob))
+                dst.append((cur + [mapping[idx]], prob * keep_prob))
+
+            beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
+
+        return beam
 
 
 class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
