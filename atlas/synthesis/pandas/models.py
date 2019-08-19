@@ -26,7 +26,7 @@ def dump_encodings(data: Collection[OpTrace], encoder: PandasGraphEncoder, sid: 
             domain=op.domain,
             context=op.context,
             choice=op.choice,
-            sid=op.sid
+            sid=op.op_info.sid
         ))
 
     encoding_file.close()
@@ -49,7 +49,7 @@ class PandasSelect(SelectGGNN):
 
         super().train(encoded_train, encoded_valid, *args, **kwargs)
 
-    def infer(self, domain, context: Any = None, sid: str = ''):
+    def infer(self, domain, context: Any = None, sid: str = '', **kwargs):
         encoding = self.encoder.get_encoder(self.sid)(domain, context, mode='inference', sid=sid)
         inference = super().infer([encoding])[0]
         print(inference, sid)
