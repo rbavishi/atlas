@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from atlas.synthesis.pandas.checker import Checker
-from atlas.utils.genutils import unpack_sid
+from atlas.operators import unpack_sid
 
 
 class NodeFeatures(Enum):
@@ -429,9 +429,9 @@ class PandasGraphEncoder:
 
     def get_encoder(self, sid: str):
         unpacked = unpack_sid(sid)
-        op_type, oid = unpacked.op_type, unpacked.oid
-        if oid is not None and hasattr(self, f"{op_type}_{oid}"):
-            return getattr(self, f"{op_type}_{oid}")
+        op_type, label = unpacked.op_type, unpacked.label
+        if label is not None and hasattr(self, f"{op_type}_{label}"):
+            return getattr(self, f"{op_type}_{label}")
 
         return getattr(self, op_type)
 
