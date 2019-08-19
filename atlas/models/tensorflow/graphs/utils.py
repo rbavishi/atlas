@@ -54,17 +54,33 @@ class MLP:
         self.in_size = in_size
         self.out_size = out_size
         self.hid_sizes = hid_sizes or []
-        self.activations = activations or ['relu'] * (len(self.hid_sizes) + 1)
+        self.activations = activations or ['leaky_relu'] * (len(self.hid_sizes) + 1)
         self.layers = []
         self.build()
 
+    def get_layers(self, idx: int, layer_dim: int, act: str):
+        if act == 'leaky_relu':
+            act_str = 'linear'
+        else:
+            act_str = act
+
+        if idx == 0:
+            main_layer = tf.keras.layers.Dense(layer_dim, activation=act_str, input_dim=self.in_size,
+                                               kernel_initializer='glorot_uniform')
+        else:
+            main_layer = tf.keras.layers.Dense(layer_dim, activation=act_str,
+                                               kernel_initializer='glorot_uniform')
+
+        layers = [main_layer]
+        if act == 'leaky_relu':
+            layers.append(tf.keras.layers.LeakyReLU(alpha=0.01))
+
+        return layers
+
     def build(self):
         layer_dims = self.hid_sizes + [self.out_size]
-        self.layers.append(tf.keras.layers.Dense(layer_dims[0], activation=self.activations[0],
-                                                 input_dim=self.in_size, kernel_initializer='glorot_uniform'))
-        for idx, layer_dim in enumerate(layer_dims[1:], 1):
-            self.layers.append(tf.keras.layers.Dense(layer_dim, activation=self.activations[idx],
-                                                     kernel_initializer='glorot_uniform'))
+        for idx, (layer_dim, act) in enumerate(zip(layer_dims, self.activations)):
+            self.layers.extend(self.get_layers(idx, layer_dim, act))
 
     def __call__(self, inputs):
         result = inputs
