@@ -12,3 +12,5 @@ training-data
 gnn/graph_classification/data/
 specs_compiled.py
 docs/_build
+research
+.ipynb_checkpoints
