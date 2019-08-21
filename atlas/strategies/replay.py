@@ -1,38 +1,46 @@
+import collections
 from typing import Callable, Optional, List
 
+from atlas.operators import OpInfo
 from atlas.strategies import Strategy, operator
 from atlas.tracing import GeneratorTrace
 
 
-class Replay(Strategy):
-    def __init__(self, traces: List[GeneratorTrace], repeat: bool = False):
+class ReplayStrategy(Strategy):
+    def __init__(self, trace: GeneratorTrace, backup_strategy: Strategy):
         super().__init__()
-        self.traces = traces
-        self.op_choice_map = {}
-        self._trace_num: int = 0
-        self._cur_trace = None
-        self.repeat = repeat
-        self.set_known_ops()
+        self.trace = trace
+        self.backup_strategy = backup_strategy
+        self.known_ops = backup_strategy.known_ops
 
-    def set_known_ops(self):
-        self.known_ops = {o.op_type for t in self.traces for o in t.op_traces}
+        self.op_choice_map = collections.defaultdict(list)
+        for t in trace.op_traces:
+            self.op_choice_map[t.op_info.sid].append(t.choice)
+
+        self.op_choice_map = {k: iter(v) for k, v in self.op_choice_map.items()}
+
+    def get_op_handler(self, op_info: OpInfo):
+        return self.backup_strategy.get_op_handler(op_info)
 
     def is_finished(self):
-        return (not self.repeat) and self._trace_num == len(self.traces) - 1
+        return self.backup_strategy.is_finished()
 
     def init(self):
-        self._trace_num = -1
+        self.backup_strategy.init()
 
     def init_run(self):
-        self._trace_num = (self._trace_num + 1) % len(self.traces)
-        self._cur_trace: GeneratorTrace = self.traces[self._trace_num]
-        self.op_choice_map = {t.sid: t.choice for t in self._cur_trace.op_traces}
+        self.backup_strategy.init_run()
 
-    def make_op(self, op_kind: str, oid: Optional[str]) -> Callable:
-        def wrapper(*args, sid: str = '', **kwargs):
-            if sid not in self.op_choice_map:
-                raise KeyError(f"Could not find Op with SID {sid} in trace {self._cur_trace}")
+    def finish_run(self):
+        self.backup_strategy.finish_run()
 
-            return self.op_choice_map[sid]
+    def finish(self):
+        self.backup_strategy.finish()
 
-        return wrapper
+    def generic_call(self, domain, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                     *args, **kwargs):
+        if op_info.sid in self.op_choice_map:
+            return next(self.op_choice_map[op_info.sid])
+
+        return self.backup_strategy.generic_call(domain, context=context, op_info=op_info,
+                                                 handler=handler, *args, **kwargs)

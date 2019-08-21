@@ -10,9 +10,9 @@ from atlas.exceptions import ExceptionAsContinue
 from atlas.hooks import Hook
 from atlas.models import GeneratorModel
 from atlas.operators import OpInfo, OpInfoConstructor
-from atlas.strategies import Strategy, RandStrategy, DfsStrategy
+from atlas.strategies import Strategy, RandStrategy, DfsStrategy, ReplayStrategy
 from atlas.strategies.strategy import IteratorBasedStrategy
-from atlas.tracing import DefaultTracer
+from atlas.tracing import DefaultTracer, GeneratorTrace
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 from atlas.utils.inspection import getclosurevars_recursive
@@ -387,6 +387,7 @@ class GeneratorExecEnvironment(Iterable):
 
             self.strategy.init_run()
             try:
+                print(self.args, self.kwargs, flush=True)
                 result = self._compiled_func(*self.args, **self.kwargs, _atlas_gen_exec_env=self)
                 if self.tracer is None:
                     yield result
@@ -424,6 +425,13 @@ class GeneratorExecEnvironment(Iterable):
 
     def with_model(self, model: GeneratorModel) -> 'GeneratorExecEnvironment':
         self.model = model
+        return self
+
+    def replay(self, trace: GeneratorTrace):
+        if not self.args and not self.kwargs:
+            self.args, self.kwargs = trace.f_inputs
+        self.strategy = ReplayStrategy(trace, self.strategy)
+        self.reset_compilation()
         return self
 
 

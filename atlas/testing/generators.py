@@ -78,3 +78,30 @@ class GeneratorBasic(unittest.TestCase):
             return s
 
         self.assertEqual([i[0] for i in list(binary.generate(2).with_tracing())], ["00", "01", "10", "11"])
+
+    def test_gen_replay_basic_1(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+        traces = [i[1] for i in binary.generate(2).with_tracing()]
+
+        self.assertEqual([list(binary.generate(2).replay(t))[0] for t in traces], ["00", "01", "10", "11"])
+
+    def test_gen_replay_basic_2(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+        traces = [i[1] for i in binary.generate(2).with_tracing()]
+
+        #  Arguments to generate omitted
+        self.assertEqual([list(binary.generate().replay(t))[0] for t in traces], ["00", "01", "10", "11"])
