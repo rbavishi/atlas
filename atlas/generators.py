@@ -201,7 +201,6 @@ class Generator:
         self.func = func
         self.strategy: Strategy = make_strategy(strategy)
         self.model = model
-        self._compiled_func: Optional[Callable] = None
 
         self.name = name or func.__name__
         if name is not None:
@@ -222,7 +221,7 @@ class Generator:
         self.hooks: List[Hook] = []
         self.metadata = metadata
 
-    def set_strategy(self, strategy: Union[str, Strategy], as_group: bool = True):
+    def set_default_strategy(self, strategy: Union[str, Strategy], as_group: bool = True):
         """
         Set a new strategy for the generator. This is useful for exploring different behaviors of the generator
         without redefining the function.
@@ -234,14 +233,13 @@ class Generator:
 
         """
         self.strategy = make_strategy(strategy)
-        self._compiled_func = None
 
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
                 if g is not self:
                     g.set_strategy(self.strategy, as_group=False)
 
-    def set_model(self, model: GeneratorModel):
+    def set_default_model(self, model: GeneratorModel):
         """
         Set a model to be used by the generator (strategy). Note that a model can work only with a strategy
         that is an instance of the IteratorBasedStrategy abstract class. DfsStrategy is an example of such a strategy
@@ -250,9 +248,8 @@ class Generator:
 
         """
         self.model = model
-        self._compiled_func = None
 
-    def register_hooks(self, *hooks: Hook, as_group: bool = True):
+    def register_default_hooks(self, *hooks: Hook, as_group: bool = True):
         """
         Register hooks for the generator.
 
@@ -263,20 +260,19 @@ class Generator:
 
         """
         self.hooks.extend(hooks)
-        self._compiled_func = None
 
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
                 if g is not self:
                     g.register_hooks(*hooks, as_group=False)
 
-    def deregister_hook(self, hook: Hook, as_group: bool = True, ignore_errors: bool = False):
+    def deregister_default_hook(self, hook: Hook, as_group: bool = True, ignore_errors: bool = False):
         """
         De-register hook for the generator.
 
         Args:
             hook (Hook): The list of hooks to register
-            as_group (bool): Whether to set this strategy for all the generators in the group (if any).
+            as_group (bool): Whether to de-register this hook for all the generators in the group (if any).
                 ``True`` by default.
             ignore_errors (bool): Do not raise exception if the hook was not registered before
 
@@ -287,7 +283,6 @@ class Generator:
 
         else:
             self.hooks.remove(hook)
-            self._compiled_func = None
 
         if as_group and self.group is not None:
             for g in get_group_by_name(self.group):
@@ -304,12 +299,6 @@ class Generator:
             *args: Positional arguments to the original function
             **kwargs: Keyword arguments to the original function
         """
-        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
-            self.strategy.set_model(self.model)
-
-        if self._compiled_func is None:
-            self._compiled_func = compile_func(self, self.func, self.strategy, self.hooks)
-
         if _atlas_gen_exec_env is None:
             #  TODO : Add a one-time performance warning
             frame = inspect.currentframe().f_back
@@ -344,28 +333,6 @@ class Generator:
             parent_gen=self
         )
 
-    def trace(self, *args, **kwargs):
-        """
-        This method returns an iterator for the result of all possible executions (all possible combinations of
-        operator choices) of the generator function for the given input i.e. ``(*args, **kwargs)`` along with a trace
-        of the choices made by the operators to produce those outputs.
-
-        Args:
-            *args: Positional arguments to the original function
-            **kwargs: Keyword arguments to the original function
-
-        Returns:
-            An iterator for all the possible values along with a trace that can be returned by the generator function.
-
-        """
-
-        tracer = DefaultTracer()
-        self.register_hooks(tracer)
-        for val in self.generate(*args, **kwargs):
-            yield val, tracer.get_last_trace()
-
-        self.deregister_hook(tracer)
-
 
 class GeneratorExecEnvironment(Iterable):
     """
@@ -391,6 +358,11 @@ class GeneratorExecEnvironment(Iterable):
 
         self._compiled_func: Optional[Callable] = None
         self._compilation_cache: Dict[Generator, Callable] = {}
+        self.tracer: Optional[DefaultTracer] = None
+
+    def reset_compilation(self):
+        self._compiled_func = None
+        self._compilation_cache = {}
 
     def call(self, parent_gen: Generator, func: Callable, args, kwargs):
         if parent_gen not in self._compilation_cache:
@@ -415,7 +387,11 @@ class GeneratorExecEnvironment(Iterable):
 
             self.strategy.init_run()
             try:
-                yield self._compiled_func(*self.args, **self.kwargs, _atlas_gen_exec_env=self)
+                result = self._compiled_func(*self.args, **self.kwargs, _atlas_gen_exec_env=self)
+                if self.tracer is None:
+                    yield result
+                else:
+                    yield result, self.tracer.get_last_trace()
 
             except ExceptionAsContinue:
                 pass
@@ -429,6 +405,26 @@ class GeneratorExecEnvironment(Iterable):
 
         for h in self.hooks:
             h.finish()
+
+    def with_tracing(self) -> 'GeneratorExecEnvironment':
+        self.tracer = DefaultTracer()
+        self.hooks.append(self.tracer)
+        self.reset_compilation()
+        return self
+
+    def with_hooks(self, *hooks: Hook) -> 'GeneratorExecEnvironment':
+        self.hooks.extend(hooks)
+        self.reset_compilation()
+        return self
+
+    def with_strategy(self, strategy: Union[str, Strategy]) -> 'GeneratorExecEnvironment':
+        self.strategy = make_strategy(strategy)
+        self.reset_compilation()
+        return self
+
+    def with_model(self, model: GeneratorModel) -> 'GeneratorExecEnvironment':
+        self.model = model
+        return self
 
 
 def generator(*args, **kwargs) -> Generator:

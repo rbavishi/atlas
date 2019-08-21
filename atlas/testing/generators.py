@@ -77,4 +77,4 @@ class GeneratorBasic(unittest.TestCase):
 
             return s
 
-        self.assertEqual([i[0] for i in list(binary.trace(2))], ["00", "01", "10", "11"])
+        self.assertEqual([i[0] for i in list(binary.generate(2).with_tracing())], ["00", "01", "10", "11"])
