@@ -1,20 +1,24 @@
 import ast
 import inspect
+import sys
 import textwrap
-from typing import Callable, Set, Optional, Union, Dict, List, Any
+from typing import Callable, Set, Optional, Union, Dict, List, Any, Iterable, Iterator
 
 import astunparse
 
+from atlas.exceptions import ExceptionAsContinue
 from atlas.hooks import Hook
 from atlas.models import GeneratorModel
+from atlas.operators import OpInfo, OpInfoConstructor
 from atlas.strategies import Strategy, RandStrategy, DfsStrategy
 from atlas.strategies.strategy import IteratorBasedStrategy
 from atlas.tracing import DefaultTracer
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
-from atlas.operators import OpInfo, OpInfoConstructor
 from atlas.utils.inspection import getclosurevars_recursive
-from atlas.exceptions import ExceptionAsContinue
+
+
+GEN_EXEC_ENV_VAR = "_atlas_gen_exec_env"
 
 
 def get_user_provided_labels(n_call: ast.Call) -> Optional[List[str]]:
@@ -105,7 +109,7 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
     # This matches up line numbers with original file and is thus super useful for debugging
     ast.increment_lineno(f_ast, start_lineno - 1)
 
-    #  Remove the ``@generator`` decorator to avsid recursive compilation
+    #  Remove the ``@generator`` decorator to avoid recursive compilation
     f_ast.decorator_list = [d for d in f_ast.decorator_list
                             if (not isinstance(d, ast.Name) or d.id != 'generator') and
                             (not isinstance(d, ast.Attribute) or d.attr != 'generator') and
@@ -143,6 +147,25 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
             ops[n.func.id] = compile_op(op, hooks)
 
             ast.fix_missing_locations(n)
+
+        elif isinstance(n, ast.Call):
+            #  Try to check if it is a call to a Generator
+            #  TODO : Can we be more sophisticated in our static analysis here
+            try:
+                function = eval(astunparse.unparse(n.func), g)
+                if isinstance(function, Generator):
+                    #  Pass in __atlas_gen_exec_env
+                    n.keywords.append(ast.keyword(arg=GEN_EXEC_ENV_VAR,
+                                                  value=ast.Name(GEN_EXEC_ENV_VAR, ctx=ast.Load())))
+                    ast.fix_missing_locations(n)
+
+            except:
+                pass
+
+    #  Add the execution environment argument to the function
+    f_ast.args.args.append(ast.arg(arg=GEN_EXEC_ENV_VAR, annotation=None))
+    f_ast.args.defaults.append(ast.NameConstant(value=None))
+    ast.fix_missing_locations(f_ast)
 
     g.update({k: v for k, v in ops.items()})
     g.update({k: v for k, v in handlers.items()})
@@ -271,7 +294,7 @@ class Generator:
                 if g is not self:
                     g.deregister_hook(hook, as_group=False, ignore_errors=True)
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, _atlas_gen_exec_env: 'GeneratorExecEnvironment' = None, **kwargs):
         """Functions with an ``@generator`` annotation can be called as any regular function as a result of this method.
         In case of deterministic strategies such as DFS, this will return first possible value. For model-backed
         strategies, the generator will return the value corresponding to an execution path where all the operators
@@ -287,7 +310,15 @@ class Generator:
         if self._compiled_func is None:
             self._compiled_func = compile_func(self, self.func, self.strategy, self.hooks)
 
-        return self._compiled_func(*args, **kwargs)
+        if _atlas_gen_exec_env is None:
+            #  TODO : Add a one-time performance warning
+            frame = inspect.currentframe().f_back
+            while not ('self' in frame.f_locals and isinstance(frame.f_locals['self'], GeneratorExecEnvironment)):
+                frame = frame.f_back
+
+            _atlas_gen_exec_env = frame.f_locals['self']
+
+        return _atlas_gen_exec_env.call(self, self.func, args, kwargs)
 
     def generate(self, *args, **kwargs):
         """
@@ -299,43 +330,19 @@ class Generator:
             **kwargs: Keyword arguments to the original function
 
         Returns:
-            An iterator for all the possible values that can be returned by the generator function.
+            An instance of GeneratorExecEnvironment (which subclasses Iterable)
 
         """
-        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
-            self.strategy.set_model(self.model)
 
-        if self._compiled_func is None:
-            self._compiled_func = compile_func(self, self.func, self.strategy, self.hooks)
-
-        #  Adding an extra variable to enable setting of different strategies *while*
-        #  the Python generator built using this generate() call hasn't exited.
-        compiled_func = self._compiled_func
-
-        for h in self.hooks:
-            h.init(args, kwargs)
-
-        self.strategy.init()
-        while not self.strategy.is_finished():
-            for h in self.hooks:
-                h.init_run(args, kwargs)
-
-            self.strategy.init_run()
-            try:
-                yield compiled_func(*args, **kwargs)
-
-            except ExceptionAsContinue:
-                pass
-
-            self.strategy.finish_run()
-
-            for h in self.hooks:
-                h.finish_run()
-
-        self.strategy.finish()
-
-        for h in self.hooks:
-            h.finish()
+        return GeneratorExecEnvironment(
+            args=args,
+            kwargs=kwargs,
+            func=self.func,
+            strategy=self.strategy,
+            model=self.model,
+            hooks=self.hooks,
+            parent_gen=self
+        )
 
     def trace(self, *args, **kwargs):
         """
@@ -358,6 +365,70 @@ class Generator:
             yield val, tracer.get_last_trace()
 
         self.deregister_hook(tracer)
+
+
+class GeneratorExecEnvironment(Iterable):
+    """
+    The result of calling ``generate(...)`` on a Generator object.
+    """
+
+    def __init__(self,
+                 args: Optional,
+                 kwargs: Optional[Dict],
+                 func: Callable,
+                 strategy: Strategy,
+                 model: Optional[GeneratorModel],
+                 hooks: List[Hook],
+                 parent_gen: Generator):
+
+        self.args = args
+        self.kwargs = kwargs
+        self.func = func
+        self.strategy = strategy
+        self.model = model
+        self.hooks = hooks
+        self.parent_gen: Generator = parent_gen
+
+        self._compiled_func: Optional[Callable] = None
+        self._compilation_cache: Dict[Generator, Callable] = {}
+
+    def call(self, parent_gen: Generator, func: Callable, args, kwargs):
+        if parent_gen not in self._compilation_cache:
+            self._compilation_cache[parent_gen] = compile_func(parent_gen, func, self.strategy, self.hooks)
+
+        return self._compilation_cache[parent_gen](*args, **kwargs)
+
+    def __iter__(self) -> Iterator:
+        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
+            self.strategy.set_model(self.model)
+
+        if self._compiled_func is None:
+            self._compiled_func = compile_func(self.parent_gen, self.func, self.strategy, self.hooks)
+
+        for h in self.hooks:
+            h.init(self.args, self.kwargs)
+
+        self.strategy.init()
+        while not self.strategy.is_finished():
+            for h in self.hooks:
+                h.init_run(self.args, self.kwargs)
+
+            self.strategy.init_run()
+            try:
+                yield self._compiled_func(*self.args, **self.kwargs, _atlas_gen_exec_env=self)
+
+            except ExceptionAsContinue:
+                pass
+
+            self.strategy.finish_run()
+
+            for h in self.hooks:
+                h.finish_run()
+
+        self.strategy.finish()
+
+        for h in self.hooks:
+            h.finish()
 
 
 def generator(*args, **kwargs) -> Generator:

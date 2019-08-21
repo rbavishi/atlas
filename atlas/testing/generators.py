@@ -57,6 +57,17 @@ class GeneratorBasic(unittest.TestCase):
 
         self.assertEqual(list(upper_bit.generate()), ["00", "01", "10", "11"])
 
+    def test_gen_composition_without_groups_1(self):
+        @generator
+        def lower_bit():
+            return Select(["0", "1"])
+
+        @generator
+        def upper_bit():
+            return Select(["0", "1"]) + lower_bit()
+
+        self.assertEqual(list(upper_bit.generate()), ["00", "01", "10", "11"])
+
     def test_gen_hooks_basic_1(self):
         @generator(strategy='dfs')
         def binary(length: int):
