@@ -387,7 +387,6 @@ class GeneratorExecEnvironment(Iterable):
 
             self.strategy.init_run()
             try:
-                print(self.args, self.kwargs, flush=True)
                 result = self._compiled_func(*self.args, **self.kwargs, _atlas_gen_exec_env=self)
                 if self.tracer is None:
                     yield result
