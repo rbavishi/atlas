@@ -407,26 +407,78 @@ class GeneratorExecEnvironment(Iterable):
             h.finish()
 
     def with_tracing(self) -> 'GeneratorExecEnvironment':
+        """
+        Enable tracing in this environment. During iteration, the trace of the choices made by the operators
+        along with some other meta-data will be returned alongside the result of the generator.
+
+        Returns:
+            The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
+
+        """
         self.tracer = DefaultTracer()
         self.hooks.append(self.tracer)
         self.reset_compilation()
         return self
 
     def with_hooks(self, *hooks: Hook) -> 'GeneratorExecEnvironment':
+        """
+         Register hooks in this environment. This is useful if you want to register hooks temporarily for one
+         particular ``.generate(...)`` call of a Generator object without resetting the default hooks of the Generator.
+
+         Args:
+             *hooks (Hook): The hooks to add to the environment
+
+         Returns:
+             The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
+
+         """
         self.hooks.extend(hooks)
         self.reset_compilation()
         return self
 
     def with_strategy(self, strategy: Union[str, Strategy]) -> 'GeneratorExecEnvironment':
+        """
+        Set the strategy to be used in this environment. This is useful if you want to use a different
+        strategy temporarily for one particular ``.generate(...)`` call of a Generator object
+        without resetting the default strategy for the Generator.
+
+        Args:
+            strategy (Union[str, Strategy]): The strategy to set for this particular environment.
+
+        Returns:
+             The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
+
+        """
         self.strategy = make_strategy(strategy)
         self.reset_compilation()
         return self
 
     def with_model(self, model: GeneratorModel) -> 'GeneratorExecEnvironment':
+        """
+        Set the model to be used in this environment. This is useful if you want to use a different
+        model temporarily for one particular ``.generate(...)`` call of a Generator object
+        without resetting the default model for the Generator.
+
+        Args:
+            model (GeneratorModel): The model to use in this particular environment.
+
+        Returns:
+             The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
+
+        """
         self.model = model
         return self
 
     def replay(self, trace: GeneratorTrace):
+        """
+        Replay the choices made by the operators in a trace.
+
+        Args:
+            trace: The trace to be replayed
+
+        Returns:
+             The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
+        """
         if not self.args and not self.kwargs:
             self.args, self.kwargs = trace.f_inputs
         self.strategy = ReplayStrategy(trace, self.strategy)
