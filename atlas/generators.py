@@ -18,7 +18,7 @@ from atlas.utils.genutils import register_generator, register_group, get_group_b
 from atlas.utils.inspection import getclosurevars_recursive
 
 
-GEN_EXEC_ENV_VAR = "_atlas_gen_exec_env"
+_GEN_EXEC_ENV_VAR = "_atlas_gen_exec_env"
 
 
 def get_user_provided_labels(n_call: ast.Call) -> Optional[List[str]]:
@@ -155,15 +155,15 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
                 function = eval(astunparse.unparse(n.func), g)
                 if isinstance(function, Generator):
                     #  Pass in __atlas_gen_exec_env
-                    n.keywords.append(ast.keyword(arg=GEN_EXEC_ENV_VAR,
-                                                  value=ast.Name(GEN_EXEC_ENV_VAR, ctx=ast.Load())))
+                    n.keywords.append(ast.keyword(arg=_GEN_EXEC_ENV_VAR,
+                                                  value=ast.Name(_GEN_EXEC_ENV_VAR, ctx=ast.Load())))
                     ast.fix_missing_locations(n)
 
             except:
                 pass
 
     #  Add the execution environment argument to the function
-    f_ast.args.args.append(ast.arg(arg=GEN_EXEC_ENV_VAR, annotation=None))
+    f_ast.args.args.append(ast.arg(arg=_GEN_EXEC_ENV_VAR, annotation=None))
     f_ast.args.defaults.append(ast.NameConstant(value=None))
     ast.fix_missing_locations(f_ast)
 
