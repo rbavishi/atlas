@@ -329,7 +329,7 @@ class Generator:
             func=self.func,
             strategy=self.strategy,
             model=self.model,
-            hooks=self.hooks,
+            hooks=list(self.hooks),
             parent_gen=self
         )
 
