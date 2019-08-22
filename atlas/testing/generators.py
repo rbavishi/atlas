@@ -105,3 +105,14 @@ class GeneratorBasic(unittest.TestCase):
 
         #  Arguments to generate omitted
         self.assertEqual([list(binary.generate().replay(t))[0] for t in traces], ["00", "01", "10", "11"])
+
+    def test_gen_replay_with_labels(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"], label="bit_select")
+
+            return s
+
+        self.assertEqual(list(binary.generate(2).replay({"bit_select": ["0", "1"]}))[0], "01")

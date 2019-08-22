@@ -469,12 +469,15 @@ class GeneratorExecEnvironment(Iterable):
         self.model = model
         return self
 
-    def replay(self, trace: GeneratorTrace):
+    def replay(self, trace: Union[Dict[str, List[Any]], GeneratorTrace]):
         """
-        Replay the choices made by the operators in a trace.
+        Replay the choices made by the operators in a trace. The trace can either be a GeneratorTrace object,
+        or a mapping/dict from operator labels to a list of values. Operators with the same label will consume
+        values from the corresponding list in execution order. If labels are unique (recommended practice),
+        the list should be a singleton.
 
         Args:
-            trace: The trace to be replayed
+            trace (Union[Dict[str, List[Any]], GeneratorTrace]): The trace to be replayed
 
         Returns:
              The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
