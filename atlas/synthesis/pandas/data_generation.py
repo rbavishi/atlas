@@ -34,7 +34,7 @@ class Bags:
     #  Ints
     small_ints = ValueBag(list(range(0, 24)), "points")
     five_ints = ValueBag(list(range(15, 55, 5)), "how_much")
-    more_ints = ValueBag([3, 123, 532, 391, 53, 483, 85, 584, 48, 68, 49], "more")
+    more_ints = ValueBag([3, 123, 532, 391, 53, 483, 85, 584, 48, 68, 49], "more_ints")
     big_ints = ValueBag(list(range(400, 1000, 50)), "stocks")
 
     #  Floats
@@ -44,7 +44,7 @@ class Bags:
     no_nans_floats = ValueBag([71.3, 123.4, 32.4, 85.5, 23.7, 23.8, 83.7], "no_nans")
     more_nans_floats = ValueBag([123.4, 2324.2, 213.789, 12.54, np.NaN, np.NaN, np.NaN, np.NaN, np.NaN], "more_nans")
 
-    bool_bags = [ValueBag([True, False], "boooools")]
+    bool_bags = [ValueBag([True, False], "bools")]
     string_bags = [names, baz, fruits, countries, things_2, things_1, things_3, uber_things]
     int_bags = [small_ints, five_ints, more_ints, big_ints]
     float_bags = [small_floats, big_floats, no_nans_floats, even_floats]
