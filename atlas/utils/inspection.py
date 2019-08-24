@@ -45,8 +45,6 @@ def getclosurevars_recursive(func, f_ast: Optional[ast.FunctionDef] = None):
     except:
         pass
 
-    print(annotation_names)
-
     # Global and builtin references are named in co_names and resolved
     # by looking them up in __globals__ or __builtins__
     global_ns = func.__globals__
