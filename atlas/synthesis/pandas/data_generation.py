@@ -69,6 +69,7 @@ class DfConfig(NamedTuple):
     max_index_levels: int = 3
     max_column_levels: int = 3
     multi_index_prob: float = 0.2
+    multi_col_index_prob: float = 0.2
 
     #  Various knobs
     int_col_prob: float = 0.2  # Columns are integers
@@ -83,10 +84,22 @@ class RandDfStrategy(RandStrategy):
     def SelectRange(self, low: int, high: int, **kwargs):
         return random.randint(low, high)
 
+    @operator
+    def CoinToss(self, bias: float = 0.5, **kwargs):
+        return np.random.choice([0, 1], p=[1 - bias, bias])
+
 
 @generator(strategy=RandDfStrategy())
 def generate_random_dataframe(cfg: DfConfig):
     num_rows = SelectRange(low=cfg.min_height, high=cfg.max_height) if cfg.num_rows is None else cfg.num_rows
     num_cols = SelectRange(low=cfg.min_width, high=cfg.max_width) if cfg.num_cols is None else cfg.num_cols
 
-    return num_rows, num_cols
+    index_levels = cfg.index_levels
+    if index_levels is None and CoinToss(cfg.multi_index_prob) == 1:
+        index_levels = SelectRange(low=2, high=cfg.max_index_levels)
+
+    column_levels = cfg.column_levels
+    if column_levels is None and CoinToss(cfg.multi_col_index_prob) == 1:
+        column_levels = SelectRange(low=2, high=cfg.max_column_levels)
+
+    return num_rows, num_cols, index_levels, column_levels
