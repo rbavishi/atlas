@@ -55,5 +55,12 @@ def getclosurevars_recursive(func):
             if iscode(const):
                 codes.append(const)
 
+    #  Also check for annotations. This is not natively handled by the current getclosurevars implementation of inspect
+    for k, v in func.__annotations__.items():
+        try:
+            global_vars[v.__name__] = v
+        except AttributeError:
+            pass
+
     return ClosureVars(nonlocal_vars, global_vars,
                        builtin_vars, unbound_names)
