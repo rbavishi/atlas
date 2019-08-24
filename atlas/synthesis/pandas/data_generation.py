@@ -51,6 +51,7 @@ class Bags:
 
 
 class DfConfig(NamedTuple):
+    #  Basic DataFrame structure
     num_rows: Optional[int] = None,
     num_cols: Optional[int] = None,
     min_width: int = 1,
@@ -58,15 +59,16 @@ class DfConfig(NamedTuple):
     max_width: int = 7,
     max_height: int = 7,
 
+    #  Handling multi-indices
     index_levels: Optional[int] = None,
     column_levels: Optional[int] = None,
     max_index_levels: int = 3,
     max_column_levels: int = 3,
-
-    int_col_prob: float = 0.2,
-    idx_mutation_prob: float = 0.2
     multi_index_prob: float = 0.2,
-    col_prefix: str = '',
-    col_feeding_prob: float = 0.2,
-    indexy_columns_prob: float = 0.35,
-    nan_prob: float = 0.0
+
+    #  Various knobs
+    int_col_prob: float = 0.2,  # Columns are integers
+    idx_mutation_prob: float = 0.2  # Have index other than range(0, num_rows). Only applicable if not multi-index
+    col_prefix: str = '',  # A common prefix for all columns
+    col_feeding_prob: float = 0.2,  # Feed from previously generated columns. Controls spurious equality edges
+    nan_prob: float = 0.0,  # Probability of having nans (apart from the values in the float/nan bags being picked)
