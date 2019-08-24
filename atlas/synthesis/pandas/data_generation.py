@@ -1,7 +1,11 @@
 import itertools
+import random
+
 import numpy as np
 
 from typing import Optional, List, NamedTuple
+from atlas import generator
+from atlas.strategies import RandStrategy, operator
 
 
 class ValueBag:
@@ -52,23 +56,37 @@ class Bags:
 
 class DfConfig(NamedTuple):
     #  Basic DataFrame structure
-    num_rows: Optional[int] = None,
-    num_cols: Optional[int] = None,
-    min_width: int = 1,
-    min_height: int = 1,
-    max_width: int = 7,
-    max_height: int = 7,
+    num_rows: Optional[int] = None
+    num_cols: Optional[int] = None
+    min_width: int = 1
+    min_height: int = 1
+    max_width: int = 7
+    max_height: int = 7
 
     #  Handling multi-indices
-    index_levels: Optional[int] = None,
-    column_levels: Optional[int] = None,
-    max_index_levels: int = 3,
-    max_column_levels: int = 3,
-    multi_index_prob: float = 0.2,
+    index_levels: Optional[int] = None
+    column_levels: Optional[int] = None
+    max_index_levels: int = 3
+    max_column_levels: int = 3
+    multi_index_prob: float = 0.2
 
     #  Various knobs
-    int_col_prob: float = 0.2,  # Columns are integers
-    idx_mutation_prob: float = 0.2  # Have index other than range(0, num_rows). Only applicable if not multi-index
-    col_prefix: str = '',  # A common prefix for all columns
-    col_feeding_prob: float = 0.2,  # Feed from previously generated columns. Controls spurious equality edges
-    nan_prob: float = 0.0,  # Probability of having nans (apart from the values in the float/nan bags being picked)
+    int_col_prob: float = 0.2  # Columns are integers
+    idx_mutation_prob: float = 0.2  # Have index other than range(0 num_rows). Only applicable if not multi-index
+    col_prefix: str = ''  # A common prefix for all columns
+    col_feeding_prob: float = 0.2  # Feed from previously generated columns. Controls spurious equality edges
+    nan_prob: float = 0.0  # Probability of having nans (apart from the values in the float/nan bags being picked)
+
+
+class RandDfStrategy(RandStrategy):
+    @operator
+    def SelectRange(self, low: int, high: int, **kwargs):
+        return random.randint(low, high)
+
+
+@generator(strategy=RandDfStrategy())
+def generate_random_dataframe(cfg: DfConfig):
+    num_rows = SelectRange(low=cfg.min_height, high=cfg.max_height) if cfg.num_rows is None else cfg.num_rows
+    num_cols = SelectRange(low=cfg.min_width, high=cfg.max_width) if cfg.num_cols is None else cfg.num_cols
+
+    return num_rows, num_cols
