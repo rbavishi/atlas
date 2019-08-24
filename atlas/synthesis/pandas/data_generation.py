@@ -1,7 +1,7 @@
 import itertools
 import numpy as np
 
-from typing import Optional, List
+from typing import Optional, List, NamedTuple
 
 
 class ValueBag:
@@ -48,3 +48,25 @@ class Bags:
     string_bags = [names, baz, fruits, countries, things_2, things_1, things_3, uber_things]
     int_bags = [small_ints, five_ints, more_ints, big_ints]
     float_bags = [small_floats, big_floats, no_nans_floats, even_floats]
+
+
+class DfConfig(NamedTuple):
+    num_rows: Optional[int] = None,
+    num_cols: Optional[int] = None,
+    min_width: int = 1,
+    min_height: int = 1,
+    max_width: int = 7,
+    max_height: int = 7,
+
+    index_levels: Optional[int] = None,
+    column_levels: Optional[int] = None,
+    max_index_levels: int = 3,
+    max_column_levels: int = 3,
+
+    int_col_prob: float = 0.2,
+    idx_mutation_prob: float = 0.2
+    multi_index_prob: float = 0.2,
+    col_prefix: str = '',
+    col_feeding_prob: float = 0.2,
+    indexy_columns_prob: float = 0.35,
+    nan_prob: float = 0.0
