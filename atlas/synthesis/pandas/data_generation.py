@@ -79,8 +79,8 @@ class DfConfig(NamedTuple):
     #  Various knobs
     int_col_prob: float = 0.2  # Columns are integers
     idx_mutation_prob: float = 0.2  # Have index other than range(0 num_rows). Only applicable if not multi-index
+    index_like_columns_prob: float = 0.35
     col_prefix: str = ''  # A common prefix for all columns
-    col_feeding_prob: float = 0.2  # Feed from previously generated columns. Controls spurious equality edges
     nan_prob: float = 0.0  # Probability of having nans (apart from the values in the float/nan bags being picked)
 
 
@@ -152,7 +152,12 @@ def generate_random_dataframe(cfg: DfConfig):
         column_levels = SelectRange(low=2, high=cfg.max_column_levels)
 
     df_dict = {}
-    for _ in range(num_cols):
+    if CoinToss(cfg.index_like_columns_prob) == 1:
+        index_tuples = generate_index(num_rows, num_levels=SelectRange(low=1, high=min(3, num_cols)))
+        values = [list(c) for c in zip(*index_tuples)]
+        df_dict = {f"NAME{idx}": val for idx, val in enumerate(values)}
+
+    for _ in range(num_cols - len(df_dict)):
         bag: ValueBag = Select(cfg.value_bags)
         col_name = f"{cfg.col_prefix}{bag.name}"
         col_values = [Select(bag.values) for _ in range(num_rows)]
@@ -164,6 +169,9 @@ def generate_random_dataframe(cfg: DfConfig):
         df_dict[col_name] = col_values
 
     df = pd.DataFrame(df_dict)
+
+    if CoinToss(cfg.int_col_prob) == 1:
+        df.columns = pd.Index(range(len(df.columns)))
 
     if index_levels is not None and index_levels > 1:
         index_tuples = generate_index(num_rows, num_levels=index_levels)
