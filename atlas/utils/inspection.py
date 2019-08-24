@@ -1,12 +1,19 @@
+import ast
+import inspect
 from inspect import builtins, ismodule, iscode, ClosureVars
+from typing import Optional
+
+from atlas.utils import astutils
 
 
-def getclosurevars_recursive(func):
+def getclosurevars_recursive(func, f_ast: Optional[ast.FunctionDef] = None):
     """
     The default getclosurevars doesn't go over nested function defs and list comprehensions.
     We write a recursive version of the same.
     The logic is borrowed from this post - https://bugs.python.org/issue34947
     Args:
+        f_ast (Optional[ast.FunctionDef]): The AST of the function if available.
+            If not, an attempt will be made to retrieve the AST
         func (Callable): The function to inspect
 
     Returns:
@@ -23,6 +30,22 @@ def getclosurevars_recursive(func):
             var: cell.cell_contents
             for var, cell in zip(f_code.co_freevars, func.__closure__)
         }
+
+    annotation_names = []
+    try:
+        if f_ast is not None:
+            f_ast: ast.FunctionDef = astutils.parse(inspect.getsource(func))
+
+        for n in ast.walk(f_ast.args):
+            if isinstance(n, ast.arg) and n.annotation is not None:
+                annotation_names.extend(astutils.get_all_names(n.annotation))
+        if f_ast.returns is not None:
+            annotation_names.extend(astutils.get_all_names(f_ast.returns))
+
+    except:
+        pass
+
+    print(annotation_names)
 
     # Global and builtin references are named in co_names and resolved
     # by looking them up in __globals__ or __builtins__
@@ -55,12 +78,14 @@ def getclosurevars_recursive(func):
             if iscode(const):
                 codes.append(const)
 
-    #  Also check for annotations. This is not natively handled by the current getclosurevars implementation of inspect
-    for k, v in func.__annotations__.items():
+    for name in annotation_names:
         try:
-            global_vars[v.__name__] = v
-        except AttributeError:
-            pass
+            global_vars[name] = global_ns[name]
+        except KeyError:
+            try:
+                builtin_vars[name] = builtin_ns[name]
+            except KeyError:
+                unbound_names.add(name)
 
     return ClosureVars(nonlocal_vars, global_vars,
                        builtin_vars, unbound_names)
