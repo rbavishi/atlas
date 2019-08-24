@@ -37,8 +37,8 @@ class Strategy(ABC, DefaultOpMethodResolver):
     def get_known_ops(self):
         return self.known_ops
 
-    def generic_call(self, domain, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
-                     *args, **kwargs):
+    def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                     **kwargs):
         pass
 
 

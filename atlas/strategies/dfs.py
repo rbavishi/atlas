@@ -32,8 +32,8 @@ class DfsStrategy(IteratorBasedStrategy):
     def is_finished(self):
         return self.last_unfinished == -1
 
-    def generic_call(self, domain, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
-                     *args, **kwargs):
+    def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                     **kwargs):
         t = self.call_id
         self.call_id += 1
 
@@ -42,12 +42,12 @@ class DfsStrategy(IteratorBasedStrategy):
                 iterator = None
                 if self.model is not None:
                     try:
-                        iterator = self.model.infer(domain, context=context, op_info=op_info, **kwargs)
+                        iterator = self.model.infer(domain=domain, context=context, op_info=op_info, **kwargs)
                     except NotImplementedError:
                         pass
 
                 if iterator is None:
-                    iterator = handler(domain, context=context, op_info=op_info, **kwargs)
+                    iterator = handler(domain=domain, context=context, op_info=op_info, **kwargs)
 
                 op: PeekableGenerator = PeekableGenerator(iter(iterator))
 
