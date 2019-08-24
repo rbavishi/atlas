@@ -1,9 +1,11 @@
 import itertools
+import math
 import random
 
 import numpy as np
+import pandas as pd
 
-from typing import Optional, List, NamedTuple
+from typing import Optional, List, NamedTuple, Tuple
 from atlas import generator
 from atlas.strategies import RandStrategy, operator
 
@@ -20,10 +22,12 @@ class ValueBag:
 class Bags:
     #  Strings
     #      Entities
-    names = ValueBag(["Amy", "Joseph", "Anne", "Kennedy", "Kira", "Brian", "Christie"], "name")
+    names = ValueBag(["Amy", "Joseph", "Anne", "Kennedy", "Kira", "Brian", "Christie", "Michael", "Riya", "Nikita",
+                      "Thomas", "Ganesh", "Paul", "Allen"],
+                     "name")
     baz = ValueBag(["foo", "bar", "baz", "fizz", "buzz"], "funcs")
-    fruits = ValueBag(["kiwi", "apple", "bananer", "pear", "date", "cherimoya"], "Fruits")
-    countries = ValueBag(["Canada", "India", "Germany", "Brazil", "US", "AlienLand"], "country")
+    fruits = ValueBag(["kiwi", "apple", "banana", "pear", "date", "cherimoya", "watermelon", "papaya"], "Fruits")
+    countries = ValueBag(["Canada", "India", "Germany", "Brazil", "US", "AlienLand", "France", "Zimbabwe"], "country")
 
     #      Compositions
     things_1 = ValueBag(['_'.join(x)
@@ -62,6 +66,7 @@ class DfConfig(NamedTuple):
     min_height: int = 1
     max_width: int = 7
     max_height: int = 7
+    value_bags: List[ValueBag] = [*Bags.string_bags, *Bags.int_bags, *Bags.float_bags]
 
     #  Handling multi-indices
     index_levels: Optional[int] = None
@@ -88,6 +93,50 @@ class RandDfStrategy(RandStrategy):
     def CoinToss(self, bias: float = 0.5, **kwargs):
         return np.random.choice([0, 1], p=[1 - bias, bias])
 
+    @operator
+    def Shuffle(self, domain, **kwargs):
+        res = list(domain)
+        random.shuffle(res)
+        return res
+
+
+@generator(strategy=RandDfStrategy())
+def find_approximate_factoring(number: int, num_factors: int) -> List[int]:
+    """
+    Find a list of ints of size `num_factors` such that their product is *close* to `number`.
+    For example, `find_approximate_factoring(number=3, num_factors=2) can return `[2, 2]` or `[2, 1]`.
+    Args:
+        number: The number the product of factors should be close to
+        num_factors: Number of factors desired
+
+    Returns:
+        A list of integers of size `num_factors` such that their product is close to `number`.
+    """
+
+    if num_factors == 1:
+        return [number]
+
+    if number == 1:
+        return [1] * num_factors
+
+    picked = SelectRange(low=2, high=math.ceil(number ** (1 / num_factors)))
+    remaining = math.ceil(number / picked)
+    return [picked] + find_approximate_factoring(remaining, num_factors - 1)
+
+
+@generator(strategy=RandDfStrategy())
+def generate_index(length: int, num_levels: int) -> List[Tuple]:
+    #  Number of values to generate for each level
+    num_level_values = Shuffle(find_approximate_factoring(length, num_levels))
+    level_values = []
+    for num in num_level_values:
+        #  Giving more weight to strings
+        bag_collection = Select([Bags.string_bags, Bags.int_bags, Bags.string_bags])
+        bag = Select(bag_collection)
+        level_values.append([Select(bag.values) for _ in range(num)])
+
+    return Subset(list(itertools.product(*level_values)), lengths=[length])
+
 
 @generator(strategy=RandDfStrategy())
 def generate_random_dataframe(cfg: DfConfig):
@@ -102,4 +151,26 @@ def generate_random_dataframe(cfg: DfConfig):
     if column_levels is None and CoinToss(cfg.multi_col_index_prob) == 1:
         column_levels = SelectRange(low=2, high=cfg.max_column_levels)
 
-    return num_rows, num_cols, index_levels, column_levels
+    df_dict = {}
+    for _ in range(num_cols):
+        bag: ValueBag = Select(cfg.value_bags)
+        col_name = f"{cfg.col_prefix}{bag.name}"
+        col_values = [Select(bag.values) for _ in range(num_rows)]
+
+        #  Avoid repetition of column names
+        while col_name in df_dict:
+            col_name = f"{col_name}{SelectRange(low=0, high=10)}"
+
+        df_dict[col_name] = col_values
+
+    df = pd.DataFrame(df_dict)
+
+    if index_levels is not None and index_levels > 1:
+        index_tuples = generate_index(num_rows, num_levels=index_levels)
+        df.index = pd.MultiIndex.from_tuples(index_tuples)
+
+    if column_levels is not None and column_levels > 1:
+        column_index_tuples = generate_index(num_cols, num_levels=column_levels)
+        df.columns = pd.MultiIndex.from_tuples(column_index_tuples)
+
+    return df
