@@ -8,6 +8,7 @@ import pandas as pd
 from typing import Optional, List, NamedTuple, Tuple
 from atlas import generator
 from atlas.strategies import RandStrategy, operator
+from atlas.synthesis.pandas.stubs import CoinToss, SelectRange, Select, Shuffle, Subset
 
 
 class ValueBag:
