@@ -1,8 +1,8 @@
 import random
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Collection
 
-from atlas.strategies import Strategy, operator
 from atlas.operators import OpInfo
+from atlas.strategies import Strategy, operator
 
 
 class RandStrategy(Strategy):
@@ -17,3 +17,9 @@ class RandStrategy(Strategy):
     def Select(self, domain, **kwargs):
         return random.choice(domain)
 
+    @operator
+    def Subset(self, domain, lengths: Collection[int] = None, **kwargs):
+        if lengths is None:
+            lengths = list(range(1, len(domain) + 1))
+
+        return random.sample(domain, random.choice(lengths))
