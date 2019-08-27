@@ -56,6 +56,15 @@ def attr_to_qual_name(node: ast.Attribute):
     return qual_name
 
 
+def get_all_names(n: ast.AST) -> List[str]:
+    res = []
+    for node in ast.walk(n):
+        if isinstance(node, ast.Name):
+            res.append(node.id)
+
+    return res
+
+
 def preorder_traversal(node: ast.AST):
     yield node
     for field, val in ast.iter_fields(node):
