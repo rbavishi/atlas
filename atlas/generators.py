@@ -213,6 +213,8 @@ class Generator:
         self.hooks: List[Hook] = []
         self.metadata = metadata
 
+        self._default_exec_env: Optional[GeneratorExecEnvironment] = None
+
     def set_default_strategy(self, strategy: Union[str, Strategy], as_group: bool = True):
         """
         Set a new strategy for the generator. This is useful for exploring different behaviors of the generator
@@ -299,7 +301,7 @@ class Generator:
 
             _atlas_gen_exec_env = frame.f_locals['self']
 
-        return _atlas_gen_exec_env.call(self, self.func, args, kwargs)
+        return _atlas_gen_exec_env.compositional_call(self, self.func, args, kwargs)
 
     def generate(self, *args, **kwargs):
         """
@@ -324,6 +326,33 @@ class Generator:
             hooks=list(self.hooks),
             parent_gen=self
         )
+
+    def call(self, *args, **kwargs):
+        """
+        Return the value returned by the frst execution of the generator for the given input i.e. ``(*args, **kwargs)``.
+        This is useful when dealing with randomized generators where iteration is not required.
+
+        Args:
+            *args: Positional arguments to the original function
+            **kwargs: Keyword arguments to the original function
+
+        Returns:
+            Value returned by the first invocation of the generator
+
+        """
+
+        if self._default_exec_env is None:
+            self._default_exec_env = GeneratorExecEnvironment(
+                args=args,
+                kwargs=kwargs,
+                func=self.func,
+                strategy=self.strategy,
+                model=self.model,
+                hooks=list(self.hooks),
+                parent_gen=self
+            )
+
+        return self._default_exec_env.single_call(args, kwargs)
 
 
 class GeneratorExecEnvironment(Iterable):
@@ -356,11 +385,17 @@ class GeneratorExecEnvironment(Iterable):
         self._compiled_func = None
         self._compilation_cache = {}
 
-    def call(self, parent_gen: Generator, func: Callable, args, kwargs):
+    def compositional_call(self, parent_gen: Generator, func: Callable, args, kwargs):
         if parent_gen not in self._compilation_cache:
             self._compilation_cache[parent_gen] = compile_func(parent_gen, func, self.strategy, self.hooks)
 
         return self._compilation_cache[parent_gen](*args, **kwargs)
+
+    def single_call(self, args, kwargs):
+        if self._compiled_func is None:
+            self._compiled_func = compile_func(self.parent_gen, self.func, self.strategy, self.hooks)
+
+        return self._compiled_func(*args, **kwargs)
 
     def __iter__(self) -> Iterator:
         if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):

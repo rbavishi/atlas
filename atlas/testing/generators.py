@@ -35,6 +35,17 @@ class GeneratorBasic(unittest.TestCase):
 
         self.assertEqual(list(binary.generate(2)), list(reversed(["00", "01", "10", "11"])))
 
+    def test_gen_single_call_1(self):
+        @generator(strategy='randomized')
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+        self.assertIn(binary.call(2), ["00", "01", "10", "11"])
+
     def test_gen_composition_1(self):
         @generator(group='binary')
         def lower_bit():
