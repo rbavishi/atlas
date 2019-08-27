@@ -8,7 +8,7 @@ import atlas.synthesis.pandas.api
 from atlas import generator
 from atlas.exceptions import ExceptionAsContinue
 from atlas.synthesis.pandas.checker import Checker
-from atlas.synthesis.pandas.strategies import PandasSynthesisStrategy
+from atlas.synthesis.pandas.api import PandasSynthesisStrategy
 from atlas.utils import get_group_by_name
 
 api_gens = {
