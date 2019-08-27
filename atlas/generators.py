@@ -208,14 +208,6 @@ class Generator:
 
         self.group = group
         if group is not None:
-            try:
-                gen_group = get_group_by_name(group)
-                #  Generators in the same group share their strategies by default
-                self.strategy = gen_group[0].strategy
-
-            except KeyError:
-                pass
-
             register_group(self, group)
 
         self.hooks: List[Hook] = []
