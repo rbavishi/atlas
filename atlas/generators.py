@@ -405,7 +405,10 @@ class GeneratorExecEnvironment(Iterable):
         while not self.strategy.is_finished():
             self.strategy.init_run()
             try:
-                return self._compiled_func(*args, **kwargs)
+                result = self._compiled_func(*args, **kwargs)
+                self.strategy.finish_run()
+                self.strategy.finish()
+                return result
 
             except ExceptionAsContinue:
                 pass
