@@ -233,6 +233,8 @@ class Generator:
                 if g is not self:
                     g.set_strategy(self.strategy, as_group=False)
 
+        self._default_exec_env = None
+
     def set_default_model(self, model: GeneratorModel):
         """
         Set a model to be used by the generator (strategy). Note that a model can work only with a strategy
@@ -242,6 +244,7 @@ class Generator:
 
         """
         self.model = model
+        self._default_exec_env = None
 
     def register_default_hooks(self, *hooks: Hook, as_group: bool = True):
         """
