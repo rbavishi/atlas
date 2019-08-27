@@ -395,10 +395,23 @@ class GeneratorExecEnvironment(Iterable):
         return self._compilation_cache[parent_gen](*args, **kwargs)
 
     def single_call(self, args, kwargs):
+        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
+            self.strategy.set_model(self.model)
+
         if self._compiled_func is None:
             self._compiled_func = compile_func(self.parent_gen, self.func, self.strategy, self.hooks)
 
-        return self._compiled_func(*args, **kwargs)
+        self.strategy.init()
+        while not self.strategy.is_finished():
+            self.strategy.init_run()
+            try:
+                return self._compiled_func(*args, **kwargs)
+
+            except ExceptionAsContinue:
+                pass
+
+            finally:
+                self.strategy.finish_run()
 
     def __iter__(self) -> Iterator:
         if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
