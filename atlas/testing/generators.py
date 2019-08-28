@@ -46,6 +46,42 @@ class GeneratorBasic(unittest.TestCase):
 
         self.assertIn(binary.call(2), ["00", "01", "10", "11"])
 
+    def test_gen_recursive_1(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            if length == 0:
+                return ""
+
+            return Select(["0", "1"]) + binary(length-1)
+
+        self.assertEqual(list(binary.generate(2)), ["00", "01", "10", "11"])
+
+    def test_gen_mutually_recursive_1(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            if length == 0:
+                return ""
+
+            return Select(["0", "1"]) + binary(length-1)
+
+        @generator(strategy='dfs')
+        def binary1(length: int):
+            if length == 0:
+                return ""
+
+            return Select(["0", "1"]) + binary2(length-1)
+
+        @generator(strategy='dfs')
+        def binary2(length: int):
+            if length == 0:
+                return ""
+
+            return Select(["0", "1"]) + binary1(length - 1)
+
+        for l in [2, 3]:
+            self.assertEqual(list(binary.generate(l)), list(binary1.generate(l)))
+            self.assertEqual(list(binary.generate(l)), list(binary2.generate(l)))
+
     def test_gen_composition_1(self):
         @generator(group='binary')
         def lower_bit():

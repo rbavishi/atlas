@@ -1,8 +1,10 @@
 import ast
+import collections
 import inspect
 import sys
 import textwrap
-from typing import Callable, Set, Optional, Union, Dict, List, Any, Iterable, Iterator
+import weakref
+from typing import Callable, Set, Optional, Union, Dict, List, Any, Iterable, Iterator, Type, Tuple
 
 import astunparse
 
@@ -17,8 +19,11 @@ from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 from atlas.utils.inspection import getclosurevars_recursive
 
-
 _GEN_EXEC_ENV_VAR = "_atlas_gen_exec_env"
+_GEN_STRATEGY_VAR = "_atlas_gen_strategy"
+_GEN_HOOK_WRAPPER = "_atlas_hook_wrapper"
+_GEN_HOOK_VAR = "_atlas_gen_hooks"
+_GEN_COMPOSITION_ID = "_atlas_composition_call"
 
 
 def get_user_provided_labels(n_call: ast.Call) -> Optional[List[str]]:
@@ -83,24 +88,52 @@ def compile_op(op: Callable, hooks: List[Hook]) -> Callable:
     return create_op
 
 
-def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: List[Hook] = None) -> Callable:
+def hook_wrapper(*args, _atlas_gen_strategy=None, _atlas_gen_hooks=None, **kwargs):
+    for h in _atlas_gen_hooks:
+        h.before_op(*args, **kwargs)
+
+    result = _atlas_gen_strategy.generic_call(*args, **kwargs)
+
+    for h in _atlas_gen_hooks:
+        h.after_op(*args, **kwargs, retval=result)
+
+    return result
+
+
+class CompilationCache:
+    WITHOUT_HOOKS: Dict[Type[Strategy], weakref.WeakKeyDictionary] = collections.defaultdict(weakref.WeakKeyDictionary)
+    WITH_HOOKS: Dict[Type[Strategy], weakref.WeakKeyDictionary] = collections.defaultdict(weakref.WeakKeyDictionary)
+
+
+def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hooks: bool = False) -> Callable:
     """
     The compilation basically assigns functionality to each of the operator calls as
-    governed by the semantics (strategy).
+    governed by the semantics (strategy). Memoization is done with the keys as the `func`,
+    the class of the `strategy` and the `with_hooks` argument.
 
     Args:
         gen (Generator): The generator object containing the function to compile
         func (Callable): The function to compile
         strategy (Strategy): The strategy governing the behavior of the operators
-        hooks (List[Hook]): A list of hooks to be installed in the generator
+        with_hooks (bool): Whether support for hooks is required
 
     Returns:
         The compiled function
 
     """
 
-    if hooks is None:
-        hooks = []
+    if isinstance(strategy, ReplayStrategy):
+        strategy = strategy.backup_strategy
+
+    if with_hooks:
+        cache = CompilationCache.WITH_HOOKS[strategy.__class__]
+    else:
+        cache = CompilationCache.WITHOUT_HOOKS[strategy.__class__]
+
+    if func in cache:
+        return cache[func]
+
+    cache[func] = None
 
     source_code, start_lineno = inspect.getsourcelines(func)
     source_code = ''.join(source_code)
@@ -122,10 +155,12 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
     g = {**closure_vars.nonlocals.copy(), **closure_vars.globals.copy()}
     known_ops: Set[str] = strategy.get_known_ops()
     op_info_constructor = OpInfoConstructor()
+    delayed_compilations: List[Tuple[Generator, str]] = []
 
     ops = {}
     handlers = {}
     op_infos = {}
+    composition_cnt: int = 0
     for n in astutils.preorder_traversal(f_ast):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
             #  Rename the function call, and assign a new function to be called during execution.
@@ -142,9 +177,14 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
             handler = strategy.get_op_handler(op_info)
             handlers[f"_handler_{handler_idx}"] = handler
 
-            op = strategy.generic_call
-            n.func.id = f"Op_{op_idx}"
-            ops[n.func.id] = compile_op(op, hooks)
+            if not with_hooks:
+                n.func = astutils.parse(f"{_GEN_STRATEGY_VAR}.generic_call").value
+            else:
+                n.keywords.append(ast.keyword(arg=_GEN_HOOK_VAR, value=ast.Name(_GEN_HOOK_VAR, ctx=ast.Load())))
+                n.keywords.append(ast.keyword(arg=_GEN_STRATEGY_VAR, value=ast.Name(_GEN_STRATEGY_VAR, ctx=ast.Load())))
+
+                n.func.id = _GEN_HOOK_WRAPPER
+                ops[_GEN_HOOK_WRAPPER] = hook_wrapper
 
             ast.fix_missing_locations(n)
 
@@ -154,16 +194,33 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
             try:
                 function = eval(astunparse.unparse(n.func), g)
                 if isinstance(function, Generator):
-                    #  Pass in __atlas_gen_exec_env
+                    call_id = f"{_GEN_COMPOSITION_ID}_{composition_cnt}"
+                    composition_cnt += 1
+                    n.func.id = call_id
                     n.keywords.append(ast.keyword(arg=_GEN_EXEC_ENV_VAR,
                                                   value=ast.Name(_GEN_EXEC_ENV_VAR, ctx=ast.Load())))
+                    n.keywords.append(ast.keyword(arg=_GEN_STRATEGY_VAR,
+                                                  value=ast.Name(_GEN_STRATEGY_VAR, ctx=ast.Load())))
+                    n.keywords.append(ast.keyword(arg=_GEN_HOOK_VAR,
+                                                  value=ast.Name(_GEN_HOOK_VAR, ctx=ast.Load())))
                     ast.fix_missing_locations(n)
+
+                    #  We delay compilation to handle mutually recursive generators
+                    delayed_compilations.append((function, call_id))
 
             except:
                 pass
 
     #  Add the execution environment argument to the function
     f_ast.args.args.append(ast.arg(arg=_GEN_EXEC_ENV_VAR, annotation=None))
+    f_ast.args.defaults.append(ast.NameConstant(value=None))
+
+    #  Add the strategy argument to the function
+    f_ast.args.args.append(ast.arg(arg=_GEN_STRATEGY_VAR, annotation=None))
+    f_ast.args.defaults.append(ast.NameConstant(value=None))
+
+    #  Add the strategy argument to the function
+    f_ast.args.args.append(ast.arg(arg=_GEN_HOOK_VAR, annotation=None))
     f_ast.args.defaults.append(ast.NameConstant(value=None))
     ast.fix_missing_locations(f_ast)
 
@@ -177,7 +234,15 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, hooks: Li
     #  Passing ``g`` to exec allows us to execute all the new functions
     #  we assigned to every operator call in the previous AST walk
     exec(compile(module, filename=inspect.getabsfile(func), mode="exec"), g)
-    return g[func.__name__]
+    result = g[func.__name__]
+    cache[func] = result
+
+    #  Handle the delayed compilations now that we have populated the cache
+    for gen, call_id in delayed_compilations:
+        compiled_func = compile_func(gen, gen.func, strategy, with_hooks)
+        g[call_id] = compiled_func
+
+    return result
 
 
 class Generator:
@@ -286,7 +351,7 @@ class Generator:
                 if g is not self:
                     g.deregister_hook(hook, as_group=False, ignore_errors=True)
 
-    def __call__(self, *args, _atlas_gen_exec_env: 'GeneratorExecEnvironment' = None, **kwargs):
+    def __call__(self, *args, **kwargs):
         """Functions with an ``@generator`` annotation can be called as any regular function as a result of this method.
         In case of deterministic strategies such as DFS, this will return first possible value. For model-backed
         strategies, the generator will return the value corresponding to an execution path where all the operators
@@ -296,6 +361,8 @@ class Generator:
             *args: Positional arguments to the original function
             **kwargs: Keyword arguments to the original function
         """
+
+        _atlas_gen_exec_env: GeneratorExecEnvironment = kwargs.get(_GEN_EXEC_ENV_VAR, None)
         if _atlas_gen_exec_env is None:
             #  TODO : Add a one-time performance warning
             frame = inspect.currentframe().f_back
@@ -384,28 +451,35 @@ class GeneratorExecEnvironment(Iterable):
         self._compilation_cache: Dict[Generator, Callable] = {}
         self.tracer: Optional[DefaultTracer] = None
 
+        self.extra_kwargs = {}
+        self.reset_compilation()
+
     def reset_compilation(self):
         self._compiled_func = None
         self._compilation_cache = {}
 
-    def compositional_call(self, parent_gen: Generator, func: Callable, args, kwargs):
-        if parent_gen not in self._compilation_cache:
-            self._compilation_cache[parent_gen] = compile_func(parent_gen, func, self.strategy, self.hooks)
-
-        return self._compilation_cache[parent_gen](*args, **kwargs)
-
-    def single_call(self, args, kwargs):
         if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
             self.strategy.set_model(self.model)
 
         if self._compiled_func is None:
-            self._compiled_func = compile_func(self.parent_gen, self.func, self.strategy, self.hooks)
+            self._compiled_func = compile_func(self.parent_gen, self.func, self.strategy, len(self.hooks) > 0)
+
+    def compositional_call(self, parent_gen: Generator, func: Callable, args, kwargs):
+        extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy, _GEN_HOOK_VAR: self.hooks}
+
+        if parent_gen not in self._compilation_cache:
+            self._compilation_cache[parent_gen] = compile_func(parent_gen, func, self.strategy, len(self.hooks) > 0)
+
+        return self._compilation_cache[parent_gen](*args, **kwargs, **extra_kwargs)
+
+    def single_call(self, args, kwargs):
+        extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy, _GEN_HOOK_VAR: self.hooks}
 
         self.strategy.init()
         while not self.strategy.is_finished():
             self.strategy.init_run()
             try:
-                result = self._compiled_func(*args, **kwargs)
+                result = self._compiled_func(*args, **kwargs, **extra_kwargs)
                 self.strategy.finish_run()
                 self.strategy.finish()
                 return result
@@ -417,11 +491,7 @@ class GeneratorExecEnvironment(Iterable):
                 self.strategy.finish_run()
 
     def __iter__(self) -> Iterator:
-        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
-            self.strategy.set_model(self.model)
-
-        if self._compiled_func is None:
-            self._compiled_func = compile_func(self.parent_gen, self.func, self.strategy, self.hooks)
+        extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy, _GEN_HOOK_VAR: self.hooks}
 
         for h in self.hooks:
             h.init(self.args, self.kwargs)
@@ -433,7 +503,7 @@ class GeneratorExecEnvironment(Iterable):
 
             self.strategy.init_run()
             try:
-                result = self._compiled_func(*self.args, **self.kwargs, _atlas_gen_exec_env=self)
+                result = self._compiled_func(*self.args, **self.kwargs, **extra_kwargs)
                 if self.tracer is None:
                     yield result
                 else:
@@ -531,7 +601,6 @@ class GeneratorExecEnvironment(Iterable):
         if not self.args and not self.kwargs:
             self.args, self.kwargs = trace.f_inputs
         self.strategy = ReplayStrategy(trace, self.strategy)
-        self.reset_compilation()
         return self
 
 
