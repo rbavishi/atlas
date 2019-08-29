@@ -47,7 +47,7 @@ class DfsStrategy(IteratorBasedStrategy):
                         pass
 
                 if iterator is None:
-                    iterator = handler(domain=domain, context=context, op_info=op_info, **kwargs)
+                    iterator = handler(self, domain=domain, context=context, op_info=op_info, **kwargs)
 
                 op: PeekableGenerator = PeekableGenerator(iter(iterator))
 

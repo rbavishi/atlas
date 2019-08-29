@@ -92,7 +92,8 @@ def unpack_sid(sid: str) -> UnpackedSID:
 
 
 class DefaultOpMethodResolver:
-    def get_op_handler(self, op_info: OpInfo):
+    @classmethod
+    def get_op_handler(cls, op_info: OpInfo):
         label = op_info.label
         op_type = op_info.op_type
 
@@ -102,7 +103,7 @@ class DefaultOpMethodResolver:
 
         op_mro.append(op_type)
         for o in op_mro:
-            if hasattr(self, o):
-                return getattr(self, o)
+            if hasattr(cls, o):
+                return getattr(cls, o)
 
         return None

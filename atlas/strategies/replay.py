@@ -42,7 +42,7 @@ class ReplayStrategy(Strategy):
     def finish(self):
         self.backup_strategy.finish()
 
-    def generic_call(self, domain, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+    def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
                      *args, **kwargs):
         if op_info.sid in self.op_choice_map:
             return next(self.op_choice_map[op_info.sid])
@@ -51,4 +51,4 @@ class ReplayStrategy(Strategy):
             return next(self.label_choice_map[op_info.label])
 
         return self.backup_strategy.generic_call(domain, context=context, op_info=op_info,
-                                                 handler=handler, *args, **kwargs)
+                                                 handler=handler, **kwargs)

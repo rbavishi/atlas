@@ -8,7 +8,7 @@ from atlas.strategies import Strategy, operator
 class RandStrategy(Strategy):
     def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
                      **kwargs):
-        return handler(domain=domain, context=context, op_info=op_info, **kwargs)
+        return handler(self, domain=domain, context=context, op_info=op_info, **kwargs)
 
     def is_finished(self):
         return False

@@ -160,13 +160,14 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     ops = {}
     handlers = {}
     op_infos = {}
+    op_idx: int = 0
     composition_cnt: int = 0
     for n in astutils.preorder_traversal(f_ast):
         if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_ops:
             #  Rename the function call, and assign a new function to be called during execution.
             #  This new function is determined by the semantics (strategy) being used for compilation.
             #  Also determine if there any eligible hooks for this operator call.
-            op_idx = len(ops)
+            op_idx += 1
             handler_idx = len(handlers)
             op_info: OpInfo = op_info_constructor.get(n, gen.name, gen.group)
 
