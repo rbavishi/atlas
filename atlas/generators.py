@@ -26,25 +26,6 @@ _GEN_HOOK_VAR = "_atlas_gen_hooks"
 _GEN_COMPOSITION_ID = "_atlas_composition_call"
 
 
-def get_user_provided_labels(n_call: ast.Call) -> Optional[List[str]]:
-    for kw in n_call.keywords:
-        if kw.arg == 'labels':
-            if not isinstance(kw.value, (ast.Str, ast.List)):
-                raise Exception(f"Value passed to 'labels' must be a string or list of strings in "
-                                f"{astunparse.unparse(n_call)}")
-
-            if isinstance(kw.value, ast.Str):
-                return [kw.value.s]
-            else:
-                if not all(isinstance(i, ast.Str) for i in kw.value.elts):
-                    raise SyntaxError(f"Value passed to 'labels' must be a string or list of strings in "
-                                      f"{astunparse.unparse(n_call)}")
-
-                return [i.s for i in kw.value.elts]
-
-    return None
-
-
 def make_strategy(strategy: Union[str, Strategy]) -> Strategy:
     if isinstance(strategy, Strategy):
         return strategy
@@ -56,36 +37,6 @@ def make_strategy(strategy: Union[str, Strategy]) -> Strategy:
         return DfsStrategy()
 
     raise Exception(f"Unrecognized strategy - {strategy}")
-
-
-def compile_op(op: Callable, hooks: List[Hook]) -> Callable:
-    """
-    Returns the op as is if there are no hooks to register. Otherwise, creates a closure that executes the hooks
-    in the appropriate order before returning the result of the operator (as defined by the strategy
-    passed to compile_func)
-    Args:
-        op (Callable): The operator call returned by the strategy
-        hooks (List[Callable]): The hooks to install
-
-    Returns:
-        A callable that executes the hooks (if any) along with the operator and returns result of the operator call
-    """
-    if len(hooks) == 0:
-        return op
-
-    else:
-        def create_op(*args, **kwargs):
-            for h in hooks:
-                h.before_op(*args, **kwargs)
-
-            result = op(*args, **kwargs)
-
-            for h in hooks:
-                h.after_op(*args, **kwargs, retval=result)
-
-            return result
-
-    return create_op
 
 
 def hook_wrapper(*args, _atlas_gen_strategy=None, _atlas_gen_hooks=None, **kwargs):
