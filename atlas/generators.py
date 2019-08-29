@@ -24,6 +24,7 @@ _GEN_STRATEGY_VAR = "_atlas_gen_strategy"
 _GEN_HOOK_WRAPPER = "_atlas_hook_wrapper"
 _GEN_HOOK_VAR = "_atlas_gen_hooks"
 _GEN_COMPOSITION_ID = "_atlas_composition_call"
+_GEN_COMPILED_TARGET_ID = "_atlas_compiled_function"
 
 
 def make_strategy(strategy: Union[str, Strategy]) -> Strategy:
@@ -176,6 +177,10 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     f_ast.args.defaults.append(ast.NameConstant(value=None))
     ast.fix_missing_locations(f_ast)
 
+    #  Change name so it doesn't clash with original
+    func_name = f"{_GEN_COMPILED_TARGET_ID}_{len(cache)}"
+    f_ast.name = func_name
+
     g.update({k: v for k, v in ops.items()})
     g.update({k: v for k, v in handlers.items()})
     g.update({k: v for k, v in op_infos.items()})
@@ -186,7 +191,7 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     #  Passing ``g`` to exec allows us to execute all the new functions
     #  we assigned to every operator call in the previous AST walk
     exec(compile(module, filename=inspect.getabsfile(func), mode="exec"), g)
-    result = g[func.__name__]
+    result = g[func_name]
     cache[func] = result
 
     #  Handle the delayed compilations now that we have populated the cache

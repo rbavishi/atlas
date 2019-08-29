@@ -1,14 +1,22 @@
 import unittest
 
 from atlas import generator
-from atlas.strategies import DfsStrategy
+from atlas.exceptions import ExceptionAsContinue
+from atlas.strategies import DfsStrategy, operator
+from atlas.utils.stubs import stub
 
 
+@stub
 def Select(*args, **kwargs):
     pass
 
 
-class GeneratorBasic(unittest.TestCase):
+@stub
+def SelectReversed(*args, **kwargs):
+    pass
+
+
+class TestBasicGeneratorFunctionality(unittest.TestCase):
     def test_gen_single_1(self):
         @generator(strategy='dfs')
         def binary(length: int):
@@ -35,6 +43,22 @@ class GeneratorBasic(unittest.TestCase):
 
         self.assertEqual(list(binary.generate(2)), list(reversed(["00", "01", "10", "11"])))
 
+    def test_gen_custom_strategy_2(self):
+        class ReversedDFS(DfsStrategy):
+            @operator
+            def SelectReversed(self, domain, *args, **kwargs):
+                yield from reversed(domain)
+
+        @generator(strategy=ReversedDFS())
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += SelectReversed(["0", "1"])
+
+            return s
+
+        self.assertEqual(list(binary.generate(2)), list(reversed(["00", "01", "10", "11"])))
+
     def test_gen_single_call_1(self):
         @generator(strategy='randomized')
         def binary(length: int):
@@ -46,30 +70,73 @@ class GeneratorBasic(unittest.TestCase):
 
         self.assertIn(binary.call(2), ["00", "01", "10", "11"])
 
+    def test_gen_exception_as_continue(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            if s == "10":
+                raise ExceptionAsContinue
+
+            return s
+
+        self.assertEqual(list(binary.generate(2)), ["00", "01", "11"])
+
     def test_gen_recursive_1(self):
         @generator(strategy='dfs')
         def binary(length: int):
             if length == 0:
                 return ""
 
-            return Select(["0", "1"]) + binary(length-1)
+            return Select(["0", "1"]) + binary(length - 1)
 
         self.assertEqual(list(binary.generate(2)), ["00", "01", "10", "11"])
 
-    def test_gen_mutually_recursive_1(self):
+    def test_gen_recursive_2(self):
         @generator(strategy='dfs')
         def binary(length: int):
             if length == 0:
                 return ""
 
-            return Select(["0", "1"]) + binary(length-1)
+            dummy = binary
+            return Select(["0", "1"]) + dummy(length - 1)
+
+        self.assertEqual(list(binary.generate(2)), ["00", "01", "10", "11"])
+
+    def test_gen_mutually_recursive_1(self):
+        @generator(strategy='dfs')
+        def binary1(length: int):
+            if length == 0:
+                return ""
+
+            return Select(["0", "1"]) + binary2(length - 1)
+
+        @generator(strategy='dfs')
+        def binary2(length: int):
+            if length == 0:
+                return ""
+
+            return Select(["0", "1"]) + binary1(length - 1)
+
+        self.assertEqual(list(binary1.generate(2)), ["00", "01", "10", "11"])
+        self.assertEqual(list(binary2.generate(2)), ["00", "01", "10", "11"])
+
+    def test_gen_mutually_recursive_2(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            if length == 0:
+                return ""
+
+            return Select(["0", "1"]) + binary(length - 1)
 
         @generator(strategy='dfs')
         def binary1(length: int):
             if length == 0:
                 return ""
 
-            return Select(["0", "1"]) + binary2(length-1)
+            return Select(["0", "1"]) + binary2(length - 1)
 
         @generator(strategy='dfs')
         def binary2(length: int):
