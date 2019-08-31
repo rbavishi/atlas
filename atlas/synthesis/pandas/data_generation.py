@@ -1,9 +1,7 @@
 from typing import List
-from atlas import generator
-from atlas.exceptions import ExceptionAsContinue
+
 from atlas.synthesis.pandas.api import PandasDataGenerationStrategy
 from atlas.synthesis.pandas.dataframe_generation import generate_random_dataframe
-
 from atlas.utils import get_group_by_name
 
 api_gens = {
