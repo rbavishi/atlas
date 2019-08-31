@@ -165,16 +165,16 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
                 pass
 
     #  Add the execution environment argument to the function
-    f_ast.args.args.append(ast.arg(arg=_GEN_EXEC_ENV_VAR, annotation=None))
-    f_ast.args.defaults.append(ast.NameConstant(value=None))
+    f_ast.args.kwonlyargs.append(ast.arg(arg=_GEN_EXEC_ENV_VAR, annotation=None))
+    f_ast.args.kw_defaults.append(ast.NameConstant(value=None))
 
     #  Add the strategy argument to the function
-    f_ast.args.args.append(ast.arg(arg=_GEN_STRATEGY_VAR, annotation=None))
-    f_ast.args.defaults.append(ast.NameConstant(value=None))
+    f_ast.args.kwonlyargs.append(ast.arg(arg=_GEN_STRATEGY_VAR, annotation=None))
+    f_ast.args.kw_defaults.append(ast.NameConstant(value=None))
 
     #  Add the strategy argument to the function
-    f_ast.args.args.append(ast.arg(arg=_GEN_HOOK_VAR, annotation=None))
-    f_ast.args.defaults.append(ast.NameConstant(value=None))
+    f_ast.args.kwonlyargs.append(ast.arg(arg=_GEN_HOOK_VAR, annotation=None))
+    f_ast.args.kw_defaults.append(ast.NameConstant(value=None))
     ast.fix_missing_locations(f_ast)
 
     #  Change name so it doesn't clash with original

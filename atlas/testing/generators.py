@@ -230,3 +230,16 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
             return s
 
         self.assertEqual(list(binary.generate(2).replay({"bit_select": ["0", "1"]}))[0], "01")
+
+
+class TestGeneratorCompilation(unittest.TestCase):
+    def test_arg_handling_1(self):
+        @generator
+        def binary(length: int, *args, **kwargs):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+        self.assertEqual(list(binary.generate(2, 'dummy')), ["00", "01", "10", "11"])
