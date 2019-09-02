@@ -3,7 +3,7 @@ from atlas.utils.stubs import stub
 
 
 @stub
-def SelectInput(*args, **kwargs):
+def SelectExternal(*args, **kwargs):
     pass
 
 
