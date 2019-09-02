@@ -1,5 +1,5 @@
 import itertools
-from typing import Dict, Any, Callable, Collection, Optional, Iterator
+from typing import Dict, Any, Callable, Collection, Optional, Iterator, Tuple
 
 from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import operator
@@ -11,18 +11,28 @@ class DfsStrategy(IteratorBasedStrategy):
     def __init__(self):
         super().__init__()
         self.call_id: int = 0
-        # self.op_iter_map: Dict[int, PeekableGenerator] = {}
         self.op_iter_map: Dict[int, Iterator] = {}
         self.val_map: Dict[int, Any] = {}
         self.finished: bool = False
 
+        #  This optimization is semantically correct if and only if the generator is deterministic modulo
+        #  operator choices i.e. the generator follows the same execution path and returns the same result if
+        #  all the operators make the same choices
+        #  The cache contains tuples as values with the first two elements being the start and end call-id,
+        #  and the third being the value returned by the generator
+        self.gen_call_id = 0
+        self.gen_result_cache: Dict[int, Tuple[int, int, Any]] = {}
+
     def init(self):
         self.call_id = 0
+        self.gen_call_id = 0
         self.op_iter_map = {}
+        self.gen_result_cache = {}
         self.finished = False
 
     def init_run(self):
         self.call_id = 0
+        self.gen_call_id = 0
 
     def finish_run(self):
         for t in range(self.call_id - 1, -1, -1):
@@ -30,6 +40,9 @@ class DfsStrategy(IteratorBasedStrategy):
                 self.val_map[t] = next(self.op_iter_map[t])
                 self.val_map = {k: v for k, v in self.val_map.items() if k <= t}
                 self.op_iter_map = {k: v for k, v in self.op_iter_map.items() if k <= t}
+
+                #  The call id of the last operator in the generator <= t for it to be cached correctly
+                self.gen_result_cache = {k: v for k, v in self.gen_result_cache.items() if 0 <= v[1] <= t}
                 return
 
             except StopIteration:
@@ -39,6 +52,26 @@ class DfsStrategy(IteratorBasedStrategy):
 
     def is_finished(self):
         return self.finished
+
+    def generator_invoked(self):
+        k = self.gen_call_id
+        self.gen_call_id += 1
+        self.gen_result_cache[k] = (self.call_id, -1, None)
+        return k
+
+    def generator_returned(self, gen_call_id: int, result: Any):
+        start, _, _ = self.gen_result_cache[gen_call_id]
+        self.gen_result_cache[gen_call_id] = (start, self.call_id, result)
+
+    def cached_generator_invocation(self):
+        if self.gen_call_id in self.gen_result_cache:
+            entry = self.gen_result_cache[self.gen_call_id]
+            assert entry[0] == self.call_id
+            self.gen_call_id += 1
+            self.call_id = entry[1]
+            return True, entry[2]
+
+        return False, False
 
     def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
                      **kwargs):
