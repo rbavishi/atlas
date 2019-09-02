@@ -1,10 +1,9 @@
 import itertools
-from typing import Dict, Any, Callable, Collection, Optional
+from typing import Dict, Any, Callable, Collection, Optional, Iterator
 
 from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import operator
 from atlas.strategies.strategy import IteratorBasedStrategy
-from atlas.utils.iterutils import PeekableGenerator
 from atlas.operators import OpInfo
 
 
@@ -12,32 +11,41 @@ class DfsStrategy(IteratorBasedStrategy):
     def __init__(self):
         super().__init__()
         self.call_id: int = 0
-        self.op_map: Dict[int, PeekableGenerator] = {}
-        self.last_unfinished: int = None
+        # self.op_iter_map: Dict[int, PeekableGenerator] = {}
+        self.op_iter_map: Dict[int, Iterator] = {}
+        self.val_map: Dict[int, Any] = {}
+        self.finished: bool = False
 
     def init(self):
         self.call_id = 0
-        self.op_map = {}
-        self.last_unfinished = None
+        self.op_iter_map = {}
+        self.finished = False
 
     def init_run(self):
         self.call_id = 0
-        self.last_unfinished = -1
 
     def finish_run(self):
-        if self.last_unfinished > -1:
-            self.op_map = {k: v for k, v in self.op_map.items() if k <= self.last_unfinished}
-            self.op_map[self.last_unfinished].step()
+        for t in range(self.call_id - 1, -1, -1):
+            try:
+                self.val_map[t] = next(self.op_iter_map[t])
+                self.val_map = {k: v for k, v in self.val_map.items() if k <= t}
+                self.op_iter_map = {k: v for k, v in self.op_iter_map.items() if k <= t}
+                return
+
+            except StopIteration:
+                continue
+
+        self.finished = True
 
     def is_finished(self):
-        return self.last_unfinished == -1
+        return self.finished
 
     def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
                      **kwargs):
         t = self.call_id
         self.call_id += 1
 
-        if t not in self.op_map:
+        if t not in self.op_iter_map:
             try:
                 iterator = None
                 if self.model is not None:
@@ -49,21 +57,18 @@ class DfsStrategy(IteratorBasedStrategy):
                 if iterator is None:
                     iterator = handler(self, domain=domain, context=context, op_info=op_info, **kwargs)
 
-                op: PeekableGenerator = PeekableGenerator(iter(iterator))
+                op_iter = iter(iterator)
+                self.op_iter_map[t] = op_iter
+                val = self.val_map[t] = next(op_iter)
 
             except StopIteration:
                 #  Operator received an empty domain
                 raise ExceptionAsContinue
 
-            self.op_map[t] = op
-
         else:
-            op = self.op_map[t]
+            val = self.val_map[t]
 
-        if not op.is_finished():
-            self.last_unfinished = t
-
-        return op.peek()
+        return val
 
     @operator
     def Select(self, domain: Any, context: Any = None, fixed_domain=False, **kwargs):
