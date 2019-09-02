@@ -16,8 +16,9 @@ class DfsStrategy(IteratorBasedStrategy):
         self.finished: bool = False
 
         #  This optimization is semantically correct if and only if the generator is deterministic modulo
-        #  operator choices i.e. the generator follows the same execution path and returns the same result if
-        #  all the operators make the same choices
+        #  operator choices and side-effect free i.e. the generator follows the same execution path and
+        #  returns the same result if all the operators make the same choices and does not mutate any object
+
         #  The cache contains tuples as values with the first two elements being the start and end call-id,
         #  and the third being the value returned by the generator
         self.gen_call_id = 0
