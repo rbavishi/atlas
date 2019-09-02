@@ -427,6 +427,16 @@ class GeneratorExecEnvironment(Iterable):
         if parent_gen not in self._compilation_cache:
             self._compilation_cache[parent_gen] = compile_func(parent_gen, func, self.strategy, len(self.hooks) > 0)
 
+        if isinstance(self.strategy, DfsStrategy):
+            is_cached, result = self.strategy.cached_generator_invocation()
+            if is_cached:
+                return result
+
+            call_id = self.strategy.generator_invoked()
+            result = self._compilation_cache[parent_gen](*args, **kwargs, **extra_kwargs)
+            self.strategy.generator_returned(call_id, result)
+            return result
+
         return self._compilation_cache[parent_gen](*args, **kwargs, **extra_kwargs)
 
     def single_call(self, args, kwargs):
