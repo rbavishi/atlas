@@ -1734,9 +1734,9 @@ class TestSequentialEnumerator(TestAPIGenerators):
         checker = Checker.get_checker(output)
         func_seqs = [[funcs[i] for i in seq] for seq in seqs]
         for func_seq in func_seqs:
-            for val, _, _ in sequential_enumerator.generate(inputs,
-                                                            output).with_strategy(KnownSequenceStrategy(func_seq)):
-                if checker(output, val):
+            for result in sequential_enumerator.generate(inputs,
+                                                         output).with_strategy(KnownSequenceStrategy(func_seq)):
+                if checker(output, result[0]):
                     return True
 
         print(inputs, output)
