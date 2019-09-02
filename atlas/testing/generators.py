@@ -100,6 +100,28 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
             if length == 0:
                 return ""
 
+            return binary(length - 1) + Select(["0", "1"])
+
+        self.assertEqual(list(binary.generate(2)), ["00", "01", "10", "11"])
+
+    def test_gen_recursive_3(self):
+        """ The non tail-recursive nature tests generator-level caching"""
+        @generator(strategy='dfs')
+        def binary(length: int):
+            if length == 0:
+                return ""
+
+            dummy = binary
+            return dummy(length - 1) + Select(["0", "1"])
+
+        self.assertEqual(list(binary.generate(2)), ["00", "01", "10", "11"])
+
+    def test_gen_recursive_4(self):
+        @generator(strategy='dfs')
+        def binary(length: int):
+            if length == 0:
+                return ""
+
             dummy = binary
             return Select(["0", "1"]) + dummy(length - 1)
 
