@@ -8,7 +8,8 @@ import atlas.synthesis.pandas.api
 from atlas import generator
 from atlas.exceptions import ExceptionAsContinue
 from atlas.synthesis.pandas.checker import Checker
-from atlas.synthesis.pandas.api import PandasSynthesisStrategy
+from atlas.synthesis.pandas.strategies import PandasSynthesisStrategy
+from atlas.synthesis.pandas.engine import sequential_enumerator
 from atlas.utils import get_group_by_name
 
 api_gens = {
@@ -32,7 +33,7 @@ def simple_enumerator(inputs, output, func_seq):
     return intermediates[-1], prog
 
 
-class TestGenerators(unittest.TestCase):
+class TestAPIGenerators(unittest.TestCase):
     def check(self, inputs: List[Any], output: Any, funcs: List[str], seqs: List[List[int]],
               constants: List[Any] = None):
         if constants is not None:
@@ -1713,3 +1714,30 @@ class TestGenerators(unittest.TestCase):
         funcs = ['df.groupby', 'dfgroupby.min']
         seqs = [[0, 1]]
         self.check(inputs, output, funcs, seqs)
+
+
+class KnownSequenceStrategy(PandasSynthesisStrategy):
+    def __init__(self, func_seq: List[str]):
+        super().__init__()
+        self.func_seq = func_seq
+
+    def Sequence_function_sequence_prediction(self, **kwargs):
+        yield self.func_seq
+
+
+class TestSequentialEnumerator(TestAPIGenerators):
+    def check(self, inputs: List[Any], output: Any, funcs: List[str], seqs: List[List[int]],
+              constants: List[Any] = None):
+        if constants is not None:
+            inputs += constants
+
+        checker = Checker.get_checker(output)
+        func_seqs = [[funcs[i] for i in seq] for seq in seqs]
+        for func_seq in func_seqs:
+            for val, _, _ in sequential_enumerator.generate(inputs,
+                                                            output).with_strategy(KnownSequenceStrategy(func_seq)):
+                if checker(output, val):
+                    return True
+
+        print(inputs, output)
+        self.assertTrue(False, "Did not find a solution")
