@@ -1,17 +1,12 @@
-import logging
-import random
 import typing
 
 import dateutil
 import pandas as pd
 import numpy as np
-from typing import Callable, Dict
+from typing import Callable
 
 from atlas import generator
-from atlas.operators import OpInfo
-from atlas.strategies import DfsStrategy, operator
-from atlas.synthesis.pandas.dataframe_generation import DfConfig
-from atlas.synthesis.pandas.stubs import Select, Sequence, Subset, OrderedSubset, Product, SelectExternal
+from atlas.synthesis.pandas.stubs import Select, Subset, OrderedSubset, Product, SelectExternal
 
 
 # ======================================================================= #
@@ -31,61 +26,61 @@ from atlas.synthesis.pandas.stubs import Select, Sequence, Subset, OrderedSubset
 
 @generator(group='pandas', name='df.index')
 def gen_df_index(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.index, {'self': _self}
 
 
 @generator(group='pandas', name='df.columns')
 def gen_df_columns(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.columns, {'self': _self}
 
 
 @generator(group='pandas', name='df.dtypes')
 def gen_df_dtypes(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.dtypes, {'self': _self}
 
 
 @generator(group='pandas', name='df.ftypes')
 def gen_df_ftypes(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.ftypes, {'self': _self}
 
 
 @generator(group='pandas', name='df.values')
 def gen_df_values(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.values, {'self': _self}
 
 
 @generator(group='pandas', name='df.axes')
 def gen_df_axes(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.axes, {'self': _self}
 
 
 @generator(group='pandas', name='df.ndim')
 def gen_df_ndim(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.ndim, {'self': _self}
 
 
 @generator(group='pandas', name='df.size')
 def gen_df_size(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.size, {'self': _self}
 
 
 @generator(group='pandas', name='df.shape')
 def gen_df_shape(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.shape, {'self': _self}
 
 
 @generator(group='pandas', name='df.T')
 def gen_df_T(inputs, *args, **kwargs):
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.T, {'self': _self}
 
 
@@ -102,7 +97,7 @@ def gen_df_T(inputs, *args, **kwargs):
 def gen_df_as_matrix(inputs, *args, **kwargs):
     """DataFrame.as_matrix(self, columns=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
     choose_default = Select([True, False], fixed_domain=True)
     if choose_default:
@@ -117,7 +112,7 @@ def gen_df_as_matrix(inputs, *args, **kwargs):
 def gen_df_get_dtype_counts(inputs, *args, **kwargs):
     """DataFrame.get_dtype_counts(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.get_dtype_counts(), {'self': _self}
 
 
@@ -125,7 +120,7 @@ def gen_df_get_dtype_counts(inputs, *args, **kwargs):
 def gen_df_get_ftype_counts(inputs, *args, **kwargs):
     """DataFrame.get_ftype_counts(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.get_ftype_counts(), {'self': _self}
 
 
@@ -133,7 +128,7 @@ def gen_df_get_ftype_counts(inputs, *args, **kwargs):
 def gen_df_select_dtypes(inputs, *args, **kwargs):
     """DataFrame.select_dtypes(self, include=None, exclude=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     dtypes = set(map(str, _self.dtypes))
     use_include = Select([True, False], fixed_domain=True)
     if use_include:
@@ -156,7 +151,7 @@ def gen_df_select_dtypes(inputs, *args, **kwargs):
 def gen_df_astype(inputs, output, *args, **kwargs):
     """DataFrame.astype(self, dtype, copy=True, errors='raise')"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     cand_dtypes = {np.dtype('int64'), np.dtype('int32'), np.dtype('float64'), np.dtype('float32'),
                    np.dtype('bool'), int, float, str, bool}
     cand_dtypes = set(filter(lambda x: not any(x == i for i in _self.dtypes), cand_dtypes))
@@ -175,7 +170,7 @@ def gen_df_astype(inputs, output, *args, **kwargs):
 def gen_df_isna(inputs, *args, **kwargs):
     """DataFrame.isna(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, label="input_df_isna_notna", extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, label="input_df_isna_notna", kwargs=kwargs)
 
     return _self.isna(), {
         'self': _self
@@ -186,7 +181,7 @@ def gen_df_isna(inputs, *args, **kwargs):
 def gen_df_notna(inputs, *args, **kwargs):
     """DataFrame.notna(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, label="input_df_isna_notna", extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, label="input_df_isna_notna", kwargs=kwargs)
 
     return _self.notna(), {
         'self': _self
@@ -201,7 +196,7 @@ def gen_df_notna(inputs, *args, **kwargs):
 def gen_df_head(inputs, *args, **kwargs):
     """DataFrame.head(self, n=5)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _n = Select(list(range(1, _self.shape[0])))
 
     return _self.head(n=_n), {
@@ -213,7 +208,7 @@ def gen_df_head(inputs, *args, **kwargs):
 def gen_df_tail(inputs, *args, **kwargs):
     """DataFrame.tail(self, n=5)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _n = Select(list(range(1, _self.shape[0])))
 
     return _self.tail(n=_n), {
@@ -225,7 +220,7 @@ def gen_df_tail(inputs, *args, **kwargs):
 def gen_df_at_getitem(inputs, *args, **kwargs):
     """DataFrame.at.__getitem__(self, key)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _key = (Select(_self.index), Select(_self.columns))
 
     return _self.at[_key], {
@@ -237,7 +232,7 @@ def gen_df_at_getitem(inputs, *args, **kwargs):
 def gen_df_iat_getitem(inputs, *args, **kwargs):
     """DataFrame.iat.__getitem__(self, key)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _key = (Select(list(range(_self.shape[0]))),
             Select(list(range(_self.shape[1]))))
 
@@ -250,7 +245,7 @@ def gen_df_iat_getitem(inputs, *args, **kwargs):
 def gen_df_loc_getitem(inputs, *args, **kwargs):
     """DataFrame.loc.__getitem__(self, key)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     idx_reversed = Select([True, False], fixed_domain=True)
     col_reversed = Select([True, False], fixed_domain=True)
     idx_start, idx_end = Subset(list(_self.index), lengths=[2])
@@ -270,7 +265,7 @@ def gen_df_loc_getitem(inputs, *args, **kwargs):
 def gen_df_iloc_getitem(inputs, *args, **kwargs):
     """DataFrame.iloc.__getitem__(self, key)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     idx_reversed = Select([True, False], fixed_domain=True)
     col_reversed = Select([True, False], fixed_domain=True)
     idx_start, idx_end = Subset(list(range(_self.shape[0])), lengths=[2])
@@ -290,7 +285,7 @@ def gen_df_iloc_getitem(inputs, *args, **kwargs):
 def gen_df_lookup(inputs, *args, **kwargs):
     """DataFrame.lookup(self, row_labels, col_labels)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _row_labels = list(OrderedSubset(_self.index,
                                      lengths=list(range(1, min(_self.shape[0], _self.shape[1]) + 1))))
     _col_labels = list(OrderedSubset(_self.columns, lengths=[len(_row_labels)]))
@@ -304,7 +299,7 @@ def gen_df_lookup(inputs, *args, **kwargs):
 def gen_df_xs(inputs, *args, **kwargs):
     """DataFrame.xs(self, key, axis=0, level=None, drop_level=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _drop_level = Select([True, False], fixed_domain=True)
     _axis = Select([0, 1], fixed_domain=True)
 
@@ -326,11 +321,11 @@ def gen_df_xs(inputs, *args, **kwargs):
 def gen_df_isin(inputs, output, *args, **kwargs):
     """DataFrame.isin(self, values)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
     #  Adding '_self' to aid data generation. See PandasDataGenerationStrategy at the end of this file
     c = {'I0': _self, 'O': output, '_self': _self}
-    _values = SelectExternal(inputs, dtype=(list, tuple, pd.Series, dict, pd.DataFrame), context=c, label="values_df_isin", extra_kwargs=kwargs)
+    _values = SelectExternal(inputs, dtype=(list, tuple, pd.Series, dict, pd.DataFrame), context=c, label="values_df_isin", kwargs=kwargs)
 
     return _self.isin(_values), {
         'self': _self, 'values': _values
@@ -349,10 +344,10 @@ def gen_df_where(inputs, *args, **kwargs):
 
         return True
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _cond = Select([inp for inp in inputs
                     if isinstance(inp, (typing.Sequence, pd.DataFrame, Callable)) and is_valid_cond(inp)])
-    _other = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable), extra_kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable), kwargs=kwargs)
 
     return _self.where(_cond, other=_other, errors='ignore'), {
         'self': _self, 'cond': _cond, 'other': _other, 'errors': 'ignore'
@@ -371,10 +366,10 @@ def gen_df_mask(inputs, *args, **kwargs):
 
         return True
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _cond = Select([inp for inp in inputs
                     if isinstance(inp, (typing.Sequence, pd.DataFrame, Callable)) and is_valid_cond(inp)])
-    _other = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable), extra_kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable), kwargs=kwargs)
 
     return _self.mask(_cond, other=_other, errors='ignore'), {
         'self': _self, 'cond': _cond, 'other': _other, 'errors': 'ignore'
@@ -385,8 +380,8 @@ def gen_df_mask(inputs, *args, **kwargs):
 def gen_df_query(inputs, *args, **kwargs):
     """DataFrame.query(self, expr, inplace=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _expr = SelectExternal(inputs, dtype=str, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _expr = SelectExternal(inputs, dtype=str, kwargs=kwargs)
 
     return _self.query(_expr), {
         'self': _self, 'expr': _expr
@@ -397,7 +392,7 @@ def gen_df_query(inputs, *args, **kwargs):
 def gen_df_getitem(inputs, *args, **kwargs):
     """DataFrame.__getitem__(self, key)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     single_col = Select([True, False], fixed_domain=True)
     if single_col:
         _key = Select(_self.columns)
@@ -417,7 +412,7 @@ def gen_df_getitem(inputs, *args, **kwargs):
 def gen_df_add(inputs, *args, **kwargs):
     """DataFrame.add(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -447,7 +442,7 @@ def gen_df_add(inputs, *args, **kwargs):
 def gen_df_sub(inputs, *args, **kwargs):
     """DataFrame.sub(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -533,7 +528,7 @@ def gen_df_mul(inputs, *args, **kwargs):
 def gen_df_div(inputs, *args, **kwargs):
     """DataFrame.div(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -563,7 +558,7 @@ def gen_df_div(inputs, *args, **kwargs):
 def gen_df_truediv(inputs, *args, **kwargs):
     """DataFrame.truediv(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -593,7 +588,7 @@ def gen_df_truediv(inputs, *args, **kwargs):
 def gen_df_floordiv(inputs, *args, **kwargs):
     """DataFrame.floordiv(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -623,7 +618,7 @@ def gen_df_floordiv(inputs, *args, **kwargs):
 def gen_df_mod(inputs, *args, **kwargs):
     """DataFrame.mod(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -653,7 +648,7 @@ def gen_df_mod(inputs, *args, **kwargs):
 def gen_df_pow(inputs, *args, **kwargs):
     """DataFrame.pow(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -683,7 +678,7 @@ def gen_df_pow(inputs, *args, **kwargs):
 def gen_df_radd(inputs, *args, **kwargs):
     """DataFrame.radd(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -713,7 +708,7 @@ def gen_df_radd(inputs, *args, **kwargs):
 def gen_df_rsub(inputs, *args, **kwargs):
     """DataFrame.rsub(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -743,7 +738,7 @@ def gen_df_rsub(inputs, *args, **kwargs):
 def gen_df_rmul(inputs, *args, **kwargs):
     """DataFrame.rmul(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -773,7 +768,7 @@ def gen_df_rmul(inputs, *args, **kwargs):
 def gen_df_rdiv(inputs, *args, **kwargs):
     """DataFrame.rdiv(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -803,7 +798,7 @@ def gen_df_rdiv(inputs, *args, **kwargs):
 def gen_df_rtruediv(inputs, *args, **kwargs):
     """DataFrame.rtruediv(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -833,7 +828,7 @@ def gen_df_rtruediv(inputs, *args, **kwargs):
 def gen_df_rfloordiv(inputs, *args, **kwargs):
     """DataFrame.rfloordiv(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -863,7 +858,7 @@ def gen_df_rfloordiv(inputs, *args, **kwargs):
 def gen_df_rmod(inputs, *args, **kwargs):
     """DataFrame.rmod(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -893,7 +888,7 @@ def gen_df_rmod(inputs, *args, **kwargs):
 def gen_df_rpow(inputs, *args, **kwargs):
     """DataFrame.rpow(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -923,7 +918,7 @@ def gen_df_rpow(inputs, *args, **kwargs):
 def gen_df_lt(inputs, *args, **kwargs):
     """DataFrame.lt(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -947,7 +942,7 @@ def gen_df_lt(inputs, *args, **kwargs):
 def gen_df_gt(inputs, *args, **kwargs):
     """DataFrame.gt(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -971,7 +966,7 @@ def gen_df_gt(inputs, *args, **kwargs):
 def gen_df_le(inputs, *args, **kwargs):
     """DataFrame.le(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -995,7 +990,7 @@ def gen_df_le(inputs, *args, **kwargs):
 def gen_df_ge(inputs, *args, **kwargs):
     """DataFrame.ge(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -1019,7 +1014,7 @@ def gen_df_ge(inputs, *args, **kwargs):
 def gen_df_ne(inputs, *args, **kwargs):
     """DataFrame.ne(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -1043,7 +1038,7 @@ def gen_df_ne(inputs, *args, **kwargs):
 def gen_df_eq(inputs, *args, **kwargs):
     """DataFrame.eq(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _other = Select(inputs)
 
     if isinstance(_other, pd.Series):
@@ -1067,9 +1062,9 @@ def gen_df_eq(inputs, *args, **kwargs):
 def gen_df_combine(inputs, *args, **kwargs):
     """DataFrame.combine(self, other, func, fill_value=None, overwrite=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _other = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _func = SelectExternal(inputs, dtype=Callable, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _func = SelectExternal(inputs, dtype=Callable, kwargs=kwargs)
     _overwrite = Select([True, False], fixed_domain=True)
 
     fill_val_cands = [inp for inp in inputs if np.isscalar(inp)]
@@ -1087,8 +1082,8 @@ def gen_df_combine(inputs, *args, **kwargs):
 def gen_df_combine_first(inputs, *args, **kwargs):
     """DataFrame.combine_first(self, other)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _other = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
     return _self.combine_first(other=_other), {
         'self': _self, 'other': _other
@@ -1103,8 +1098,8 @@ def gen_df_combine_first(inputs, *args, **kwargs):
 def gen_df_apply(inputs, *args, **kwargs):
     """DataFrame.apply(self, func, axis=0, broadcast=False, raw=False, reduce=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _func = SelectExternal(inputs, dtype=Callable, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _func = SelectExternal(inputs, dtype=Callable, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _broadcast = Select([False, True], fixed_domain=True)
     _raw = Select([False, True], fixed_domain=True)
@@ -1118,8 +1113,8 @@ def gen_df_apply(inputs, *args, **kwargs):
 def gen_df_applymap(inputs, *args, **kwargs):
     """DataFrame.applymap(self, func)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _func = SelectExternal(inputs, dtype=Callable, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _func = SelectExternal(inputs, dtype=Callable, kwargs=kwargs)
 
     return _self.applymap(func=_func), {
         'self': _self, 'func': _func
@@ -1130,8 +1125,8 @@ def gen_df_applymap(inputs, *args, **kwargs):
 def gen_df_agg(inputs, *args, **kwargs):
     """DataFrame.agg(self, func, axis=0)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _func = SelectExternal(inputs, dtype=(str, dict, list, tuple, Callable), extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _func = SelectExternal(inputs, dtype=(str, dict, list, tuple, Callable), kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
 
     return _self.agg(func=_func), {
@@ -1143,8 +1138,8 @@ def gen_df_agg(inputs, *args, **kwargs):
 def gen_df_transform(inputs, *args, **kwargs):
     """DataFrame.transform(self, func)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _func = SelectExternal(inputs, dtype=(str, dict, list, tuple, Callable), extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _func = SelectExternal(inputs, dtype=(str, dict, list, tuple, Callable), kwargs=kwargs)
 
     return _self.transform(func=_func), {
         'self': _self, 'func': _func
@@ -1155,7 +1150,7 @@ def gen_df_transform(inputs, *args, **kwargs):
 def gen_df_groupby(inputs, *args, **kwargs):
     """DataFrame.groupby(self, by=None, axis=0, level=None, as_index=True, sort=True, group_keys=True, squeeze=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _sort = Select([True, False], fixed_domain=True)
     _as_index = Select([True, False], fixed_domain=True)
@@ -1200,7 +1195,7 @@ def gen_df_groupby(inputs, *args, **kwargs):
 def gen_df_abs(inputs, *args, **kwargs):
     """DataFrame.abs(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     return _self.abs(), {
         'self': _self
     }
@@ -1210,7 +1205,7 @@ def gen_df_abs(inputs, *args, **kwargs):
 def gen_df_all(inputs, *args, **kwargs):
     """DataFrame.all(self, axis=None, bool_only=None, skipna=None, level=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _bool_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1232,7 +1227,7 @@ def gen_df_all(inputs, *args, **kwargs):
 def gen_df_any(inputs, *args, **kwargs):
     """DataFrame.any(self, axis=None, bool_only=None, skipna=None, level=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _bool_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1254,7 +1249,7 @@ def gen_df_any(inputs, *args, **kwargs):
 def gen_df_clip(inputs, output, *args, **kwargs):
     """DataFrame.clip(self, lower=None, upper=None, axis=None, inplace=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     lower_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
     upper_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
 
@@ -1274,7 +1269,7 @@ def gen_df_clip(inputs, output, *args, **kwargs):
 def gen_df_clip_lower(inputs, output, *args, **kwargs):
     """DataFrame.clip_lower(self, threshold, axis=None, inplace=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     threshold_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
     if isinstance(output, pd.DataFrame):
         threshold_cands.append(np.min(output.select_dtypes(include=np.number).values))
@@ -1289,7 +1284,7 @@ def gen_df_clip_lower(inputs, output, *args, **kwargs):
 def gen_df_clip_upper(inputs, output, *args, **kwargs):
     """DataFrame.clip_upper(self, threshold, axis=None, inplace=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     threshold_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
     if isinstance(output, pd.DataFrame):
         threshold_cands.append(np.max(output.select_dtypes(include=np.number).values))
@@ -1304,7 +1299,7 @@ def gen_df_clip_upper(inputs, output, *args, **kwargs):
 def gen_df_corr(inputs, *args, **kwargs):
     """DataFrame.corr(self, method='pearson', min_periods=1)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _min_periods = Select([1] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
     _method = Select(['pearson', 'kendall', 'spearman'], fixed_domain=True)
 
@@ -1317,8 +1312,8 @@ def gen_df_corr(inputs, *args, **kwargs):
 def gen_df_corrwith(inputs, *args, **kwargs):
     """DataFrame.corrwith(self, other, axis=0, drop=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _other = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _drop = Select([False, True], fixed_domain=True)
     _axis = Select([0, 1], fixed_domain=True)
 
@@ -1331,7 +1326,7 @@ def gen_df_corrwith(inputs, *args, **kwargs):
 def gen_df_count(inputs, *args, **kwargs):
     """DataFrame.count(self, axis=0, level=None, numeric_only=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([False, True], fixed_domain=True)
 
@@ -1351,7 +1346,7 @@ def gen_df_count(inputs, *args, **kwargs):
 def gen_df_cov(inputs, *args, **kwargs):
     """DataFrame.cov(self, min_periods=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _min_periods = Select([None] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
 
     return _self.cov(min_periods=_min_periods), {
@@ -1363,7 +1358,7 @@ def gen_df_cov(inputs, *args, **kwargs):
 def gen_df_cummax(inputs, *args, **kwargs):
     """DataFrame.cummax(self, axis=None, skipna=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
 
@@ -1376,7 +1371,7 @@ def gen_df_cummax(inputs, *args, **kwargs):
 def gen_df_cummin(inputs, *args, **kwargs):
     """DataFrame.cummin(self, axis=None, skipna=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
 
@@ -1414,7 +1409,7 @@ def gen_df_cumprod(inputs, *args, **kwargs):
 def gen_df_cumsum(inputs, *args, **kwargs):
     """DataFrame.cumsum(self, axis=None, skipna=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
 
@@ -1427,7 +1422,7 @@ def gen_df_cumsum(inputs, *args, **kwargs):
 def gen_df_diff(inputs, *args, **kwargs):
     """DataFrame.diff(self, periods=1, axis=0)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _periods = Select([1] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
     _axis = Select([0, 1], fixed_domain=True)
 
@@ -1440,8 +1435,8 @@ def gen_df_diff(inputs, *args, **kwargs):
 def gen_df_eval(inputs, *args, **kwargs):
     """DataFrame.eval(self, expr, inplace=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _expr = SelectExternal(inputs, dtype=str, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _expr = SelectExternal(inputs, dtype=str, kwargs=kwargs)
 
     return _self.eval(_expr), {
         'self': _self, 'expr': _expr
@@ -1452,7 +1447,7 @@ def gen_df_eval(inputs, *args, **kwargs):
 def gen_df_kurt(inputs, *args, **kwargs):
     """DataFrame.kurt(self, axis=None, skipna=None, level=None, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1474,7 +1469,7 @@ def gen_df_kurt(inputs, *args, **kwargs):
 def gen_df_mad(inputs, *args, **kwargs):
     """DataFrame.mad(self, axis=None, skipna=None, level=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
 
@@ -1495,7 +1490,7 @@ def gen_df_mad(inputs, *args, **kwargs):
 def gen_df_max(inputs, *args, **kwargs):
     """DataFrame.max(self, axis=None, skipna=None, level=None, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1517,7 +1512,7 @@ def gen_df_max(inputs, *args, **kwargs):
 def gen_df_mean(inputs, *args, **kwargs):
     """DataFrame.max(self, axis=None, skipna=None, level=None, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1539,7 +1534,7 @@ def gen_df_mean(inputs, *args, **kwargs):
 def gen_df_median(inputs, *args, **kwargs):
     """DataFrame.median(self, axis=None, skipna=None, level=None, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1561,7 +1556,7 @@ def gen_df_median(inputs, *args, **kwargs):
 def gen_df_min(inputs, *args, **kwargs):
     """DataFrame.min(self, axis=None, skipna=None, level=None, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1583,7 +1578,7 @@ def gen_df_min(inputs, *args, **kwargs):
 def gen_df_mode(inputs, *args, **kwargs):
     """DataFrame.mode(self, axis=0, numeric_only=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
 
@@ -1596,7 +1591,7 @@ def gen_df_mode(inputs, *args, **kwargs):
 def gen_df_pct_change(inputs, *args, **kwargs):
     """DataFrame.pct_change(self, periods=1, fill_method='pad', limit=None, freq=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _periods = Select([1] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
     _limit = Select([None] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
 
@@ -1645,7 +1640,7 @@ def gen_df_prod(inputs, *args, **kwargs):
 def gen_df_quantile(inputs, *args, **kwargs):
     """DataFrame.quantile(self, q=0.5, axis=0, numeric_only=True, interpolation='linear')"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _q = Select([0.5] + [inp for inp in inputs
                          if isinstance(inp, (int, np.number, float, np.floating, typing.Sequence))])
@@ -1661,7 +1656,7 @@ def gen_df_quantile(inputs, *args, **kwargs):
 def gen_df_rank(inputs, *args, **kwargs):
     """DataFrame.rank(self, axis=0, method='average', numeric_only=None, na_option='keep', ascending=True, pct=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _method = Select(['average', 'min', 'max', 'first', 'dense'], fixed_domain=True)
     _na_option = Select(['keep', 'top', 'bottom'], fixed_domain=True)
@@ -1680,7 +1675,7 @@ def gen_df_rank(inputs, *args, **kwargs):
 def gen_df_round(inputs, *args, **kwargs):
     """DataFrame.round(self, decimals=0)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _decimals = Select([0] + [inp for inp in inputs if isinstance(inp, (int, np.number, dict, pd.Series))])
 
     return _self.round(decimals=_decimals), {
@@ -1692,7 +1687,7 @@ def gen_df_round(inputs, *args, **kwargs):
 def gen_df_sem(inputs, *args, **kwargs):
     """DataFrame.sem(self, axis=None, skipna=None, level=None, ddof=1, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1719,7 +1714,7 @@ def gen_df_sem(inputs, *args, **kwargs):
 def gen_df_skew(inputs, *args, **kwargs):
     """DataFrame.skew(self, axis=None, skipna=None, level=None, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1741,7 +1736,7 @@ def gen_df_skew(inputs, *args, **kwargs):
 def gen_df_sum(inputs, *args, **kwargs):
     """DataFrame.sum(self, axis=None, skipna=None, level=None, numeric_only=None, min_count=0)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1765,7 +1760,7 @@ def gen_df_sum(inputs, *args, **kwargs):
 def gen_df_std(inputs, *args, **kwargs):
     """DataFrame.std(self, axis=None, skipna=None, level=None, ddof=1, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1792,7 +1787,7 @@ def gen_df_std(inputs, *args, **kwargs):
 def gen_df_var(inputs, *args, **kwargs):
     """DataFrame.var(self, axis=None, skipna=None, level=None, ddof=1, numeric_only=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _numeric_only = Select([None, True, False], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
@@ -1823,8 +1818,8 @@ def gen_df_var(inputs, *args, **kwargs):
 def gen_df_add_prefix(inputs, *args, **kwargs):
     """DataFrame.add_prefix(self, prefix)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _prefix = SelectExternal(inputs, dtype=str, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _prefix = SelectExternal(inputs, dtype=str, kwargs=kwargs)
 
     return _self.add_prefix(_prefix), {
         'self': _self, 'prefix': _prefix
@@ -1835,8 +1830,8 @@ def gen_df_add_prefix(inputs, *args, **kwargs):
 def gen_df_add_suffix(inputs, *args, **kwargs):
     """DataFrame.add_suffix(self, suffix)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _suffix = SelectExternal(inputs, dtype=str, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _suffix = SelectExternal(inputs, dtype=str, kwargs=kwargs)
 
     return _self.add_suffix(_suffix), {
         'self': _self, 'suffix': _suffix
@@ -1848,8 +1843,8 @@ def gen_df_align(inputs, *args, **kwargs):
     """DataFrame.align(self, other, join='outer', axis=None, level=None, copy=True, fill_value=None, method=None,
                        limit=None, fill_axis=0, broadcast_axis=None) """
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _other = SelectExternal(inputs, dtype=(pd.DataFrame, pd.Series), extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=(pd.DataFrame, pd.Series), kwargs=kwargs)
     _axis = Select([None, 0, 1], fixed_domain=True)
     _broadcast_axis = Select([None, 0, 1], fixed_domain=True)
     _join = Select(['outer', 'inner', 'left', 'right'], fixed_domain=True)
@@ -1870,7 +1865,7 @@ def gen_df_align(inputs, *args, **kwargs):
 def gen_df_drop(inputs, *args, **kwargs):
     """DataFrame.drop(self, labels=None, axis=0, index=None, columns=None, level=None, inplace=False, errors='raise')"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([None, 0, 1], fixed_domain=True)
 
     src = _self.index if _axis == 0 else _self.columns
@@ -1892,7 +1887,7 @@ def gen_df_drop(inputs, *args, **kwargs):
 def gen_df_drop_duplicates(inputs, *args, **kwargs):
     """DataFrame.drop_duplicates(self, subset=None, keep='first', inplace=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _subset = list(Subset(_self.columns))
     _keep = Select(['first', 'last', False], fixed_domain=True)
 
@@ -1905,7 +1900,7 @@ def gen_df_drop_duplicates(inputs, *args, **kwargs):
 def gen_df_duplicated(inputs, *args, **kwargs):
     """DataFrame.duplicated(self, subset=None, keep='first')"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _subset = list(Subset(_self.columns))
     _keep = Select(['first', 'last', False], fixed_domain=True)
 
@@ -1918,8 +1913,8 @@ def gen_df_duplicated(inputs, *args, **kwargs):
 def gen_df_equals(inputs, *args, **kwargs):
     """DataFrame.equals(self, other)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _other = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
     return _self.equals(_other), {
         'self': _self, 'other': _other
@@ -1930,7 +1925,7 @@ def gen_df_equals(inputs, *args, **kwargs):
 def gen_df_filter(inputs, *args, **kwargs):
     """DataFrame.filter(self, items=None, like=None, regex=None, axis=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     mode = Select(['use_items', 'use_like', 'use_regex'], fixed_domain=True)
     if mode == 'use_items':
         _items = list(Subset(_self.columns))
@@ -1940,14 +1935,14 @@ def gen_df_filter(inputs, *args, **kwargs):
 
     elif mode == 'use_like':
         _axis = Select([0, 1], fixed_domain=True)
-        _like = SelectExternal(inputs, dtype=str, extra_kwargs=kwargs)
+        _like = SelectExternal(inputs, dtype=str, kwargs=kwargs)
         return _self.filter(like=_like, axis=_axis), {
             'self': _self, 'like': _like, 'axis': _axis
         }
 
     else:
         _axis = Select([0, 1], fixed_domain=True)
-        _regex = SelectExternal(inputs, dtype=str, extra_kwargs=kwargs)
+        _regex = SelectExternal(inputs, dtype=str, kwargs=kwargs)
         return _self.filter(regex=_regex, axis=_axis), {
             'self': _self, 'regex': _regex, 'axis': _axis
         }
@@ -1957,7 +1952,7 @@ def gen_df_filter(inputs, *args, **kwargs):
 def gen_df_first(inputs, *args, **kwargs):
     """DataFrame.first(self, offset)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _offset = Select([inp for inp in inputs
                       if isinstance(inp, (str, pd.DateOffset, dateutil.relativedelta.relativedelta))])
 
@@ -1970,7 +1965,7 @@ def gen_df_first(inputs, *args, **kwargs):
 def gen_df_idxmax(inputs, *args, **kwargs):
     """DataFrame.idxmax(self, axis=0, skipna=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
 
@@ -1983,7 +1978,7 @@ def gen_df_idxmax(inputs, *args, **kwargs):
 def gen_df_idxmin(inputs, *args, **kwargs):
     """DataFrame.idxmin(self, axis=0, skipna=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
 
@@ -1996,7 +1991,7 @@ def gen_df_idxmin(inputs, *args, **kwargs):
 def gen_df_last(inputs, *args, **kwargs):
     """DataFrame.last(self, offset)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _offset = Select([inp for inp in inputs
                       if isinstance(inp, (str, pd.DateOffset, dateutil.relativedelta.relativedelta))])
 
@@ -2012,7 +2007,7 @@ def gen_df_reindex(inputs, output, *args, **kwargs):
 
     _fill_value = Select([np.NaN] + [inp for inp in inputs if np.isscalar(inp)])
     _limit = Select([None] + [inp for inp in inputs if isinstance(inp, (int, np.number))])
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
     if isinstance(output, pd.DataFrame) and Select([True, False], fixed_domain=True):
         return _self.reindex(index=output.index, columns=output.columns, limit=_limit, fill_value=_fill_value), {
@@ -2035,8 +2030,8 @@ def gen_df_reindex(inputs, output, *args, **kwargs):
 def gen_df_reindex_like(inputs, *args, **kwargs):
     """DataFrame.reindex_like(self, other, method=None, copy=True, limit=None, tolerance=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _other = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _method = Select([None, 'bfill', 'pad', 'nearest'], fixed_domain=True)
 
     return _self.reindex_like(_other, method=_method), {
@@ -2048,11 +2043,11 @@ def gen_df_reindex_like(inputs, *args, **kwargs):
 def gen_df_rename(inputs, *args, **kwargs):
     """DataFrame.rename(self, mapper=None, index=None, columns=None, axis=None, copy=True, inplace=False, level=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     use_index_columns = Select([True, False], fixed_domain=True)
     if use_index_columns:
-        _index = SelectExternal(inputs, dtype=(dict, Callable), extra_kwargs=kwargs)
-        _columns = SelectExternal(inputs, dtype=(dict, Callable), extra_kwargs=kwargs)
+        _index = SelectExternal(inputs, dtype=(dict, Callable), kwargs=kwargs)
+        _columns = SelectExternal(inputs, dtype=(dict, Callable), kwargs=kwargs)
 
         return _self.rename(index=_index, columns=_columns), {
             'self': _self, 'index': _index, 'columns': _columns
@@ -2060,7 +2055,7 @@ def gen_df_rename(inputs, *args, **kwargs):
 
     else:
         _axis = Select([0, 1], fixed_domain=True)
-        _mapper = SelectExternal(inputs, dtype=(dict, Callable), extra_kwargs=kwargs)
+        _mapper = SelectExternal(inputs, dtype=(dict, Callable), kwargs=kwargs)
         src = _self.index if _axis == 0 else _self.columns
         if src.nlevels == 1:
             _level = None
@@ -2076,7 +2071,7 @@ def gen_df_rename(inputs, *args, **kwargs):
 def gen_df_reset_index(inputs, *args, **kwargs):
     """DataFrame.reset_index(self, level=None, drop=False, inplace=False, col_level=0, col_fill='')"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _drop = Select([True, False], fixed_domain=True)
     level_default = not (_self.index.nlevels > 1 and Select([True, False], fixed_domain=True))
     if level_default:
@@ -2104,7 +2099,7 @@ def gen_df_reset_index(inputs, *args, **kwargs):
 def gen_df_set_index(inputs, *args, **kwargs):
     """DataFrame.set_index(self, keys, drop=True, append=False, inplace=False, verify_integrity=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _drop = Select([True, False], fixed_domain=True)
     _append = Select([False, True], fixed_domain=True)
     _keys = list(OrderedSubset(_self.columns, lengths=list(range(1, len(_self.columns)))))
@@ -2118,8 +2113,8 @@ def gen_df_set_index(inputs, *args, **kwargs):
 def gen_df_take(inputs, *args, **kwargs):
     """DataFrame.take(self, indices, axis=0, convert=None, is_copy=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _indices = SelectExternal(inputs, dtype=typing.Sequence, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _indices = SelectExternal(inputs, dtype=typing.Sequence, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
 
     return _self.take(indices=_indices, axis=_axis), {
@@ -2135,7 +2130,7 @@ def gen_df_take(inputs, *args, **kwargs):
 def gen_df_dropna(inputs, *args, **kwargs):
     """DataFrame.dropna(self, axis=0, how='any', thresh=None, subset=None, inplace=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _how = Select(['any', 'all'], fixed_domain=True)
 
@@ -2157,7 +2152,7 @@ def gen_df_dropna(inputs, *args, **kwargs):
 def gen_df_fillna(inputs, output, *args, **kwargs):
     """DataFrame.fillna(self, value=None, method=None, axis=None, inplace=False, limit=None, downcast=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([None, 0, 1], fixed_domain=True)
     _method = Select([None, 'backfill', 'bfill', 'pad', 'ffill'], fixed_domain=True)
     _limit = Select([None] + list(range(1, _self.count().sum() + 1)))
@@ -2186,7 +2181,7 @@ def gen_df_pivot_table(inputs, *args, **kwargs):
     """DataFrame.pivot_table(self, values=None, index=None, columns=None, aggfunc='mean', fill_value=None,
                              margins=False, dropna=True, margins_name='All')"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
     if _self.index.nlevels == 1 and _self.columns.nlevels == 1:
         _margins = Select([False, True], fixed_domain=True)
@@ -2269,7 +2264,7 @@ def gen_df_pivot(inputs, output, *args, **kwargs):
 def gen_df_reorder_levels(inputs, *args, **kwargs):
     """DataFrame.reorder_levels(self, order, axis=0)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     src = _self.index if _axis == 0 else _self.columns
     levels = [(src.names[i] or i) for i in range(src.nlevels)]
@@ -2284,7 +2279,7 @@ def gen_df_reorder_levels(inputs, *args, **kwargs):
 def gen_df_sort_values(inputs, *args, **kwargs):
     """DataFrame.sort_values(self, by, axis=0, ascending=True, inplace=False, kind='quicksort', na_position='last')"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _axis = Select([0, 1], fixed_domain=True)
     _na_position = Select(['last', 'first'], fixed_domain=True)
 
@@ -2304,7 +2299,7 @@ def gen_df_sort_values(inputs, *args, **kwargs):
 def gen_df_stack(inputs, *args, **kwargs):
     """DataFrame.stack(self, level=-1, dropna=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _dropna = Select([True, False], fixed_domain=True)
     level_default = not (_self.columns.nlevels > 1 and Select([True, False], fixed_domain=True))
     if level_default:
@@ -2323,7 +2318,7 @@ def gen_df_stack(inputs, *args, **kwargs):
 def gen_df_unstack(inputs, output, *args, **kwargs):
     """DataFrame.unstack(self, level=-1, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     level_default = not (_self.index.nlevels > 1 and Select([True, False], fixed_domain=True))
     if level_default:
         _level = -1
@@ -2351,7 +2346,7 @@ def gen_df_unstack(inputs, output, *args, **kwargs):
 def gen_df_melt(inputs, *args, **kwargs):
     """DataFrame.melt(self, id_vars=None, value_vars=None, var_name=None, value_name='value', col_level=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _var_name = Select([None] + [inp for inp in inputs if isinstance(inp, str)])
     _value_name = Select(['value'] + [inp for inp in inputs if isinstance(inp, str)])
 
@@ -2392,8 +2387,8 @@ def gen_df_merge(inputs, *args, **kwargs):
     `                  left_index=False, right_index=False, sort=False, suffixes=('_x', '_y'),
                        copy=True, indicator=False, validate=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
-    _right = SelectExternal(inputs, dtype=pd.DataFrame, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _right = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
     _how = Select(['inner', 'outer', 'left', 'right'], fixed_domain=True)
     _sort = Select([False, True], fixed_domain=True)
 
@@ -2453,7 +2448,7 @@ pd_dfgroupby = pd.core.groupby.DataFrameGroupBy
 def gen_dfgroupby_count(inputs, *args, **kwargs):
     """DataFrameGroupBy.count(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.count(), {
         'self': _self
     }
@@ -2463,7 +2458,7 @@ def gen_dfgroupby_count(inputs, *args, **kwargs):
 def gen_dfgroupby_first(inputs, *args, **kwargs):
     """DataFrameGroupBy.first(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.first(), {
         'self': _self
     }
@@ -2473,7 +2468,7 @@ def gen_dfgroupby_first(inputs, *args, **kwargs):
 def gen_dfgroupby_last(inputs, *args, **kwargs):
     """DataFrameGroupBy.last(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.last(), {
         'self': _self
     }
@@ -2483,7 +2478,7 @@ def gen_dfgroupby_last(inputs, *args, **kwargs):
 def gen_dfgroupby_max(inputs, *args, **kwargs):
     """DataFrameGroupBy.max(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.max(), {
         'self': _self
     }
@@ -2493,7 +2488,7 @@ def gen_dfgroupby_max(inputs, *args, **kwargs):
 def gen_dfgroupby_mean(inputs, *args, **kwargs):
     """DataFrameGroupBy.mean(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.mean(), {
         'self': _self
     }
@@ -2503,7 +2498,7 @@ def gen_dfgroupby_mean(inputs, *args, **kwargs):
 def gen_dfgroupby_median(inputs, *args, **kwargs):
     """DataFrameGroupBy.median(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.median(), {
         'self': _self
     }
@@ -2513,7 +2508,7 @@ def gen_dfgroupby_median(inputs, *args, **kwargs):
 def gen_dfgroupby_min(inputs, *args, **kwargs):
     """DataFrameGroupBy.min(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.min(), {
         'self': _self
     }
@@ -2523,7 +2518,7 @@ def gen_dfgroupby_min(inputs, *args, **kwargs):
 def gen_dfgroupby_idxmin(inputs, *args, **kwargs):
     """DataFrameGroupBy.idxmin(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.idxmin(), {
         'self': _self
     }
@@ -2533,7 +2528,7 @@ def gen_dfgroupby_idxmin(inputs, *args, **kwargs):
 def gen_dfgroupby_idxmax(inputs, *args, **kwargs):
     """DataFrameGroupBy.idxmax(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.idxmax(), {
         'self': _self
     }
@@ -2543,7 +2538,7 @@ def gen_dfgroupby_idxmax(inputs, *args, **kwargs):
 def gen_dfgroupby_prod(inputs, *args, **kwargs):
     """DataFrameGroupBy.prod(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.prod(), {
         'self': _self
     }
@@ -2553,7 +2548,7 @@ def gen_dfgroupby_prod(inputs, *args, **kwargs):
 def gen_dfgroupby_size(inputs, *args, **kwargs):
     """DataFrameGroupBy.size(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.size(), {
         'self': _self
     }
@@ -2563,7 +2558,7 @@ def gen_dfgroupby_size(inputs, *args, **kwargs):
 def gen_dfgroupby_sum(inputs, *args, **kwargs):
     """DataFrameGroupBy.sum(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
     return _self.sum(), {
         'self': _self
     }
@@ -2573,73 +2568,8 @@ def gen_dfgroupby_sum(inputs, *args, **kwargs):
 def gen_dfgroupby_transform(inputs, *args, **kwargs):
     """DataFrameGroupBy.transform(self, func)"""
 
-    _self = SelectExternal(inputs, dtype=pd_dfgroupby, extra_kwargs=kwargs)
-    _func = SelectExternal(inputs, dtype=(str, dict, list, tuple, Callable), extra_kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd_dfgroupby, kwargs=kwargs)
+    _func = SelectExternal(inputs, dtype=(str, dict, list, tuple, Callable), kwargs=kwargs)
     return _self.transform(func=_func), {
         'self': _self, 'func': _func
     }
-
-
-class PandasSynthesisStrategy(DfsStrategy):
-    @operator
-    def SelectExternal(self, domain, dtype=None, context=None, op_info: OpInfo = None, **kwargs):
-        yield from (i for i in domain if isinstance(i, dtype))
-
-
-class PandasDataGenerationStrategy(DfsStrategy):
-    def __init__(self, df_generator):
-        super().__init__()
-        self.df_generator = df_generator
-        self.max_num_inputs = 3
-
-    def filter_domain(self, domain, dtype=None):
-        return list(i for i in domain if isinstance(i, dtype))
-
-    def select_input_with_new_input(self, domain, dtype, new_val, extra_kwargs: Dict):
-        #  The presence of 'generated_inputs' has to be guaranteed by the caller of the generator
-        #  corresponding to this SelectExternal call.
-        generated_inputs = extra_kwargs['generated_inputs']
-        f_domain = self.filter_domain(domain, dtype)
-        if len(f_domain) == 0 or len(generated_inputs) < self.max_num_inputs:
-            f_domain.append(new_val)
-
-        random.shuffle(f_domain)
-
-        for i in f_domain:
-            if i is new_val:
-                #  Responsibility of the caller of the generator to reset generated_inputs to a correct state
-                generated_inputs.append(i)
-
-            yield i
-
-    def select_input_for_dataframe(self, domain, df_config: DfConfig = None, extra_kwargs: Dict = None):
-        """ This is simply for handling the common case """
-
-        new_input = self.df_generator.call(df_config)
-        yield from self.select_input_with_new_input(domain, pd.DataFrame, new_input, extra_kwargs)
-
-    @operator
-    def Select(self, domain, **kwargs):
-        domain = list(domain)
-        random.shuffle(domain)
-        yield from domain
-
-    @operator
-    def SelectExternal(self, domain, dtype=None, extra_kwargs: Dict = None, **kwargs):
-        if dtype is pd.DataFrame:
-            #  Handle the common case easily
-            yield from self.select_input_for_dataframe(domain, extra_kwargs=extra_kwargs)
-            return
-
-        f_domain = self.filter_domain(domain, dtype)
-        random.shuffle(f_domain)
-        yield from f_domain
-
-    def SelectExternal_input_df_isna_notna(self, domain, extra_kwargs: Dict = None, **kwargs):
-        yield from self.select_input_for_dataframe(domain, DfConfig(nan_prob=0.5), extra_kwargs)
-
-    def SelectExternal_values_df_isin(self, domain, dtype=None, context=None, extra_kwargs: Dict = None, **kwargs):
-        vals = list(context['_self'].values.flatten())
-        sample_size = random.randint(1, max((len(vals) - 1), 1))
-        new_input = list(random.sample(vals, sample_size))
-        yield from self.select_input_with_new_input(domain, dtype, new_input, extra_kwargs)
