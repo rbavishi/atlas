@@ -1,3 +1,5 @@
+import logging
+
 from atlas import generator
 from atlas.exceptions import ExceptionAsContinue
 from atlas.synthesis.pandas.checker import Checker
@@ -13,7 +15,9 @@ api_gens = {
 
 
 @generator(name='pandas_sequential_enumerator', strategy=PandasSynthesisStrategy())
-def sequential_enumerator(inputs, output):
+def sequential_enumerator(inputs, output,
+                          log_errors: bool = True,
+                          allow_unused_intermediates: bool = True):
     """
     First decides the function sequence to explore, and then decides arguments for each function individually.
     This is the enumerator used in the OOPSLA '19 system.
@@ -23,23 +27,29 @@ def sequential_enumerator(inputs, output):
     intermediates = []
     unused_intermediates: Set[int] = set()
 
-    for func in func_seq:
+    for idx, func in enumerate(func_seq, 1):
         func_gen = api_gens[func]
         try:
             val, args = func_gen(intermediates + inputs, output, unused_intermediates=unused_intermediates)
         except ExceptionAsContinue:
             raise
-        # except:
-        #     raise ExceptionAsContinue
+        except Exception as e:
+            if log_errors:
+                logging.exception(e)
 
-        unused_intermediates.add(id(val))
+            raise ExceptionAsContinue
+
         for obj in args.values():
             unused_intermediates.discard(id(obj))
 
+        if (not allow_unused_intermediates) and idx == len(func_seq) and len(unused_intermediates) != 0:
+            raise ExceptionAsContinue
+
+        unused_intermediates.add(id(val))
         intermediates.append(val)
         func_args.append(args)
 
-    return intermediates[-1], func_seq, func_args
+    return intermediates[-1], intermediates, func_seq, func_args
 
 
 def solve(enumerator, inputs, output):
