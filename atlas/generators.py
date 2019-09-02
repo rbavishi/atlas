@@ -52,6 +52,21 @@ def hook_wrapper(*args, _atlas_gen_strategy=None, _atlas_gen_hooks=None, **kwarg
     return result
 
 
+def cache_wrapper(compiled_func: Callable):
+    def wrapper(*args, **kwargs):
+        strategy = kwargs.get(_GEN_STRATEGY_VAR)
+        is_cached, result = strategy.cached_generator_invocation()
+        if is_cached:
+            return result
+
+        call_id = strategy.generator_invoked()
+        result = compiled_func(*args, **kwargs)
+        strategy.generator_returned(call_id, result)
+        return result
+
+    return wrapper
+
+
 class CompilationCache:
     WITHOUT_HOOKS: Dict[Type[Strategy], weakref.WeakKeyDictionary] = collections.defaultdict(weakref.WeakKeyDictionary)
     WITH_HOOKS: Dict[Type[Strategy], weakref.WeakKeyDictionary] = collections.defaultdict(weakref.WeakKeyDictionary)
@@ -197,7 +212,12 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     #  Handle the delayed compilations now that we have populated the cache
     for gen, call_id in delayed_compilations:
         compiled_func = compile_func(gen, gen.func, strategy, with_hooks)
-        g[call_id] = compiled_func
+        if gen.caching and isinstance(strategy, DfsStrategy):
+            #  Add instructions for using cached result if any
+            g[call_id] = cache_wrapper(compiled_func)
+
+        else:
+            g[call_id] = compiled_func
 
     return result
 
