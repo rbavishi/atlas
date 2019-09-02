@@ -9,10 +9,5 @@ from atlas.synthesis.pandas.strategies import PandasSequentialDataGenerationStra
 def generate_sequential_data(func_seq: List[str]):
     strategy = PandasSequentialDataGenerationStrategy(func_seq, generate_random_dataframe)
     a = []
-    for result in itertools.islice(sequential_enumerator.generate([], None).with_strategy(strategy), 2):
-        print("GOT")
-        a.append((result, strategy.generated_inputs))
-
-    for (a1, a2, a3), a4 in a:
-        print(a1, a3[1]['dtype'])
-        # print("func_seq, args", a2, a3)
+    for result in sequential_enumerator.generate([], None, allow_unused_intermediates=False).with_strategy(strategy):
+        return result
