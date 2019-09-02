@@ -45,6 +45,10 @@ def sequential_enumerator(inputs, output,
         if (not allow_unused_intermediates) and idx == len(func_seq) and len(unused_intermediates) != 0:
             raise ExceptionAsContinue
 
+        #  Using `id(val)` only works because DfsStrategy (and therefore PandasSynthesisStrategy) caches results
+        #  at the generator call level. Therefore it won't recompute the `val` above. If this is not the case, in the
+        #  subsequent generator runs, the `val` computed above will be a different object than the one in the previous
+        #  run, even though the arguments may be the same.
         unused_intermediates.add(id(val))
         intermediates.append(val)
         func_args.append(args)
