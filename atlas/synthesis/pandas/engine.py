@@ -13,8 +13,12 @@ api_gens = {
     gen.name: gen for gen in get_group_by_name('pandas')
 }
 
+for v in api_gens.values():
+    v.caching = True
 
-@generator(name='pandas_sequential_enumerator', strategy=PandasSynthesisStrategy())
+
+@generator(name='pandas_sequential_enumerator', strategy=PandasSynthesisStrategy(),
+           caching=True)
 def sequential_enumerator(inputs, output,
                           log_errors: bool = True,
                           allow_unused_intermediates: bool = True):

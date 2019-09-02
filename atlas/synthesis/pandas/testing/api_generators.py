@@ -16,8 +16,11 @@ api_gens = {
     gen.name: gen for gen in get_group_by_name('pandas')
 }
 
+for v in api_gens.values():
+    v.caching = True
 
-@generator(group='pandas', strategy=PandasSynthesisStrategy())
+
+@generator(group='pandas', strategy=PandasSynthesisStrategy(), caching=True)
 def simple_enumerator(inputs, output, func_seq):
     prog = []
     intermediates = []
