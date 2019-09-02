@@ -62,8 +62,8 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
     @operator
     def SelectExternal(self, domain, context=None, op_info: OpInfo = None, dtype=None, kwargs: Dict = None, **garbage):
         unused_intermediates: Set[int] = kwargs.get('unused_intermediates', {})
-        unused_domain = [i for i in domain if id(i) in unused_intermediates and isinstance(domain, dtype)]
-        used_domain = [i for i in domain if id(i) not in unused_intermediates and isinstance(domain, dtype)]
+        unused_domain = [i for i in domain if id(i) in unused_intermediates and isinstance(i, dtype)]
+        used_domain = [i for i in domain if id(i) not in unused_intermediates and isinstance(i, dtype)]
 
         if (len(unused_domain) + len(used_domain) == 0) or (len(self.generated_inputs) < self.max_num_inputs):
             used_domain.append(self.Sentinel)
