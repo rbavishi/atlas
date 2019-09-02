@@ -215,6 +215,7 @@ class Generator:
                  name: str = None,
                  group: str = None,
                  metadata: Dict[Any, Any] = None,
+                 caching: bool = False,
                  **kwargs):
 
         if not inspect.isfunction(func):
@@ -234,6 +235,7 @@ class Generator:
 
         self.hooks: List[Hook] = []
         self.metadata = metadata
+        self.caching = caching
 
         self._default_exec_env: Optional[GeneratorExecEnvironment] = None
 
@@ -427,7 +429,7 @@ class GeneratorExecEnvironment(Iterable):
         if parent_gen not in self._compilation_cache:
             self._compilation_cache[parent_gen] = compile_func(parent_gen, func, self.strategy, len(self.hooks) > 0)
 
-        if isinstance(self.strategy, DfsStrategy):
+        if parent_gen.caching and isinstance(self.strategy, DfsStrategy):
             is_cached, result = self.strategy.cached_generator_invocation()
             if is_cached:
                 return result
@@ -620,7 +622,7 @@ def generator(*args, **kwargs) -> Generator:
         metadata (Dict[Any, Any]): A dictionary containing arbitrary metadata
             to carry around in the generator object.
     """
-    allowed_kwargs = {'strategy', 'name', 'group', 'metadata'}
+    allowed_kwargs = {'strategy', 'name', 'group', 'caching', 'metadata'}
     error_str = f"The @generator decorator should be applied either with no parentheses or " \
                 f"at least one of the following keyword args - {', '.join(allowed_kwargs)}."
     assert (len(args) == 1 and len(kwargs) == 0 and callable(args[0])) or \

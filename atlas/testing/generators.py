@@ -95,7 +95,7 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
         self.assertEqual(list(binary.generate(2)), ["00", "01", "10", "11"])
 
     def test_gen_recursive_2(self):
-        @generator(strategy='dfs')
+        @generator(strategy='dfs', caching=True)
         def binary(length: int):
             if length == 0:
                 return ""
@@ -106,7 +106,7 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
     def test_gen_recursive_3(self):
         """ The non tail-recursive nature tests generator-level caching"""
-        @generator(strategy='dfs')
+        @generator(strategy='dfs', caching=True)
         def binary(length: int):
             if length == 0:
                 return ""
