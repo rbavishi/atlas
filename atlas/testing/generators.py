@@ -3,6 +3,7 @@ import unittest
 from atlas import generator
 from atlas.exceptions import ExceptionAsContinue
 from atlas.strategies import DfsStrategy, operator
+from atlas.strategies.strategy import method
 from atlas.utils.stubs import stub
 
 
@@ -13,6 +14,11 @@ def Select(*args, **kwargs):
 
 @stub
 def SelectReversed(*args, **kwargs):
+    pass
+
+
+@stub
+def SomeRandomMethod(*args, **kwargs):
     pass
 
 
@@ -58,6 +64,30 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
             return s
 
         self.assertEqual(list(binary.generate(2)), list(reversed(["00", "01", "10", "11"])))
+
+    def test_gen_custom_strategy_3(self):
+        shared_var = []
+
+        class ReversedDFS(DfsStrategy):
+            @operator
+            def SelectReversed(self, domain, *args, **kwargs):
+                yield from reversed(domain)
+
+            @method
+            def SomeRandomMethod(self, key: int):
+                shared_var.append(key)
+
+        @generator(strategy=ReversedDFS())
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += SelectReversed(["0", "1"])
+
+            SomeRandomMethod(length)
+            return s
+
+        self.assertEqual(list(binary.generate(2)), list(reversed(["00", "01", "10", "11"])))
+        self.assertListEqual(shared_var, [2, 2, 2, 2])
 
     def test_gen_single_call_1(self):
         @generator(strategy='randomized')
@@ -106,6 +136,7 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
     def test_gen_recursive_3(self):
         """ The non tail-recursive nature tests generator-level caching"""
+
         @generator(strategy='dfs', caching=True)
         def binary(length: int):
             if length == 0:

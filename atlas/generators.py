@@ -121,6 +121,7 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     closure_vars = getclosurevars_recursive(func, f_ast)
     g = {**closure_vars.nonlocals.copy(), **closure_vars.globals.copy()}
     known_ops: Set[str] = strategy.get_known_ops()
+    known_methods: Set[str] = strategy.get_known_methods()
     op_info_constructor = OpInfoConstructor()
     delayed_compilations: List[Tuple[Generator, str]] = []
 
@@ -154,6 +155,13 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
                 n.func.id = _GEN_HOOK_WRAPPER
                 ops[_GEN_HOOK_WRAPPER] = hook_wrapper
 
+            ast.fix_missing_locations(n)
+
+        elif isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in known_methods:
+            #  Similar in spirit to the known_ops case, just much less fancy stuff to do.
+            #  Only need to get the right handler which we will achieve by simply making this
+            #  a method call instead of a regular call.
+            n.func = ast.Attribute(value=ast.Name(_GEN_STRATEGY_VAR, ctx=ast.Load()), attr=n.func.id, ctx=ast.Load())
             ast.fix_missing_locations(n)
 
         elif isinstance(n, ast.Call):

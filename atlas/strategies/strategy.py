@@ -10,13 +10,23 @@ def operator(func):
     return func
 
 
+def method(func):
+    setattr(func, "_is_generator_method", True)
+    return func
+
+
 def is_operator(func):
     return getattr(func, "_is_generator_op", False)
+
+
+def is_method(func):
+    return getattr(func, "_is_generator_method", False)
 
 
 class Strategy(ABC, DefaultOpMethodResolver):
     def __init__(self):
         self.known_ops: Set[str] = {k for k in dir(self) if is_operator(getattr(self, k))}
+        self.known_methods: Set[str] = {k for k in dir(self) if is_method(getattr(self, k))}
 
     def init(self):
         pass
@@ -36,6 +46,9 @@ class Strategy(ABC, DefaultOpMethodResolver):
 
     def get_known_ops(self):
         return self.known_ops
+
+    def get_known_methods(self):
+        return self.known_methods
 
     def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
                      **kwargs):
