@@ -13,3 +13,12 @@ A Framework for Neural-Backed Generators
   
 * The requirements list `tensorflow==1.13.2`. If you want to use the GPU version, 
 you can manually install `tensorflow-gpu==1.13.2` using pip. Make sure CUDA version is 10.
+
+## OOPSLA 2019
+
+The system used for the OOPSLA '19 paper is available in the `oopsla-2019-autopandas` branch.
+Atlas is an attempt to generalize that system.
+
+## Documentation and More Tutorials
+
+Coming soon.
