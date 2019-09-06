@@ -14,3 +14,4 @@ specs_compiled.py
 docs/_build
 research
 .ipynb_checkpoints
+.coverage

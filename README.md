@@ -1,5 +1,8 @@
 # Atlas
 
+[![Build Status](https://travis-ci.org/rbavishi/atlas.svg?branch=master)](https://travis-ci.org/rbavishi/atlas)
+[![codecov](https://codecov.io/gh/rbavishi/atlas/branch/master/graph/badge.svg)](https://codecov.io/gh/rbavishi/atlas)
+
 A Framework for Neural-Backed Generators
 
 ## Installation
