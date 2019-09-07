@@ -1,20 +1,25 @@
 import random
-from typing import Dict, Set, List
+from typing import Dict, Set, List, Callable
 
 import pandas as pd
 from atlas.operators import OpInfo
 from atlas.strategies import DfsStrategy, operator
-from atlas.synthesis.pandas.dataframe_generation import DfConfig
+from atlas.synthesis.pandas.dataframe_generation import DfConfig, Bags
 
 
 class PandasSynthesisStrategy(DfsStrategy):
     @operator
-    def SelectExternal(self, domain, dtype=None, kwargs=None, **garbage):
+    def SelectExternal(self, domain, dtype=None, preds: List[Callable] = None, kwargs=None, **garbage):
+        if preds is None:
+            preds = []
+
         unused_intermediates: Set[int] = kwargs.get('unused_intermediates', None)
         if unused_intermediates is not None:
             #  Try to yield from these first
-            yield from (i for i in domain if id(i) in unused_intermediates and isinstance(i, dtype))
-            yield from (i for i in domain if (id(i) not in unused_intermediates) and isinstance(i, dtype))
+            yield from (i for i in domain
+                        if id(i) in unused_intermediates and isinstance(i, dtype) and all(p(i) for p in preds))
+            yield from (i for i in domain
+                        if (id(i) not in unused_intermediates) and isinstance(i, dtype) and all(p(i) for p in preds))
 
         else:
             yield from (i for i in domain if isinstance(i, dtype))
@@ -60,10 +65,16 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         yield from domain
 
     @operator
-    def SelectExternal(self, domain, context=None, op_info: OpInfo = None, dtype=None, kwargs: Dict = None, **garbage):
+    def SelectExternal(self, domain, context=None, op_info: OpInfo = None, dtype=None, preds: List[Callable] = None,
+                       kwargs: Dict = None, **garbage):
+        if preds is None:
+            preds = []
+
         unused_intermediates: Set[int] = kwargs.get('unused_intermediates', {})
-        unused_domain = [i for i in domain if id(i) in unused_intermediates and isinstance(i, dtype)]
-        used_domain = [i for i in domain if id(i) not in unused_intermediates and isinstance(i, dtype)]
+        unused_domain = [i for i in domain
+                         if id(i) in unused_intermediates and isinstance(i, dtype) and all(p(i) for p in preds)]
+        used_domain = [i for i in domain
+                       if id(i) not in unused_intermediates and isinstance(i, dtype) and all(p(i) for p in preds)]
 
         if (len(unused_domain) + len(used_domain) == 0) or (len(self.generated_inputs) < self.max_num_inputs):
             used_domain.append(self.Sentinel)
@@ -92,3 +103,20 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         vals = list(context['_self'].values.flatten())
         sample_size = random.randint(1, max((len(vals) - 1), 1))
         return list(random.sample(vals, sample_size))
+
+    def get_ext_cond_df_where_mask(self, context=None):
+        df, nr, nc = context['_self'], context['num_rows'], context['num_cols']
+        cond_df = self.df_generator.call(DfConfig(num_rows=nr, num_cols=nc,
+                                                  value_bags=Bags.bool_bags,
+                                                  index_like_columns_prob=0.0))
+        cond_df.index = df.index
+        cond_df.columns = df.columns
+        print(cond_df)
+        return cond_df
+
+    def get_ext_other_df_where_mask(self, context=None):
+        df, nr, nc = context['_self'], context['num_rows'], context['num_cols']
+        other_df = self.df_generator.call(DfConfig(num_rows=nr, num_cols=nc))
+        other_df.index = df.index
+        other_df.columns = df.columns
+        return other_df
