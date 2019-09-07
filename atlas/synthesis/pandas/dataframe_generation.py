@@ -153,15 +153,15 @@ def generate_random_dataframe(cfg: DfConfig = None):
         value_bags.extend([Bags.more_nans_floats] * int(cfg.nan_prob * 10))
 
     index_levels = cfg.index_levels
-    if index_levels is None and CoinToss(cfg.multi_index_prob) == 1:
+    if index_levels is None and CoinToss(bias=cfg.multi_index_prob) == 1:
         index_levels = SelectRange(low=2, high=cfg.max_index_levels)
 
     column_levels = cfg.column_levels
-    if column_levels is None and CoinToss(cfg.multi_col_index_prob) == 1:
+    if column_levels is None and CoinToss(bias=cfg.multi_col_index_prob) == 1:
         column_levels = SelectRange(low=2, high=cfg.max_column_levels)
 
     df_dict = {}
-    if CoinToss(cfg.index_like_columns_prob) == 1:
+    if CoinToss(bias=cfg.index_like_columns_prob) == 1:
         index_tuples = generate_index(num_rows, num_levels=SelectRange(low=1, high=min(3, num_cols)))
         values = [list(c) for c in zip(*index_tuples)]
         df_dict = {f"NAME{idx}": val for idx, val in enumerate(values)}
@@ -179,7 +179,7 @@ def generate_random_dataframe(cfg: DfConfig = None):
 
     df = pd.DataFrame(df_dict)
 
-    if CoinToss(cfg.int_col_prob) == 1:
+    if CoinToss(bias=cfg.int_col_prob) == 1:
         df.columns = pd.Index(range(len(df.columns)))
 
     if index_levels is not None and index_levels > 1:
