@@ -323,7 +323,7 @@ def gen_df_isin(inputs, output, *args, **kwargs):
 
     _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
-    #  Adding '_self' to aid data generation. See PandasDataGenerationStrategy at the end of this file
+    #  Adding '_self' to aid data generation.
     c = {'I0': _self, 'O': output, '_self': _self}
     _values = SelectExternal(inputs, dtype=(list, tuple, pd.Series, dict, pd.DataFrame), context=c, label="values_df_isin", kwargs=kwargs)
 
@@ -333,7 +333,7 @@ def gen_df_isin(inputs, output, *args, **kwargs):
 
 
 @generator(group='pandas', name='df.where')
-def gen_df_where(inputs, *args, **kwargs):
+def gen_df_where(inputs, output, *args, **kwargs):
     """DataFrame.where(self, cond, other=nan, inplace=False, axis=None, level=None, errors='raise', try_cast=False,
                        raise_on_error=None)"""
 
@@ -345,9 +345,14 @@ def gen_df_where(inputs, *args, **kwargs):
         return True
 
     _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
-    _cond = Select([inp for inp in inputs
-                    if isinstance(inp, (typing.Sequence, pd.DataFrame, Callable)) and is_valid_cond(inp)])
-    _other = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable), kwargs=kwargs)
+
+    #  Adding num_rows and num_cols to aid data generation.
+    c = {'I0': _self, 'O': output, '_self': _self, 'num_rows': _self.shape[0], 'num_cols': _self.shape[1]}
+
+    _cond = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable),
+                           preds=[is_valid_cond], context=c, label="cond_df_where_mask", kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable), kwargs=kwargs, context=c,
+                            label="other_df_where_mask")
 
     return _self.where(_cond, other=_other, errors='ignore'), {
         'self': _self, 'cond': _cond, 'other': _other, 'errors': 'ignore'
@@ -355,7 +360,7 @@ def gen_df_where(inputs, *args, **kwargs):
 
 
 @generator(group='pandas', name='df.mask')
-def gen_df_mask(inputs, *args, **kwargs):
+def gen_df_mask(inputs, output, *args, **kwargs):
     """DataFrame.mask(self, cond, other=nan, inplace=False, axis=None, level=None, errors='raise', try_cast=False,
                        raise_on_error=None)"""
 
@@ -367,9 +372,14 @@ def gen_df_mask(inputs, *args, **kwargs):
         return True
 
     _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
-    _cond = Select([inp for inp in inputs
-                    if isinstance(inp, (typing.Sequence, pd.DataFrame, Callable)) and is_valid_cond(inp)])
-    _other = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable), kwargs=kwargs)
+
+    #  Adding num_rows and num_cols to aid data generation.
+    c = {'I0': _self, 'O': output, '_self': _self, 'num_rows': _self.shape[0], 'num_cols': _self.shape[1]}
+
+    _cond = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable),
+                           preds=[is_valid_cond], context=c, label="cond_df_where_mask", kwargs=kwargs)
+    _other = SelectExternal(inputs, dtype=(typing.Sequence, pd.DataFrame, Callable), kwargs=kwargs, context=c,
+                            label="other_df_where_mask")
 
     return _self.mask(_cond, other=_other, errors='ignore'), {
         'self': _self, 'cond': _cond, 'other': _other, 'errors': 'ignore'
@@ -377,11 +387,16 @@ def gen_df_mask(inputs, *args, **kwargs):
 
 
 @generator(group='pandas', name='df.query')
-def gen_df_query(inputs, *args, **kwargs):
+def gen_df_query(inputs, output, *args, **kwargs):
     """DataFrame.query(self, expr, inplace=False)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
-    _expr = SelectExternal(inputs, dtype=str, kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs,
+                           label="self_df_query")
+
+    #  Adding '_self' to aid data generation.
+    c = {'I0': _self, 'O': output, '_self': _self}
+    _expr = SelectExternal(inputs, dtype=str, kwargs=kwargs,
+                           context=c, label="expr_df_query")
 
     return _self.query(_expr), {
         'self': _self, 'expr': _expr
@@ -409,11 +424,16 @@ def gen_df_getitem(inputs, *args, **kwargs):
 
 
 @generator(group='pandas', name='df.add')
-def gen_df_add(inputs, *args, **kwargs):
+def gen_df_add(inputs, output, *args, **kwargs):
     """DataFrame.add(self, other, axis='columns', level=None, fill_value=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
-    _other = Select(inputs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs,
+                           label="self_df_add_like")
+
+    c = {'I0': _self, 'O': output, '_self': _self}
+    _other = SelectExternal(inputs, dtype=(pd.DataFrame, pd.Series, list, tuple, int, str, float),
+                            context=c, kwargs=kwargs,
+                            label="other_df_add_like")
 
     if isinstance(_other, pd.Series):
         _axis = Select(['columns', 'index'], fixed_domain=True)
@@ -427,11 +447,8 @@ def gen_df_add(inputs, *args, **kwargs):
         src = _self.index if _axis == 'index' else _self.columns
         _level = Select([(src.names[i] or i) for i in range(src.nlevels)])
 
-    fill_value_cands = [inp for inp in inputs if isinstance(inp, (int, float))]
-    if len(fill_value_cands) > 0:
-        _fill_value = Select([None] + fill_value_cands)
-    else:
-        _fill_value = None
+    _fill_value = SelectExternal(inputs, dtype=(pd.DataFrame, int, float, np.floating, np.integer), default=None,
+                                 label="fill_value_df_add_like", kwargs=kwargs)
 
     return _self.add(other=_other, axis=_axis, level=_level, fill_value=_fill_value), {
         'self': _self, 'other': _other, 'axis': _axis, 'level': _level, 'fill_value': _fill_value
@@ -1250,8 +1267,8 @@ def gen_df_clip(inputs, output, *args, **kwargs):
     """DataFrame.clip(self, lower=None, upper=None, axis=None, inplace=False)"""
 
     _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
-    lower_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
-    upper_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.number))]
+    lower_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.integer))]
+    upper_cands = [inp for inp in inputs if isinstance(inp, (float, np.floating, int, np.integer))]
 
     if isinstance(output, pd.DataFrame):
         lower_cands.append(np.min(output.select_dtypes(include=np.number).values))

@@ -2,6 +2,7 @@ import random
 from typing import Dict, Set, List, Callable
 
 import pandas as pd
+import numpy as np
 from atlas.operators import OpInfo
 from atlas.strategies import DfsStrategy, operator
 from atlas.synthesis.pandas.dataframe_generation import DfConfig, Bags
@@ -9,7 +10,7 @@ from atlas.synthesis.pandas.dataframe_generation import DfConfig, Bags
 
 class PandasSynthesisStrategy(DfsStrategy):
     @operator
-    def SelectExternal(self, domain, dtype=None, preds: List[Callable] = None, kwargs=None, **garbage):
+    def SelectExternal(self, domain, dtype=None, preds: List[Callable] = None, kwargs=None, **extra):
         if preds is None:
             preds = []
 
@@ -23,6 +24,9 @@ class PandasSynthesisStrategy(DfsStrategy):
 
         else:
             yield from (i for i in domain if isinstance(i, dtype))
+
+        if 'default' in extra:
+            yield extra['default']
 
 
 class PandasSequentialDataGenerationStrategy(DfsStrategy):
@@ -66,7 +70,7 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
 
     @operator
     def SelectExternal(self, domain, context=None, op_info: OpInfo = None, dtype=None, preds: List[Callable] = None,
-                       kwargs: Dict = None, **garbage):
+                       kwargs: Dict = None, **extra):
         if preds is None:
             preds = []
 
@@ -96,6 +100,9 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
             else:
                 yield i
 
+        if 'default' in extra:
+            yield extra['default']
+
     def get_ext_input_df_isna_notna(self, context=None):
         return self.df_generator.call(DfConfig(nan_prob=0.5))
 
@@ -120,3 +127,58 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         other_df.index = df.index
         other_df.columns = df.columns
         return other_df
+
+    def get_ext_self_df_query(self, context=None):
+        return self.df_generator.call(DfConfig(column_levels=1))
+
+    def get_ext_expr_df_query(self, context=None):
+        df = context['_self']
+        pool = []
+        dtypes = df.dtypes
+        for col in df:
+            dtype = dtypes[col]
+            vals = list(df[col])
+            if ('int' in str(dtype)) or ('float' in str(dtype)):
+                pool.append('{} > {}'.format(col, random.choice(vals)))
+                pool.append('{} < {}'.format(col, random.choice(vals)))
+                pool.append('{} == {}'.format(col, random.choice(vals)))
+                pool.append('{} != {}'.format(col, random.choice(vals)))
+            elif 'object' in str(dtype):
+                pool.append('{} == "{}"'.format(col, random.choice(vals)))
+                pool.append('{} != "{}"'.format(col, random.choice(vals)))
+
+        sample_size = random.randint(1, min(5, len(pool)))
+        sample = random.sample(pool, sample_size)
+        expr = sample[0]
+        for i in range(1, len(sample)):
+            expr += ' {} '.format(random.choice(['and', 'or']))
+            expr += sample[i]
+
+        return expr
+
+    def get_ext_self_df_add_like(self, context=None):
+        return self.df_generator.call(DfConfig(value_bags=[*Bags.int_bags, *Bags.float_bags],
+                                               index_like_columns_prob=0.0))
+
+    def get_ext_other_df_add_like(self, context=None):
+        df = context['_self']
+        (nr, nc) = df.shape
+        v_nc = random.choice([nc, nc, nc, nc - 1, nc + 1])
+        new_df = self.df_generator.call(DfConfig(num_cols=v_nc, num_rows=nr,
+                                                 column_levels=df.columns.nlevels,
+                                                 index_like_columns_prob=0.0,
+                                                 col_prefix='i1_',
+                                                 value_bags=[*Bags.int_bags, *Bags.float_bags]))
+        new_df.index = df.index
+        if (np.random.choice([0, 1]) == 0) and (len(new_df.columns) == nc):
+            new_df.columns = df.columns
+        elif df.columns.nlevels == 1:
+            new_df.columns = pd.Index(random.sample(set((list(df.columns) + list(new_df.columns))), len(new_df.columns)))
+        else:
+            new_df.columns = pd.MultiIndex.from_tuples(
+                random.sample(set((list(df.columns) + list(new_df.columns))), len(new_df.columns)))
+
+        return new_df
+
+    def get_ext_fill_value_df_add_like(self, context=None):
+        return round(random.uniform(-100, 100), 1)
