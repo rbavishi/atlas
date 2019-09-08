@@ -200,9 +200,8 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     f_ast.args.kw_defaults.append(ast.NameConstant(value=None))
     ast.fix_missing_locations(f_ast)
 
-    #  Change name so it doesn't clash with original
+    #  New name so it doesn't clash with original
     func_name = f"{_GEN_COMPILED_TARGET_ID}_{len(cache)}"
-    f_ast.name = func_name
 
     g.update({k: v for k, v in ops.items()})
     g.update({k: v for k, v in handlers.items()})
@@ -214,7 +213,11 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     #  Passing ``g`` to exec allows us to execute all the new functions
     #  we assigned to every operator call in the previous AST walk
     exec(compile(module, filename=inspect.getabsfile(func), mode="exec"), g)
-    result = g[func_name]
+    result = g[func.__name__]
+    #  Restore the correct namespace so that tracebacks contain actual function names
+    g[gen.name] = gen
+    g[func_name] = result
+
     cache[func] = result
 
     #  Handle the delayed compilations now that we have populated the cache
