@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Optional
 
 
 class EarlyStopper(ABC):
@@ -21,13 +22,16 @@ class EarlyStopper(ABC):
 
 
 class SimpleEarlyStopper(EarlyStopper):
-    def __init__(self, patience: int = 25, val_loss_threshold: float = 0.01):
+    def __init__(self, patience: int = 25, val_loss_threshold: float = 0.01,
+                 patience_zero_threshold: Optional[float] = None):
         self.best_val_acc: float = -1
         self.best_val_loss: float = -1
         self.wait_cnt = 0
 
         self.patience = patience
         self.val_loss_threshold = val_loss_threshold
+        #  Default is 2.0 to avoid making patience zero unless explicitly supplied
+        self.patience_zero_threshold = patience_zero_threshold or 2.0
 
     def reset(self):
         self.best_val_acc: float = -1
@@ -35,6 +39,9 @@ class SimpleEarlyStopper(EarlyStopper):
         self.wait_cnt = 0
 
     def evaluate(self, val_acc: float, val_loss: float) -> bool:
+        if val_acc >= self.patience_zero_threshold:
+            return True
+
         if val_acc > self.best_val_acc:
             self.best_val_acc = val_acc
             self.best_val_loss = val_loss
