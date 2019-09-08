@@ -1088,8 +1088,7 @@ def gen_df_ge(inputs, output, *args, **kwargs):
 def gen_df_ne(inputs, output, *args, **kwargs):
     """DataFrame.ne(self, other, axis='columns', level=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs,
-                           label="self_df_ne_like")
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
     c = {'I0': _self, 'O': output, '_self': _self}
     _other = SelectExternal(inputs, dtype=(pd.DataFrame, pd.Series, list, tuple, int, str, float),
@@ -1117,14 +1116,13 @@ def gen_df_ne(inputs, output, *args, **kwargs):
 def gen_df_eq(inputs, output, *args, **kwargs):
     """DataFrame.eq(self, other, axis='columns', level=None)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs,
-                           label="self_df_ne_like")
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
 
     c = {'I0': _self, 'O': output, '_self': _self}
     _other = SelectExternal(inputs, dtype=(pd.DataFrame, pd.Series, list, tuple, int, str, float),
                             context=c, kwargs=kwargs,
                             label="other_df_ne_like")
-
+    print(_self, _other)
     if isinstance(_other, pd.Series):
         _axis = Select(['columns', 'index'], fixed_domain=True)
     else:
