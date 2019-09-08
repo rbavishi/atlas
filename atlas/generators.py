@@ -265,7 +265,11 @@ class Generator:
             register_group(self, group)
 
         self.hooks: List[Hook] = []
-        self.metadata = metadata
+        if metadata is None:
+            self.metadata = {}
+        else:
+            self.metadata = metadata
+
         self.caching = caching
 
         self._default_exec_env: Optional[GeneratorExecEnvironment] = None
