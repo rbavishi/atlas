@@ -24,6 +24,9 @@ class DfsStrategy(IteratorBasedStrategy):
         self.gen_call_id = 0
         self.gen_result_cache: Dict[int, Tuple[int, int, Any]] = {}
 
+        #  Bound on number of values to return for each operator
+        self.operator_iterator_bound: Optional[int] = None
+
     def init(self):
         self.call_id = 0
         self.gen_call_id = 0
@@ -91,7 +94,11 @@ class DfsStrategy(IteratorBasedStrategy):
                 if iterator is None:
                     iterator = handler(self, domain=domain, context=context, op_info=op_info, **kwargs)
 
-                op_iter = iter(iterator)
+                if self.operator_iterator_bound:
+                    op_iter = itertools.islice(iter(iterator), self.operator_iterator_bound)
+                else:
+                    op_iter = iter(iterator)
+
                 self.op_iter_map[t] = op_iter
                 val = self.val_map[t] = next(op_iter)
 
