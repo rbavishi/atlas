@@ -1287,7 +1287,7 @@ def gen_df_groupby(inputs, output, *args, **kwargs):
 def gen_df_abs(inputs, output, *args, **kwargs):
     """DataFrame.abs(self)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs)
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs, label="self_df_int_and_floats")
     return _self.abs(), {
         'self': _self
     }
