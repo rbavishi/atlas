@@ -29,7 +29,6 @@ class PandasSynthesisStrategy(DfsStrategy):
                         if (id(i) not in unused_intermediates) and isinstance(i, dtype) and all(p(i) for p in preds))
 
         else:
-            print("Triggering this")
             yield from (i for i in domain if isinstance(i, dtype))
 
         if 'default' in extra:
@@ -50,6 +49,7 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         self.df_generator = df_generator
         self.max_num_inputs = max_num_inputs
         self.generated_inputs = []
+        self.operator_iterator_bound = 10
 
     def init(self):
         self.generated_inputs = []
@@ -80,6 +80,9 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
                        kwargs: Dict = None, **extra):
         if preds is None:
             preds = []
+
+        if kwargs is None:
+            kwargs = {}
 
         unused_intermediates: Set[int] = kwargs.get('unused_intermediates', {})
         unused_domain = [i for i in domain
@@ -125,7 +128,6 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
                                                   index_like_columns_prob=0.0))
         cond_df.index = df.index
         cond_df.columns = df.columns
-        print(cond_df)
         return cond_df
 
     def get_ext_other_df_where_mask(self, context=None):
@@ -341,7 +343,7 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
 
         return val
 
-    def get_ext_self_duplicate_removal(self, context=None):
+    def get_ext_self_df_duplicate_removal(self, context=None):
         return self.df_generator.call(DfConfig(min_height=3))
 
     def get_ext_other_df_equals(self, context=None):
