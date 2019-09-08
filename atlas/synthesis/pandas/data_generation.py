@@ -6,8 +6,14 @@ from atlas.synthesis.pandas.engine import sequential_enumerator
 from atlas.synthesis.pandas.strategies import PandasSequentialDataGenerationStrategy
 
 
-def generate_sequential_data(func_seq: List[str]):
+def generate_sequential_data(func_seq: List[str], max_attempts: int = 10):
     strategy = PandasSequentialDataGenerationStrategy(func_seq, generate_random_dataframe)
-    a = []
-    return next(iter(sequential_enumerator.generate([], None,
-                                                    allow_unused_intermediates=False).with_strategy(strategy)))
+
+    for _ in range(max_attempts):
+        try:
+            return next(iter(sequential_enumerator.generate([], None,
+                                                            allow_unused_intermediates=False).with_strategy(strategy)))
+        except:
+            continue
+
+    raise RuntimeError("Max. attempts reached")
