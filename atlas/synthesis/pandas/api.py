@@ -2082,7 +2082,7 @@ def gen_df_first(inputs, output, *args, **kwargs):
 def gen_df_idxmax(inputs, output, *args, **kwargs):
     """DataFrame.idxmax(self, axis=0, skipna=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs, label="self_df_computational")
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs, label="self_df_int_and_floats")
     _axis = Select([0, 1], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
 
@@ -2095,7 +2095,7 @@ def gen_df_idxmax(inputs, output, *args, **kwargs):
 def gen_df_idxmin(inputs, output, *args, **kwargs):
     """DataFrame.idxmin(self, axis=0, skipna=True)"""
 
-    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs, label="self_df_computational")
+    _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs, label="self_df_int_and_floats")
     _axis = Select([0, 1], fixed_domain=True)
     _skipna = Select([True, False], fixed_domain=True)
 
