@@ -1,3 +1,4 @@
+import itertools
 import unittest
 
 from atlas import generator
@@ -257,9 +258,15 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
         traces = [i[1] for i in binary.generate(2).with_tracing()]
 
-        self.assertEqual([list(binary.generate(2).replay(t))[0] for t in traces], ["00", "01", "10", "11"])
+        self.assertEqual([list(binary.generate(2).with_replay(t))[0] for t in traces], ["00", "01", "10", "11"])
+        #  Arguments to generate omitted
+        self.assertEqual([list(binary.generate().with_replay(t))[0] for t in traces], ["00", "01", "10", "11"])
 
-    def test_gen_replay_basic_2(self):
+        #  Using `first`
+        self.assertEqual(binary.generate().with_replay(traces[0]).first(), "00")
+        self.assertEqual(binary.generate().with_replay(traces[0]).first(k=1), ["00"])
+
+    def test_gen_replay_error_1(self):
         @generator(strategy='dfs')
         def binary(length: int):
             s = ""
@@ -268,10 +275,33 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
             return s
 
-        traces = [i[1] for i in binary.generate(2).with_tracing()]
+        @generator(strategy='randomized')
+        def impersonator(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
 
+            return s
+
+        _, trace = binary.generate(2).with_tracing().first()
+        self.assertRaisesRegex(KeyError, r"Generator and trace are inconsistent\. .*",
+                               impersonator.replay, trace)
+
+    def test_gen_replay_randomized_1(self):
+        @generator(strategy='randomized')
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+        values, traces = zip(*[i for i in itertools.islice(binary.generate(2).with_tracing(), 50)])
+        self.assertEqual([binary.generate(2).with_replay(t).first() for t in traces], list(values))
         #  Arguments to generate omitted
-        self.assertEqual([list(binary.generate().replay(t))[0] for t in traces], ["00", "01", "10", "11"])
+        self.assertEqual([binary.generate().with_replay(t).first() for t in traces], list(values))
+        #  generate() omitted entirely
+        self.assertEqual([binary.replay(t) for t in traces], list(values))
 
     def test_gen_replay_with_labels(self):
         @generator(strategy='dfs')
@@ -282,7 +312,7 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
             return s
 
-        self.assertEqual(list(binary.generate(2).replay({"bit_select": ["0", "1"]}))[0], "01")
+        self.assertEqual(list(binary.generate(2).with_replay({"bit_select": ["0", "1"]}))[0], "01")
 
 
 class TestGeneratorCompilation(unittest.TestCase):

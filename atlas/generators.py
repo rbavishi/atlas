@@ -1,6 +1,7 @@
 import ast
 import collections
 import inspect
+import itertools
 import sys
 import textwrap
 import weakref
@@ -12,7 +13,7 @@ from atlas.exceptions import ExceptionAsContinue
 from atlas.hooks import Hook
 from atlas.models import GeneratorModel
 from atlas.operators import OpInfo, OpInfoConstructor
-from atlas.strategies import Strategy, RandStrategy, DfsStrategy, ReplayStrategy
+from atlas.strategies import Strategy, RandStrategy, DfsStrategy, PartialReplayStrategy, FullReplayStrategy
 from atlas.strategies.strategy import IteratorBasedStrategy
 from atlas.tracing import DefaultTracer, GeneratorTrace
 from atlas.utils import astutils
@@ -89,7 +90,7 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
 
     """
 
-    if isinstance(strategy, ReplayStrategy):
+    if isinstance(strategy, PartialReplayStrategy):
         strategy = strategy.backup_strategy
 
     if with_hooks:
@@ -418,6 +419,27 @@ class Generator:
 
         return self._default_exec_env.single_call(args, kwargs)
 
+    def replay(self, trace: GeneratorTrace):
+        """
+        Replay a trace. Raises an error if trace and generator execution diverge at any point.
+
+        Args:
+            trace (GeneratorTrace): The trace to replay
+
+        Returns:
+            The result of the generator after executing the trace.
+        """
+
+        return GeneratorExecEnvironment(
+            args=trace.f_inputs[0],
+            kwargs=trace.f_inputs[1],
+            func=self.func,
+            strategy=FullReplayStrategy(trace, self.strategy),
+            model=None,
+            hooks=[],
+            parent_gen=self
+        ).first()
+
 
 class GeneratorExecEnvironment(Iterable):
     """
@@ -526,6 +548,39 @@ class GeneratorExecEnvironment(Iterable):
         for h in self.hooks:
             h.finish()
 
+    def first(self, **kwargs):
+        """
+        Return the first `k` values. If k is not passed as a keyword argument, this returns the first value returned
+        by the generator. If `k` is passed as an argument, a list of length `k` is returned containing the first `k`
+        values returned by the generator in-order. If generator produces less than `k` values, the result has `None`
+        in place of these values. Note that even if `k=1` is passed as an argument, a singleton list will be returned.
+
+        Keyword Args:
+            k (int): (Optional) The number of values to be returned
+
+        Returns:
+            The first value returned by the generator (if `k` is not passed) or a list of length `k` corresponding
+            to the first `k` elements produced by the generator,
+
+        """
+        if 'k' in kwargs:
+            assert isinstance(kwargs['k'], int), "k passed to first() must be an int"
+            k = kwargs['k']
+        else:
+            k = None
+
+        iterator = iter(self)
+
+        if k is None:
+            return next(iterator)
+
+        else:
+            result = list(itertools.islice(iterator, k))
+            if len(result) < k:
+                result.extend([None for _ in range(k - len(result))])
+
+            return result
+
     def with_tracing(self) -> 'GeneratorExecEnvironment':
         """
         Enable tracing in this environment. During iteration, the trace of the choices made by the operators
@@ -589,7 +644,7 @@ class GeneratorExecEnvironment(Iterable):
         self.model = model
         return self
 
-    def replay(self, trace: Union[Dict[str, List[Any]], GeneratorTrace]):
+    def with_replay(self, trace: Union[Dict[str, List[Any]], GeneratorTrace]):
         """
         Replay the choices made by the operators in a trace. The trace can either be a GeneratorTrace object,
         or a mapping/dict from operator labels to a list of values. Operators with the same label will consume
@@ -604,7 +659,7 @@ class GeneratorExecEnvironment(Iterable):
         """
         if not self.args and not self.kwargs:
             self.args, self.kwargs = trace.f_inputs
-        self.strategy = ReplayStrategy(trace, self.strategy)
+        self.strategy = PartialReplayStrategy(trace, self.strategy)
         return self
 
 
