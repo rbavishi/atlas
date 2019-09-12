@@ -8,6 +8,11 @@ def SelectExternal(*args, **kwargs):
 
 
 @stub
+def SelectFixed(*args, **kwargs):
+    pass
+
+
+@stub
 def CoinToss(*args, **kwargs):
     pass
 

@@ -112,7 +112,7 @@ class DfsStrategy(IteratorBasedStrategy):
         return val
 
     @operator
-    def Select(self, domain: Any, context: Any = None, fixed_domain=False, **kwargs):
+    def Select(self, domain: Any, context: Any = None, **kwargs):
         yield from domain
 
     @operator

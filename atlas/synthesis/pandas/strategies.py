@@ -34,6 +34,10 @@ class PandasSynthesisStrategy(DfsStrategy):
         if 'default' in extra:
             yield extra['default']
 
+    @operator
+    def SelectFixed(self, domain, context=None, **extra):
+        yield from domain
+
 
 class PandasSequentialDataGenerationStrategy(DfsStrategy):
     """
@@ -71,6 +75,12 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
 
     @operator
     def Select(self, domain, **garbage):
+        domain = list(domain)
+        random.shuffle(domain)
+        yield from domain
+
+    @operator
+    def SelectFixed(self, domain, **garbage):
         domain = list(domain)
         random.shuffle(domain)
         yield from domain
