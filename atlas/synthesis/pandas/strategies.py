@@ -1,7 +1,8 @@
 import collections
+import itertools
 import random
 import string
-from typing import Dict, Set, List, Callable
+from typing import Dict, Set, List, Callable, Any, Collection
 
 import pandas as pd
 import numpy as np
@@ -84,6 +85,60 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         domain = list(domain)
         random.shuffle(domain)
         yield from domain
+
+    @operator
+    def Subset(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
+               include_empty: bool = False, **kwargs):
+        if lengths is None:
+            lengths = range(0 if include_empty else 1, len(domain) + 1)
+
+        lengths = list(lengths)
+        random.shuffle(lengths)
+        domain = list(domain)
+        random.shuffle(domain)
+
+        for l in lengths:
+            yield from itertools.combinations(domain, l)
+
+    @operator
+    def OrderedSubset(self, domain: Any, context: Any = None,
+                      lengths: Collection[int] = None, include_empty: bool = False, **kwargs):
+
+        if lengths is None:
+            lengths = range(0 if include_empty else 1, len(domain) + 1)
+
+        lengths = list(lengths)
+        random.shuffle(lengths)
+        domain = list(domain)
+        random.shuffle(domain)
+
+        for l in lengths:
+            yield from itertools.permutations(domain, l)
+
+    @operator
+    def Product(self, domain: Any, context: Any = None, **kwargs):
+        domain = [list(i) for i in domain]
+        for i in domain:
+            random.shuffle(i)
+
+        yield from itertools.product(*domain)
+
+    @operator
+    def Sequence(self, domain: Any, context: Any = None, max_len: int = None,
+                 lengths: Collection[int] = None, **kwargs):
+        if max_len is None and lengths is None:
+            raise SyntaxError("Sequence requires the explicit keyword argument 'max_len' or 'lengths'")
+
+        if max_len is not None and lengths is not None:
+            raise SyntaxError("Sequence takes only *one* of the 'max_len' and 'lengths' keyword arguments")
+
+        if max_len is not None:
+            for l in range(1, max_len + 1):
+                yield from itertools.product(domain, repeat=l)
+
+        elif lengths is not None:
+            for l in list(lengths):
+                yield from itertools.product(domain, repeat=l)
 
     @operator
     def SelectExternal(self, domain, context=None, op_info: OpInfo = None, dtype=None, preds: List[Callable] = None,
