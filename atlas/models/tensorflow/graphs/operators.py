@@ -9,6 +9,67 @@ from atlas.models.tensorflow.graphs.ggnn import GGNN
 from atlas.models.tensorflow.graphs.utils import MLP, SegmentBasedSoftmax
 
 
+class SelectFixedGGNNClassifier(GGNNGraphClassifier):
+    def __init__(self, domain_size: int, classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
+        super().__init__(num_classes=domain_size, classifier_hidden_dims=classifier_hidden_dims, agg=agg, **kwargs)
+
+    def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True):
+        domain_labels = []
+        node_graph_ids_list = []
+        for idx, g in enumerate(graphs):
+            label = g.get('choice', 0)  # Can happen when doing inference
+            domain_labels.append(label)
+            node_graph_ids_list.extend([idx for _ in range(len(g['nodes']))])
+
+        return {
+            self.placeholders['node_graph_ids_list']: np.array(node_graph_ids_list),
+            self.placeholders['num_graphs']: len(graphs),
+            self.placeholders['domain_labels']: np.array(domain_labels)
+        }
+
+    def define_placeholders(self):
+        super().define_placeholders()
+        self.placeholders['domain_labels'] = tf.placeholder(tf.int32, [None], name='domain_labels')
+
+    def define_prediction_with_loss(self, node_embeddings):
+        graph_embeddings = self.define_pooling(node_embeddings)
+        graph_logits = self.define_graph_logits(graph_embeddings)
+
+        self.ops['loss'] = tf.reduce_mean(
+            tf.nn.sparse_softmax_cross_entropy_with_logits(logits=graph_logits,
+                                                           labels=self.placeholders['domain_labels'])
+        )
+
+        probabilities = self.ops['probabilities'] = tf.nn.softmax(graph_logits)
+        correct_prediction = tf.equal(tf.argmax(probabilities, -1, output_type=tf.int32),
+                                      self.placeholders['domain_labels'])
+        self.ops['accuracy'] = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+
+
+class SelectFixedGGNN(GGNN):
+    def __init__(self, params: Mapping[str, Any], propagator=None, classifier=None, optimizer=None):
+        if classifier is None:
+            classifier = SelectFixedGGNNClassifier(**params)
+
+        super().__init__(params, propagator, classifier, optimizer)
+
+    def infer(self, data: Iterable[Dict]):
+        num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
+        probabilities = self.sess.run(self.classifier.ops['probabilities'], feed_dict=batch_data)
+
+        argsorted_probs = [np.argsort(i)[::-1] for i in probabilities]
+        inference = []
+        for idx, graph in enumerate(iter(data)):
+            if 'mapping' in graph:
+                mapping = graph['mapping']
+                inference.append([(mapping[i], probabilities[idx][i]) for i in argsorted_probs[idx]])
+
+            else:
+                inference.append([(i, probabilities[idx][i]) for i in argsorted_probs[idx]])
+
+        return inference
+
+
 class SelectGGNNClassifier(GGNNGraphClassifier):
     def __init__(self, classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
         super().__init__(num_classes=-1, classifier_hidden_dims=classifier_hidden_dims, agg=agg, **kwargs)
