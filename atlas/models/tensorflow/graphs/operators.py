@@ -2,7 +2,7 @@ import collections
 
 import tensorflow as tf
 import numpy as np
-from typing import Mapping, Any, List, Dict, Iterable, Tuple
+from typing import Mapping, Any, List, Dict, Iterable, Tuple, Optional
 
 from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier
 from atlas.models.tensorflow.graphs.ggnn import GGNN
@@ -279,7 +279,7 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
     def __init__(self, classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
         super().__init__(num_classes=-1, classifier_hidden_dims=classifier_hidden_dims, agg=agg, **kwargs)
 
-    def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True):
+    def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True, max_length: Optional[int] = None):
         batch_data = super().define_batch(graphs, is_training)
         batch_data.pop(self.placeholders['labels'])
 
@@ -291,7 +291,8 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
         domain_node_timestep_graph_ids_list_unshifted = []
         loss_mask = []
         acc_mask = []
-        max_length = max(len(g['domain']) for g in graphs)
+        if max_length is None:
+            max_length = max(len(g['domain']) for g in graphs)
         for idx, g in enumerate(graphs):
             domain.extend([i + node_offset for i in g['domain']])
             domain_node_graph_ids_list.extend([idx for _ in range(len(g['domain']))])
@@ -457,6 +458,50 @@ class OrderedSubsetGGNN(GGNN):
             term_prob = probs[-1][step]
             for cur, prob in beam:
                 results.append(([mapping[i] for i in cur], prob * term_prob))
+
+            beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
+
+        return sorted(results, key=lambda x: -x[1])[:beam_size]
+
+
+class SequenceGGNNClassifier(OrderedSubsetGGNNClassifier):
+    def __init__(self, max_length: int, classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
+        self.max_length = max_length
+        super().__init__(classifier_hidden_dims, agg, **kwargs)
+
+    def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True, max_length: Optional[int] = None):
+        return super().define_batch(graphs, is_training=is_training, max_length=self.max_length)
+
+
+class SequenceGGNN(OrderedSubsetGGNN):
+    def __init__(self, params: Mapping[str, Any], propagator=None, classifier=None, optimizer=None):
+        if classifier is None:
+            classifier = SequenceGGNNClassifier(**params)
+
+        super().__init__(params, propagator, classifier, optimizer)
+
+    def beam_search(self, beam_size: int, probs: List[List[float]],
+                    mapping: List[Any]) -> List[Tuple[List[Any], float]]:
+        beam = [([], 1.0)]
+        results = []
+        timesteps = len(probs[0])
+        cum_max_prod = [1.0]
+        for step_probs in np.transpose(probs)[::-1]:
+            cum_max_prod.append(max(step_probs) * cum_max_prod[-1])
+
+        for step in range(timesteps):
+            dst = []
+            for node_idx, node_probs in enumerate(probs[:-1]):
+                node_prob = node_probs[step]
+                for cur, prob in beam:
+                    #  The only change from OrderedSubset. No need to check for the subset property
+                    dst.append((cur + [node_idx], prob * node_prob))
+
+            term_prob = probs[-1][step]
+            for cur, prob in beam:
+                #  Multiplication by cum_max_prod prevents biasing towards shorter sequences.
+                #  It simply multiplies by the probability of the most probable node for the remaining time-steps
+                results.append(([mapping[i] for i in cur], prob * term_prob * cum_max_prod[-(step + 2)]))
 
             beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
 

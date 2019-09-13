@@ -1,8 +1,10 @@
 import random
 import unittest
 
+import pytest
 from atlas.models.tensorflow.graphs.earlystoppers import SimpleEarlyStopper
-from atlas.models.tensorflow.graphs.operators import SelectGGNN, SubsetGGNN, OrderedSubsetGGNN, SelectFixedGGNN
+from atlas.models.tensorflow.graphs.operators import SelectGGNN, SubsetGGNN, OrderedSubsetGGNN, SelectFixedGGNN, \
+    SequenceGGNN
 
 
 class TestOperatorsBasic(unittest.TestCase):
@@ -90,6 +92,34 @@ class TestOperatorsBasic(unittest.TestCase):
             'edges': edges,
             'domain': domain + [terminal],
             'choice': choices,
+            'terminal': terminal
+        }
+
+    def sequence_small(self):
+        #  A set of domain nodes, a set of context nodes, and the selected domain nodes have an edge to one of
+        #  the context nodes. Every selected node is repeated *twice* which is the main change from the OrderedSubset
+        #  test above. The domain nodes also have a direction edge establishing the relative order
+        #  between them. Thus it should be very easy for the network to learn to predict the right node
+        domain = list(range(random.randrange(3, 10)))
+        context = [i + len(domain) for i in range(random.randrange(1, 10))]
+        terminal = len(domain) + len(context)
+        #  The only node feature is whether it's a domain node or a context node
+        nodes = [[0] for _ in domain] + [[1] for _ in context] + [[2]]
+        choices = sorted(random.sample(domain, random.randrange(2, min(4, len(domain)))))
+        choices.append(terminal)
+        matched = random.choice(context)
+        edges = []
+        for choice in choices:
+            edges.extend([(choice, 0, matched), (matched, 0, choice)])
+
+        for i, j in zip(choices, choices[1:]):
+            edges.append((i, 1, j))
+
+        return {
+            'nodes': nodes,
+            'edges': edges,
+            'domain': domain + [terminal],
+            'choice': sum([[i] * 2 for i in choices[:-1]], []) + [terminal],  # Repeated twice
             'terminal': terminal
         }
 
@@ -272,6 +302,7 @@ class TestOperatorsBasic(unittest.TestCase):
 
         self.assertGreaterEqual(acc / len(validation), 1.0)
 
+    @pytest.mark.slow
     def test_ordered_subset_small_1(self):
         training = [self.ordered_subset_small() for _ in range(500)]
         validation = [self.ordered_subset_small() for _ in range(50)]
@@ -300,6 +331,7 @@ class TestOperatorsBasic(unittest.TestCase):
 
         self.assertGreaterEqual(acc / len(validation), 0.90)
 
+    @pytest.mark.slow
     def test_ordered_subset_small_1_strict(self):
         training = [self.ordered_subset_small() for _ in range(500)]
         validation = [self.ordered_subset_small() for _ in range(50)]
@@ -317,6 +349,68 @@ class TestOperatorsBasic(unittest.TestCase):
         model = OrderedSubsetGGNN(config)
         history = model.train(training, validation, 500)
         self.assertGreaterEqual(history[-1]['valid_acc'], 1.0)
+
+        #  Now test inference
+        acc = 0
+        for i in validation:
+            #  Inference has the form [[(val, prob), (val, prob) ... (for every domain node) ] ... for every graph]
+            inferred = sorted(model.infer([i], top_k=10)[0], key=lambda x: -x[1])
+            if inferred[0][0] == i['choice'][:-1]:  # Don't compare the terminal node
+                acc += 1
+
+        self.assertGreaterEqual(acc / len(validation), 1.0)
+
+    @pytest.mark.slow
+    def test_sequence_small_1(self):
+        training = [self.sequence_small() for _ in range(500)]
+        validation = [self.sequence_small() for _ in range(50)]
+
+        config = {
+            'node_dimension': 10,
+            'classifier_hidden_dims': [10],
+            'batch_size': 100000,
+            'layer_timesteps': [1, 1, 1],
+            'num_node_features': 3,
+            'num_edge_types': 2,
+            'learning_rate': 0.001,
+            'max_length': max([len(i['choice']) for i in training + validation])
+        }
+
+        model = SequenceGGNN(config)
+        history = model.train(training, validation, 1000, early_stopper=SimpleEarlyStopper(patience=1000,
+                                                                                           patience_zero_threshold=0.9))
+        self.assertGreaterEqual(history[-1]['valid_acc'], 0.9)
+
+        #  Now test inference
+        acc = 0
+        for i in validation:
+            #  Inference has the form [[(val, prob), (val, prob) ... (for every domain node) ] ... for every graph]
+            inferred = sorted(model.infer([i], top_k=10)[0], key=lambda x: -x[1])
+            if inferred[0][0] == i['choice'][:-1]:  # Don't compare the terminal node
+                acc += 1
+
+        self.assertGreaterEqual(acc / len(validation), 0.90)
+
+    @pytest.mark.slow
+    def test_sequence_small_1_strict(self):
+        training = [self.sequence_small() for _ in range(500)]
+        validation = [self.sequence_small() for _ in range(50)]
+
+        config = {
+            'node_dimension': 10,
+            'classifier_hidden_dims': [10],
+            'batch_size': 100000,
+            'layer_timesteps': [1, 1, 1],
+            'num_node_features': 3,
+            'num_edge_types': 2,
+            'learning_rate': 0.001,
+            'max_length': max([len(i['choice']) for i in training + validation])
+        }
+
+        model = SequenceGGNN(config)
+        history = model.train(training, validation, 1000, early_stopper=SimpleEarlyStopper(patience=1000,
+                                                                                           patience_zero_threshold=1.0))
+        self.assertGreaterEqual(history[-1]['valid_acc'], 0.9)
 
         #  Now test inference
         acc = 0
