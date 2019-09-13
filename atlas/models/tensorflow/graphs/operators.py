@@ -445,6 +445,10 @@ class OrderedSubsetGGNN(GGNN):
         beam = [([], 1.0)]
         results = []
         timesteps = len(probs[0])
+        cum_max_prod = [1.0]
+        for step_probs in np.transpose(probs)[::-1]:
+            cum_max_prod.append(max(step_probs) * cum_max_prod[-1])
+
         for step in range(timesteps):
             dst = []
             for node_idx, node_probs in enumerate(probs[:-1]):
@@ -457,7 +461,9 @@ class OrderedSubsetGGNN(GGNN):
 
             term_prob = probs[-1][step]
             for cur, prob in beam:
-                results.append(([mapping[i] for i in cur], prob * term_prob))
+                #  Multiplication by cum_max_prod prevents biasing towards shorter sequences.
+                #  It simply multiplies by the probability of the most probable node for the remaining time-steps
+                results.append(([mapping[i] for i in cur], prob * term_prob * cum_max_prod[-(step + 2)]))
 
             beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
 
