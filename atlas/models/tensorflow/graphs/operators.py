@@ -2,11 +2,69 @@ import collections
 
 import tensorflow as tf
 import numpy as np
-from typing import Mapping, Any, List, Dict, Iterable, Tuple, Optional
+from typing import Mapping, Any, List, Dict, Iterable, Tuple, Optional, Sequence
 
-from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier
+from atlas.models.tensorflow.graphs.classifiers import GGNNGraphClassifier, GGNNGraphSequentialClassifier
 from atlas.models.tensorflow.graphs.ggnn import GGNN
 from atlas.models.tensorflow.graphs.utils import MLP, SegmentBasedSoftmax
+
+
+def beam_search_ordered_subset(beam_size: int, probs: List[List[float]],
+                               mapping: List[Any]) -> List[Tuple[List[Any], float]]:
+    beam = [([], 1.0)]
+    results = []
+    timesteps = len(probs[0])
+    cum_max_prod = [1.0]
+    for step_probs in np.transpose(probs)[::-1]:
+        cum_max_prod.append(max(step_probs) * cum_max_prod[-1])
+
+    for step in range(timesteps):
+        dst = []
+        for node_idx, node_probs in enumerate(probs[:-1]):
+            node_prob = node_probs[step]
+            for cur, prob in beam:
+                if node_idx in cur:
+                    continue
+
+                dst.append((cur + [node_idx], prob * node_prob))
+
+        term_prob = probs[-1][step]
+        for cur, prob in beam:
+            #  Multiplication by cum_max_prod prevents biasing towards shorter sequences.
+            #  It simply multiplies by the probability of the most probable node for the remaining time-steps
+            results.append(([mapping[i] for i in cur], prob * term_prob * cum_max_prod[-(step + 2)]))
+
+        beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
+
+    return sorted(results, key=lambda x: -x[1])[:beam_size]
+
+
+def beam_search_sequence(beam_size: int, probs: Sequence[List[float]],
+                         mapping: List[Any]) -> List[Tuple[List[Any], float]]:
+    beam = [([], 1.0)]
+    results = []
+    timesteps = len(probs[0])
+    cum_max_prod = [1.0]
+    for step_probs in np.transpose(probs)[::-1]:
+        cum_max_prod.append(max(step_probs) * cum_max_prod[-1])
+
+    for step in range(timesteps):
+        dst = []
+        for node_idx, node_probs in enumerate(probs[:-1]):
+            node_prob = node_probs[step]
+            for cur, prob in beam:
+                #  The only change from OrderedSubset. No need to check for the subset property
+                dst.append((cur + [node_idx], prob * node_prob))
+
+        term_prob = probs[-1][step]
+        for cur, prob in beam:
+            #  Multiplication by cum_max_prod prevents biasing towards shorter sequences.
+            #  It simply multiplies by the probability of the most probable node for the remaining time-steps
+            results.append(([mapping[i] for i in cur], prob * term_prob * cum_max_prod[-(step + 2)]))
+
+        beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
+
+    return sorted(results, key=lambda x: -x[1])[:beam_size]
 
 
 class SelectFixedGGNNClassifier(GGNNGraphClassifier):
@@ -257,7 +315,12 @@ class SubsetGGNN(GGNN):
             per_graph_results[graph_id].append(prob)
 
         for graph_id, graph in enumerate(data):
-            inference.append(self.beam_search(top_k, per_graph_results[graph_id], graph['domain']))
+            if 'mapping' in graph:
+                mapping = graph['mapping']
+            else:
+                mapping = graph['domain']
+
+            inference.append(self.beam_search(top_k, per_graph_results[graph_id], mapping))
 
         return inference
 
@@ -369,8 +432,6 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
         rnn_input = tf.concat([tiled_domain_nodes_pooled_copied, tiled_graph_embeddings_copied], axis=-1)
         #  Shape is (batch_size, max_length, 2H)
         rnn_output = tf.keras.layers.LSTM(self.classifier_hidden_dims[0], return_sequences=True)(rnn_input)
-        #  Shape is (max_length, batch_size, 2H)
-        # rnn_output = tf.transpose(rnn_output, perm=[1, 0, 2])
         #  Shape is (num-nodes-in-batch, max_length, H)
         rnn_output_copied = tf.gather(params=rnn_output, indices=self.placeholders['domain_node_graph_ids_list'])
 
@@ -386,7 +447,8 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
         #  Shape is (num-nodes-in-batch, max_length) for both
         probs, log_probs = SegmentBasedSoftmax(data=domain_node_logits,
                                                segment_ids=self.placeholders['domain_node_timestep_graph_ids_list'],
-                                               num_segments=self.placeholders['num_graphs'] * self.placeholders['max_length'],
+                                               num_segments=self.placeholders['num_graphs'] * self.placeholders[
+                                                   'max_length'],
                                                return_log=True)
         self.ops['probabilities'] = probs
 
@@ -401,7 +463,8 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
         domain_node_max_scores = tf.unsorted_segment_max(data=domain_node_logits,
                                                          segment_ids=self.placeholders[
                                                              'domain_node_timestep_graph_ids_list'],
-                                                         num_segments=self.placeholders['num_graphs'] * self.placeholders['max_length'])
+                                                         num_segments=self.placeholders['num_graphs'] *
+                                                                      self.placeholders['max_length'])
         copied_domain_node_max_scores = tf.gather(params=domain_node_max_scores,
                                                   indices=self.placeholders['domain_node_timestep_graph_ids_list'])
 
@@ -436,38 +499,58 @@ class OrderedSubsetGGNN(GGNN):
             per_graph_results[graph_id].append(prob)
 
         for graph_id, graph in enumerate(data):
-            inference.append(self.beam_search(top_k, per_graph_results[graph_id], graph['domain']))
+            if 'mapping' in graph:
+                mapping = graph['mapping']
+            else:
+                mapping = graph['domain']
+
+            inference.append(self.beam_search(top_k, per_graph_results[graph_id], mapping))
 
         return inference
 
     def beam_search(self, beam_size: int, probs: List[List[float]],
                     mapping: List[Any]) -> List[Tuple[List[Any], float]]:
-        beam = [([], 1.0)]
-        results = []
-        timesteps = len(probs[0])
-        cum_max_prod = [1.0]
-        for step_probs in np.transpose(probs)[::-1]:
-            cum_max_prod.append(max(step_probs) * cum_max_prod[-1])
+        return beam_search_ordered_subset(beam_size, probs, mapping)
 
-        for step in range(timesteps):
-            dst = []
-            for node_idx, node_probs in enumerate(probs[:-1]):
-                node_prob = node_probs[step]
-                for cur, prob in beam:
-                    if node_idx in cur:
-                        continue
 
-                    dst.append((cur + [node_idx], prob * node_prob))
+class SequenceFixedGGNNClassiier(GGNNGraphSequentialClassifier):
+    def __init__(self, domain_size: int, max_length: int,
+                 classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
+        super().__init__(num_classes=domain_size, max_length=max_length,
+                         classifier_hidden_dims=classifier_hidden_dims, agg=agg, **kwargs)
 
-            term_prob = probs[-1][step]
-            for cur, prob in beam:
-                #  Multiplication by cum_max_prod prevents biasing towards shorter sequences.
-                #  It simply multiplies by the probability of the most probable node for the remaining time-steps
-                results.append(([mapping[i] for i in cur], prob * term_prob * cum_max_prod[-(step + 2)]))
+    def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True):
+        for g in graphs:
+            g['label'] = g.get('choice', [])
 
-            beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
+        return super().define_batch(graphs, is_training)
 
-        return sorted(results, key=lambda x: -x[1])[:beam_size]
+
+class SequenceFixedGGNN(GGNN):
+    def __init__(self, params: Mapping[str, Any], propagator=None, classifier=None, optimizer=None):
+        if classifier is None:
+            classifier = SequenceFixedGGNNClassiier(**params)
+
+        super().__init__(params, propagator, classifier, optimizer)
+
+    def infer(self, data: Iterable[Dict], top_k: int = 100):
+        num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
+        results = self.sess.run(self.classifier.ops['probabilities'], feed_dict=batch_data)
+
+        inference = []
+        for graph_id, graph in enumerate(data):
+            if 'mapping' in graph:
+                mapping = graph['mapping']
+            else:
+                mapping = list(range(self.classifier.num_classes))
+
+            inference.append(self.beam_search(top_k, results[graph_id], mapping))
+
+        return inference
+
+    def beam_search(self, beam_size: int, probs: List[List[float]],
+                    mapping: List[Any]) -> List[Tuple[List[Any], float]]:
+        return beam_search_sequence(beam_size, np.transpose(probs), mapping)
 
 
 class SequenceGGNNClassifier(OrderedSubsetGGNNClassifier):
@@ -488,27 +571,4 @@ class SequenceGGNN(OrderedSubsetGGNN):
 
     def beam_search(self, beam_size: int, probs: List[List[float]],
                     mapping: List[Any]) -> List[Tuple[List[Any], float]]:
-        beam = [([], 1.0)]
-        results = []
-        timesteps = len(probs[0])
-        cum_max_prod = [1.0]
-        for step_probs in np.transpose(probs)[::-1]:
-            cum_max_prod.append(max(step_probs) * cum_max_prod[-1])
-
-        for step in range(timesteps):
-            dst = []
-            for node_idx, node_probs in enumerate(probs[:-1]):
-                node_prob = node_probs[step]
-                for cur, prob in beam:
-                    #  The only change from OrderedSubset. No need to check for the subset property
-                    dst.append((cur + [node_idx], prob * node_prob))
-
-            term_prob = probs[-1][step]
-            for cur, prob in beam:
-                #  Multiplication by cum_max_prod prevents biasing towards shorter sequences.
-                #  It simply multiplies by the probability of the most probable node for the remaining time-steps
-                results.append(([mapping[i] for i in cur], prob * term_prob * cum_max_prod[-(step + 2)]))
-
-            beam = sorted(dst, key=lambda x: -x[1])[:beam_size]
-
-        return sorted(results, key=lambda x: -x[1])[:beam_size]
+        return beam_search_sequence(beam_size, probs, mapping)

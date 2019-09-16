@@ -4,7 +4,7 @@ import unittest
 import pytest
 from atlas.models.tensorflow.graphs.earlystoppers import SimpleEarlyStopper
 from atlas.models.tensorflow.graphs.operators import SelectGGNN, SubsetGGNN, OrderedSubsetGGNN, SelectFixedGGNN, \
-    SequenceGGNN
+    SequenceGGNN, SequenceFixedGGNN
 
 
 class TestOperatorsBasic(unittest.TestCase):
@@ -93,6 +93,27 @@ class TestOperatorsBasic(unittest.TestCase):
             'domain': domain + [terminal],
             'choice': choices,
             'terminal': terminal
+        }
+
+    def sequence_fixed_small(self, num_classes: int, max_length: int):
+        #  This is a replay the sequence task. Number of possibilities for each sequence element is fixed (as dictated
+        #  by num_classes). There will be n nodes in the graph (n <= num_domain_nodes) with node features equal
+        #  to the element IDs corresponding to the correct sequence. The edges amongst the nodes will dictate the order.
+
+        domain = list(range(num_classes))
+        choices = random.sample(domain, random.randrange(1, max_length))
+        random.shuffle(choices)
+        nodes = [[i] for i in choices]
+        edges = []
+
+        for i in range(len(choices)-1):
+            edges.append((i, 0, i+1))
+
+        return {
+            'nodes': nodes,
+            'edges': edges,
+            'domain': domain,
+            'choice': choices
         }
 
     def sequence_small(self):
@@ -357,6 +378,76 @@ class TestOperatorsBasic(unittest.TestCase):
             inferred = sorted(model.infer([i], top_k=10)[0], key=lambda x: -x[1])
             if inferred[0][0] == i['choice'][:-1]:  # Don't compare the terminal node
                 acc += 1
+
+        self.assertGreaterEqual(acc / len(validation), 1.0)
+
+    def test_sequence_fixed_small_1(self):
+        max_length = 3
+        num_classes = 3
+        training = [self.sequence_fixed_small(num_classes, max_length) for _ in range(500)]
+        validation = [self.sequence_fixed_small(num_classes, max_length) for _ in range(50)]
+
+        config = {
+            'node_dimension': 10,
+            'classifier_hidden_dims': [10],
+            'batch_size': 100000,
+            'layer_timesteps': [1, 1, 1],
+            'num_node_features': num_classes,
+            'num_edge_types': 1,
+            'learning_rate': 0.01,
+            'domain_size': num_classes,
+            'max_length': max_length
+        }
+
+        model = SequenceFixedGGNN(config)
+        history = model.train(training, validation, 1000, early_stopper=SimpleEarlyStopper(patience=1000,
+                                                                                           patience_zero_threshold=0.9))
+        self.assertGreaterEqual(history[-1]['valid_acc'], 0.9)
+
+        #  Now test inference
+        acc = 0
+        for i in validation:
+            #  Inference has the form [[(val, prob), (val, prob) ... (for every domain node) ] ... for every graph]
+            inferred = sorted(model.infer([i], top_k=10)[0], key=lambda x: -x[1])
+            if inferred[0][0] == i['choice']:
+                acc += 1
+            else:
+                print(inferred[0][0], i['choice'])
+
+        self.assertGreaterEqual(acc / len(validation), 0.90)
+
+    def test_sequence_fixed_small_1_strict(self):
+        max_length = 3
+        num_classes = 3
+        training = [self.sequence_fixed_small(num_classes, max_length) for _ in range(500)]
+        validation = [self.sequence_fixed_small(num_classes, max_length) for _ in range(50)]
+
+        config = {
+            'node_dimension': 10,
+            'classifier_hidden_dims': [10],
+            'batch_size': 100000,
+            'layer_timesteps': [1, 1, 1],
+            'num_node_features': num_classes,
+            'num_edge_types': 1,
+            'learning_rate': 0.01,
+            'domain_size': num_classes,
+            'max_length': max_length
+        }
+
+        model = SequenceFixedGGNN(config)
+        history = model.train(training, validation, 1000, early_stopper=SimpleEarlyStopper(patience=1000,
+                                                                                           patience_zero_threshold=1.0))
+        self.assertGreaterEqual(history[-1]['valid_acc'], 1.0)
+
+        #  Now test inference
+        acc = 0
+        for i in validation:
+            #  Inference has the form [[(val, prob), (val, prob) ... (for every domain node) ] ... for every graph]
+            inferred = sorted(model.infer([i], top_k=10)[0], key=lambda x: -x[1])
+            if inferred[0][0] == i['choice']:
+                acc += 1
+            else:
+                print(inferred[0][0], i['choice'])
 
         self.assertGreaterEqual(acc / len(validation), 1.0)
 
