@@ -1,10 +1,10 @@
 import pickle
+import shutil
+import tempfile
+from abc import ABC, abstractmethod
+from typing import Iterator, Iterable, Dict, List, Optional
 
 import tensorflow as tf
-from abc import ABC, abstractmethod
-
-from typing import Iterator, Iterable, Dict, List
-
 from atlas.models import TrainableModel
 from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper, SimpleEarlyStopper
 
@@ -67,58 +67,85 @@ class TensorflowModel(TrainableModel, ABC):
 
         history: List[Dict] = []
 
-        for epoch in range(1, (num_epochs if num_epochs > 0 else 2**32) + 1):
-            history.append({'epoch': epoch})
+        #  Machinery to save the best performing models
+        best_acc = 0
+        best_loss = 10**10
+        saved = False
+        with self.graph.as_default():
+            saver = tf.train.Saver()
 
-            train_loss = valid_loss = 0
-            train_acc = valid_acc = 0
-            num_datapoints = 0
+        tmpdir: Optional[str] = None
+        try:
+            tmpdir = tempfile.mkdtemp()
+            for epoch in range(1, (num_epochs if num_epochs > 0 else 2**32) + 1):
+                history.append({'epoch': epoch})
 
-            training_fetch_list = [self.ops['loss'], self.ops['accuracy'], self.ops['train_step']]
-            validation_fetch_list = [self.ops['loss'], self.ops['accuracy']]
+                train_loss = valid_loss = 0
+                train_acc = valid_acc = 0
+                num_datapoints = 0
 
-            for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(training_data),
-                                                                            batch_size, is_training=True):
-                batch_loss, batch_acc, _ = self.sess.run(training_fetch_list, feed_dict=batch_data)
-                train_loss += batch_loss * num_datapoints_batch
-                train_acc += batch_acc * num_datapoints_batch
-                num_datapoints += num_datapoints_batch
+                training_fetch_list = [self.ops['loss'], self.ops['accuracy'], self.ops['train_step']]
+                validation_fetch_list = [self.ops['loss'], self.ops['accuracy']]
+
+                for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(training_data),
+                                                                                batch_size, is_training=True):
+                    batch_loss, batch_acc, _ = self.sess.run(training_fetch_list, feed_dict=batch_data)
+                    train_loss += batch_loss * num_datapoints_batch
+                    train_acc += batch_acc * num_datapoints_batch
+                    num_datapoints += num_datapoints_batch
+                    print(f"[Training({epoch}/{num_epochs})] "
+                          f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}",
+                          end='\r')
+
                 print(f"[Training({epoch}/{num_epochs})] "
-                      f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}",
-                      end='\r')
+                      f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}")
 
-            print(f"[Training({epoch}/{num_epochs})] "
-                  f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}")
+                history[-1].update({
+                    'train_loss': train_loss / num_datapoints,
+                    'train_acc': train_acc / num_datapoints,
+                })
 
-            history[-1].update({
-                'train_loss': train_loss / num_datapoints,
-                'train_acc': train_acc / num_datapoints,
-            })
+                num_datapoints = 0
+                for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(validation_data),
+                                                                                batch_size, is_training=False):
+                    batch_loss, batch_acc = self.sess.run(validation_fetch_list, feed_dict=batch_data)
+                    valid_loss += batch_loss * num_datapoints_batch
+                    valid_acc += batch_acc * num_datapoints_batch
+                    num_datapoints += num_datapoints_batch
+                    print(f"[Validation({epoch}/{num_epochs})] "
+                          f"Loss: {valid_loss / num_datapoints: .6f} Accuracy: {valid_acc / num_datapoints: .4f}",
+                          end='\r')
 
-            num_datapoints = 0
-            for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(validation_data),
-                                                                            batch_size, is_training=False):
-                batch_loss, batch_acc = self.sess.run(validation_fetch_list, feed_dict=batch_data)
-                valid_loss += batch_loss * num_datapoints_batch
-                valid_acc += batch_acc * num_datapoints_batch
-                num_datapoints += num_datapoints_batch
                 print(f"[Validation({epoch}/{num_epochs})] "
-                      f"Loss: {valid_loss / num_datapoints: .6f} Accuracy: {valid_acc / num_datapoints: .4f}",
-                      end='\r')
+                      f"Loss: {valid_loss / num_datapoints: .6f} Accuracy: {valid_acc / num_datapoints: .4f}")
 
-            print(f"[Validation({epoch}/{num_epochs})] "
-                  f"Loss: {valid_loss / num_datapoints: .6f} Accuracy: {valid_acc / num_datapoints: .4f}")
+                history[-1].update({
+                    'valid_loss': valid_loss / num_datapoints,
+                    'valid_acc': valid_acc / num_datapoints,
+                })
 
-            history[-1].update({
-                'valid_loss': valid_loss / num_datapoints,
-                'valid_acc': valid_acc / num_datapoints,
-            })
+                cur_acc = valid_acc / num_datapoints
+                cur_loss = valid_loss / num_datapoints
 
-            if early_stopper is not None:
-                if early_stopper.evaluate(valid_acc / num_datapoints, valid_loss / num_datapoints):
-                    break
+                if (cur_acc > best_acc) or (cur_acc == best_acc and cur_loss < best_loss):
+                    saver.save(self.sess, f"{tmpdir}/model.weights",
+                               write_meta_graph=False, write_state=False)
+                    best_acc = cur_acc
+                    best_loss = cur_loss
+                    saved = True
 
-        return history
+                if early_stopper is not None:
+                    if early_stopper.evaluate(valid_acc / num_datapoints, valid_loss / num_datapoints):
+                        break
+
+            if saved:
+                saver.restore(self.sess, f"{tmpdir}/model.weights")
+
+            return history
+
+        finally:
+            if tmpdir is not None:
+                shutil.rmtree(tmpdir)
 
     @abstractmethod
     def infer(self, data: Iterator):
