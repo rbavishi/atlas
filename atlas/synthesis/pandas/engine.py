@@ -26,7 +26,7 @@ def sequential_enumerator(inputs, output,
     First decides the function sequence to explore, and then decides arguments for each function individually.
     This is the enumerator used in the OOPSLA '19 system.
     """
-    func_seq: List[str] = Sequence(list(api_gens.keys()), max_len=3, label='function_sequence_prediction')
+    func_seq: List[str] = Sequence(list(api_gens.keys()), max_len=3, tags=['function_sequence_prediction'])
     func_args = []
     intermediates = []
     unused_intermediates: Set[int] = set()

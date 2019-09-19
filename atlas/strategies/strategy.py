@@ -31,7 +31,7 @@ class Strategy(ABC):
         handlers = [h for h in handlers if h[1]['gen_name'] in [None, op_info.gen_name]]
         handlers = [h for h in handlers if h[1]['gen_group'] in [None, op_info.gen_group]]
         handlers = [h for h in handlers if h[1]['uid'] in [None, op_info.uid]]
-        handlers = [h for h in handlers if set(h[1]['tags'] or []).issubset({None, op_info.uid})]
+        handlers = [h for h in handlers if set(h[1]['tags'] or op_info.tags or []).issuperset(set(op_info.tags or []))]
 
         #  Get the "most-specific" matches i.e. handlers with the most number of fields specified (not None)
         min_none_cnts = min(list(h[1].values()).count(None) for h in handlers)

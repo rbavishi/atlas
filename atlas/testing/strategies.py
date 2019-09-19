@@ -68,6 +68,26 @@ class TestBasicStrategyFunctionality(unittest.TestCase):
 
     def test_operator_resolution_3(self):
         class TestStrategy(DfsStrategy):
+            @operator(name='Select', tags=["10"])
+            def MyOperator1(self, domain, **kwargs):
+                yield from reversed(domain)
+
+            @operator(name='Select', gen_name="something_else")
+            def MyOperator2(self, domain, **kwargs):
+                yield from reversed(domain)
+
+        @generator(strategy=TestStrategy())
+        def binary(l: int):
+            s = ""
+            for i in range(l):
+                s += Select(["0", "1"], tags=["10"])
+
+            return s
+
+        self.assertEqual(list(binary.generate(2)), ["11", "10", "01", "00"])
+
+    def test_operator_resolution_4(self):
+        class TestStrategy(DfsStrategy):
             @operator(name='Select', uid="10")
             def MyOperator1(self, domain, **kwargs):
                 yield from reversed(domain)
@@ -81,6 +101,26 @@ class TestBasicStrategyFunctionality(unittest.TestCase):
             s = ""
             for i in range(l):
                 s += Select(["0", "1"], uid="10")
+
+            return s
+
+        self.assertRaisesRegex(ValueError, r"Could not resolve \.*", lambda x: list(binary.generate(x)), 2)
+
+    def test_operator_resolution_5(self):
+        class TestStrategy(DfsStrategy):
+            @operator(name='Select', tags=["20", "10"])
+            def MyOperator1(self, domain, **kwargs):
+                yield from reversed(domain)
+
+            @operator(name='Select', tags=["10"])
+            def MyOperator2(self, domain, **kwargs):
+                yield from reversed(domain)
+
+        @generator(strategy=TestStrategy())
+        def binary(l: int):
+            s = ""
+            for i in range(l):
+                s += Select(["0", "1"], tags=["10"])
 
             return s
 

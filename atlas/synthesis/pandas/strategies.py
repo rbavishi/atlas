@@ -60,11 +60,11 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         self.generated_inputs = []
 
     def generate_new_external(self, dtype, op_info: OpInfo, context):
-        if op_info.label is None and dtype is pd.DataFrame:
+        if op_info.uid is None and dtype is pd.DataFrame:
             return self.df_generator.call()
 
-        if op_info.label is not None:
-            attr = f"get_ext_{op_info.label}"
+        if op_info.uid is not None:
+            attr = f"get_ext_{op_info.uid}"
             if hasattr(self, attr):
                 a = getattr(self, attr)(context=context)
                 return a
