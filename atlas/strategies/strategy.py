@@ -9,7 +9,7 @@ from atlas.operators import OpInfo, is_operator, is_method, resolve
 class Strategy(ABC):
     def __init__(self):
         self.known_ops = collections.defaultdict(list)
-        self.known_methods = {}
+        self.known_methods = set()
         self.collect_ops_and_methods()
 
     def collect_ops_and_methods(self):
@@ -18,6 +18,9 @@ class Strategy(ABC):
             if is_operator(v):
                 attrs = resolve(v)
                 self.known_ops[attrs['name']].append((getattr(type(self), k), attrs))
+
+            if is_method(v):
+                self.known_methods.add(k)
 
     def get_op_handler(self, op_info: OpInfo):
         handlers = self.known_ops[op_info.op_type]

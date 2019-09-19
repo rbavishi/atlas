@@ -36,6 +36,7 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
     def test_gen_custom_strategy_1(self):
         class ReversedDFS(DfsStrategy):
+            @operator(name='Select', uid="reversed")
             def Select_reversed(self, domain, *args, **kwargs):
                 yield from reversed(domain)
 
@@ -43,7 +44,7 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
         def binary(length: int):
             s = ""
             for i in range(length):
-                s += Select(["0", "1"], label='reversed')
+                s += Select(["0", "1"], uid='reversed')
 
             return s
 
@@ -307,7 +308,7 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
         def binary(length: int):
             s = ""
             for i in range(length):
-                s += Select(["0", "1"], label="bit_select")
+                s += Select(["0", "1"], uid="bit_select")
 
             return s
 
