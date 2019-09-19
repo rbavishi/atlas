@@ -2,7 +2,7 @@ import collections
 import itertools
 import random
 import string
-from typing import Dict, Set, List, Callable, Any, Collection
+from typing import Dict, Set, List, Callable, Any, Collection, Optional
 
 import pandas as pd
 import numpy as np
@@ -59,19 +59,20 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
     def init(self):
         self.generated_inputs = []
 
-    def generate_new_external(self, dtype, op_info: OpInfo, context):
-        if op_info.label is None and dtype is pd.DataFrame:
+    def generate_new_external(self, dtype, datagen_label: Optional[str], context):
+        if datagen_label is None and dtype is pd.DataFrame:
             return self.df_generator.call()
 
-        if op_info.label is not None:
-            attr = f"get_ext_{op_info.label}"
+        if datagen_label is not None:
+            attr = f"get_ext_{datagen_label}"
             if hasattr(self, attr):
                 a = getattr(self, attr)(context=context)
                 return a
 
         return self.Sentinel
 
-    def Sequence_function_sequence_prediction(self, **garbage):
+    @operator(name='Sequence', tags=["function_sequence_prediction"])
+    def Sequence_func(self, **garbage):
         yield self.func_seq
 
     @operator
@@ -142,7 +143,7 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
 
     @operator
     def SelectExternal(self, domain, context=None, op_info: OpInfo = None, dtype=None, preds: List[Callable] = None,
-                       kwargs: Dict = None, **extra):
+                       kwargs: Dict = None, datagen_label: str = None, **extra):
         if preds is None:
             preds = []
 
@@ -164,7 +165,7 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         yield from unused_domain
         for i in used_domain:
             if i is self.Sentinel:
-                val = self.generate_new_external(dtype, op_info, context)
+                val = self.generate_new_external(dtype, datagen_label, context)
                 if val is self.Sentinel:
                     continue
 

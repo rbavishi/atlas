@@ -42,7 +42,7 @@ class FullReplayStrategy(Strategy):
 
 class PartialReplayStrategy(Strategy):
     """
-    Replay a GeneratorTrace or a Mapping from sid/labels to return values of operators.
+    Replay a GeneratorTrace or a Mapping from sid/uids to return values of operators.
     It also takes a backup strategy as an argument to consult if an operator is encountered
     for which no replay information is available. Consequently, it does not throws an error
     if the trace and the generator execution are inconsistent at any point of time.
@@ -55,17 +55,17 @@ class PartialReplayStrategy(Strategy):
         self.known_ops = backup_strategy.known_ops
 
         self.op_choices = collections.defaultdict(list)
-        self.label_choices = {}
+        self.uid_choices = {}
 
         if isinstance(trace, GeneratorTrace):
             for t in trace.op_traces:
                 self.op_choices[t.op_info.sid].append(t.choice)
 
         else:
-            self.label_choices = trace.copy()
+            self.uid_choices = trace.copy()
 
         self.op_choice_map: Dict[str, Iterator] = {}
-        self.label_choice_map: Dict[str, Iterator] = {}
+        self.uid_choice_map: Dict[str, Iterator] = {}
 
     def get_op_handler(self, op_info: OpInfo):
         return self.backup_strategy.get_op_handler(op_info)
@@ -78,7 +78,7 @@ class PartialReplayStrategy(Strategy):
 
     def init_run(self):
         self.op_choice_map = {k: iter(v) for k, v in self.op_choices.items()}
-        self.label_choice_map = {k: iter(v) for k, v in self.label_choices.items()}
+        self.uid_choice_map = {k: iter(v) for k, v in self.uid_choices.items()}
         self.backup_strategy.init_run()
 
     def finish_run(self):
@@ -92,8 +92,8 @@ class PartialReplayStrategy(Strategy):
         if op_info.sid in self.op_choice_map:
             return next(self.op_choice_map[op_info.sid])
 
-        if op_info.label in self.label_choice_map:
-            return next(self.label_choice_map[op_info.label])
+        if op_info.uid in self.uid_choice_map:
+            return next(self.uid_choice_map[op_info.uid])
 
         return self.backup_strategy.generic_call(domain, context=context, op_info=op_info,
                                                  handler=handler, **kwargs)

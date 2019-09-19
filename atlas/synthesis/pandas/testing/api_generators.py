@@ -11,6 +11,7 @@ from atlas.synthesis.pandas.checker import Checker
 from atlas.synthesis.pandas.strategies import PandasSynthesisStrategy
 from atlas.synthesis.pandas.engine import sequential_enumerator
 from atlas.utils import get_group_by_name
+from atlas.strategies import operator
 
 api_gens = {
     gen.name: gen for gen in get_group_by_name('pandas')
@@ -1724,7 +1725,8 @@ class KnownSequenceStrategy(PandasSynthesisStrategy):
         super().__init__()
         self.func_seq = func_seq
 
-    def Sequence_function_sequence_prediction(self, **kwargs):
+    @operator(name='Sequence', tags=["function_sequence_prediction"])
+    def Sequence_func(self, **kwargs):
         yield self.func_seq
 
 
