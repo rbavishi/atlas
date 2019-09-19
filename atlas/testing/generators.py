@@ -3,8 +3,7 @@ import unittest
 
 from atlas import generator
 from atlas.exceptions import ExceptionAsContinue
-from atlas.strategies import DfsStrategy, operator
-from atlas.strategies.strategy import method
+from atlas.strategies import DfsStrategy, operator, method
 from atlas.utils.stubs import stub
 
 
