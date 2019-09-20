@@ -1303,7 +1303,6 @@ def gen_df_groupby(inputs, output, *args, **kwargs):
             index_cols = [index.names[i] for i in range(index.nlevels) if index.names[i] is not None]
             _by = list(Subset(cols + list(index_cols), context=c, kwargs=kwargs, uid="11"))
 
-    print("Over here")
     return _self.groupby(by=_by, axis=_axis, level=_level, as_index=_as_index, sort=_sort), {
         'self': _self, 'by': _by, 'axis': _axis, 'level': _level, 'as_index': _as_index, 'sort': _sort
     }
