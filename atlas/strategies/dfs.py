@@ -39,7 +39,7 @@ class DfsStrategy(IteratorBasedStrategy):
         self.gen_call_id = 0
 
     def finish_run(self):
-        for t in range(self.call_id - 1, -1, -1):
+        for t in range(max(self.op_iter_map.keys(), default=-1), -1, -1):
             try:
                 self.val_map[t] = next(self.op_iter_map[t])
                 self.val_map = {k: v for k, v in self.val_map.items() if k <= t}
