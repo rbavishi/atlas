@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 
 pd_groupby = pd.core.groupby.GroupBy
+pd_series_groupby = pd.core.groupby.SeriesGroupBy
+pd_df_groupby = pd.core.groupby.DataFrameGroupBy
 
 
 class Checker:
@@ -62,8 +64,22 @@ class Checker:
         if not isinstance(v2, pd_groupby):
             return False
 
+        if isinstance(v1, pd_df_groupby) and not isinstance(v2, pd_df_groupby):
+            return False
+
+        if isinstance(v1, pd_series_groupby) and not isinstance(v2, pd_series_groupby):
+            return False
+
         try:
-            return all(v1.apply(lambda x: x.equals(v2.get_group(x.name)) if x.name in v2.groups else False))
+            if list(v1.groups.keys()) != list(v2.groups.keys()):
+                return False
+
+            if isinstance(v1, pd_df_groupby):
+                return Checker.check_dataframe(v1.obj, v2.obj)
+
+            if isinstance(v1, pd_series_groupby):
+                return Checker.check_series(v1.obj, v2.obj)
+
         except (AssertionError, TypeError, ValueError, NameError):
             return False
         except Exception as e:

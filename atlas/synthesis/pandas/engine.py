@@ -34,7 +34,7 @@ def sequential_enumerator(inputs, output,
     for idx, func in enumerate(func_seq, 1):
         func_gen = api_gens[func]
         try:
-            val, args = func_gen(intermediates + inputs, output, unused_intermediates=unused_intermediates)
+            val, args = func_gen(intermediates + inputs, output, idx=idx, unused_intermediates=unused_intermediates)
         except ExceptionAsContinue:
             raise
         except Exception as e:
