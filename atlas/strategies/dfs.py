@@ -116,6 +116,13 @@ class DfsStrategy(IteratorBasedStrategy):
         yield from domain
 
     @operator
+    def Substr(self, domain: Any, context: Any = None, **kwargs):
+        if isinstance(domain, str):
+            for i in range(len(domain)):
+                for j in range(i, len(domain)):
+                    yield domain[i: j+1]
+
+    @operator
     def Subset(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
                include_empty: bool = False, **kwargs):
         if lengths is None:
