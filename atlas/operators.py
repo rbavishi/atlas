@@ -1,12 +1,22 @@
 import ast
 import collections
-from typing import Optional, List, NamedTuple, Callable, Union
+from typing import Optional, List, NamedTuple, Callable, Union, Dict, Tuple
 
 import astunparse
 
 IS_GENERATOR_OP = "_is_generator_operator"
 IS_GENERATOR_METHOD = "_is_generator_method"
 RESOLUTION_INFO = "_resolution_INFO"
+
+
+class OpInfo(NamedTuple):
+    sid: str
+    gen_name: str
+    op_type: str
+    index: int
+    gen_group: str = None
+    uid: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 def operator_decorator(name: str = None,
@@ -85,18 +95,55 @@ def is_method(func):
     return getattr(func, IS_GENERATOR_METHOD, False)
 
 
-def resolve(func):
+def get_attrs(func):
     return getattr(func, RESOLUTION_INFO)
 
 
-class OpInfo(NamedTuple):
-    sid: str
-    gen_name: str
-    op_type: str
-    index: int
-    gen_group: str = None
-    uid: Optional[str] = None
-    tags: Optional[List[str]] = None
+class OpResolvable:
+    pass
+
+
+def find_known_operators(obj: OpResolvable):
+    known_ops = collections.defaultdict(list)
+    for k in dir(obj):
+        v = getattr(obj, k)
+        if is_operator(v):
+            attrs = get_attrs(v)
+            known_ops[attrs['name']].append((getattr(type(obj), k), attrs))
+
+    return known_ops
+
+
+def find_known_methods(obj: OpResolvable):
+    known_methods = set()
+    for k in dir(obj):
+        v = getattr(obj, k)
+
+        if is_method(v):
+            known_methods.add(k)
+
+    return known_methods
+
+
+def resolve_operator(operators: Dict[str, List[Tuple[Callable, Dict]]], op_info: OpInfo):
+    candidates = operators[op_info.op_type]
+    if len(candidates) == 1:
+        return candidates[0][0]
+
+    #  First filter out downright mismatches
+    candidates = [h for h in candidates if h[1]['gen_name'] in [None, op_info.gen_name]]
+    candidates = [h for h in candidates if h[1]['gen_group'] in [None, op_info.gen_group]]
+    candidates = [h for h in candidates if h[1]['uid'] in [None, op_info.uid]]
+    candidates = [h for h in candidates if set(h[1]['tags'] or op_info.tags or []).issuperset(set(op_info.tags or []))]
+
+    #  Get the "most-specific" matches i.e. handlers with the most number of fields specified (not None)
+    min_none_cnts = min(list(h[1].values()).count(None) for h in candidates)
+    candidates = [h for h in candidates if list(h[1].values()).count(None) == min_none_cnts]
+
+    if len(candidates) == 1:
+        return candidates[0][0]
+
+    raise ValueError(f"Could not resolve operator handler unambiguously for operator {op_info}.")
 
 
 class OpInfoConstructor:
