@@ -40,3 +40,9 @@ class GeneratorModel(TrainableModel, ABC):
     @abstractmethod
     def infer(self, domain: Any, context: Any = None, op_info: OpInfo = None, **kwargs):
         pass
+
+    def init_run(self):
+        pass
+
+    def finish_run(self):
+        pass

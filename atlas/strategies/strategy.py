@@ -47,5 +47,13 @@ class IteratorBasedStrategy(Strategy, ABC):
         super().__init__()
         self.model: Optional[GeneratorModel] = None
 
+    def init_run(self):
+        if self.model is not None:
+            self.model.init_run()
+
+    def finish_run(self):
+        if self.model is not None:
+            self.model.finish_run()
+
     def set_model(self, model: Optional[GeneratorModel]):
         self.model = model

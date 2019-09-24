@@ -642,6 +642,9 @@ class GeneratorExecEnvironment(Iterable):
 
         """
         self.model = model
+        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
+            self.strategy.set_model(self.model)
+
         return self
 
     def with_replay(self, trace: Union[Dict[str, List[Any]], GeneratorTrace]):

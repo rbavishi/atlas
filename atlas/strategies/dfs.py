@@ -28,6 +28,7 @@ class DfsStrategy(IteratorBasedStrategy):
         self.operator_iterator_bound: Optional[int] = None
 
     def init(self):
+        super().init_run()
         self.call_id = 0
         self.gen_call_id = 0
         self.op_iter_map = {}
@@ -35,10 +36,12 @@ class DfsStrategy(IteratorBasedStrategy):
         self.finished = False
 
     def init_run(self):
+        super().init_run()
         self.call_id = 0
         self.gen_call_id = 0
 
     def finish_run(self):
+        super().finish_run()
         for t in range(max(self.op_iter_map.keys(), default=-1), -1, -1):
             try:
                 self.val_map[t] = next(self.op_iter_map[t])

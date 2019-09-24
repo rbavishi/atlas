@@ -127,8 +127,6 @@ def find_known_methods(obj: OpResolvable):
 
 def resolve_operator(operators: Dict[str, List[Tuple[Callable, Dict]]], op_info: OpInfo):
     candidates = operators[op_info.op_type]
-    if len(candidates) == 1:
-        return candidates[0][0]
 
     #  First filter out downright mismatches
     candidates = [h for h in candidates if h[1]['gen_name'] in [None, op_info.gen_name]]
