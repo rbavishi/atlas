@@ -125,3 +125,25 @@ class TestBasicStrategyFunctionality(unittest.TestCase):
             return s
 
         self.assertRaisesRegex(ValueError, r"Could not resolve \.*", lambda x: list(binary.generate(x)), 2)
+
+    def test_random_strategy(self):
+        @generator(strategy='randomized')
+        def all_ops():
+            ctx = {"abc": 123, "def": 456}
+
+            domain = list(range(10))
+
+            a = Select(domain, context=ctx)
+            b = Sequence(domain, context=ctx, max_len=4)
+            c = Subset(domain, context=ctx, lenghts=[2, 3])
+            d = OrderedSubset(domain, context=ctx)
+
+            return (a, b, c ,d)
+
+        for ct, x in enumerate(all_ops.generate()):
+            if ct > 10:
+                break
+
+if __name__ == "__main__":
+    unittest.main()
+
