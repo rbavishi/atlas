@@ -23,3 +23,13 @@ class RandStrategy(Strategy):
             lengths = list(range(1, len(domain) + 1))
 
         return random.sample(domain, random.choice(lengths))
+
+    @operator
+    def Substr(self, domain: str, **kwargs):
+        if not isinstance(domain, str):
+            raise TypeError("Substr only takes string as an input")
+
+        indices = list(range(len(domain)))
+        first = random.choice(indices[:-1])
+        last = random.choice(indices[first + 1:])
+        return domain[first: last]
