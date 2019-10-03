@@ -21,6 +21,7 @@ class GNN(TensorflowModel, ABC):
             if node_offset > batch_size > 0:
                 yield len(cur_batch), self.define_batch(cur_batch, is_training)
                 node_offset = 0
+                cur_batch = []
 
         if len(cur_batch) > 0:
             yield len(cur_batch), self.define_batch(cur_batch, is_training)
