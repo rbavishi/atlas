@@ -419,6 +419,9 @@ class PandasGraphEncoder:
         if isinstance(val, pd.DataFrame):
             return DataFrameEncoding(label, val)
 
+        if isinstance(val, pd.Series):
+            return DataFrameEncoding(label, pd.DataFrame(val))
+
         raise TypeError(f"Cannot encode value {val} of type {type(val)} ")
 
     def post_process(self, encoding: Dict[str, Any]):
@@ -476,6 +479,92 @@ class PandasGraphEncoder:
         else:
             encoding['mapping'] = {node_to_int[encoded_domain[f"D{idx}"].get_representor_node()]: v
                                    for idx, v in enumerate(domain)}
+
+        self.post_process(encoding)
+        return encoding
+
+    def SelectFixed(self, domain, context=None, choice=None, mode='training', **kwargs):
+        #  We expect domain to be a list of values
+        #  We expect context to be a dictionary with keys as labels and values as the raw values
+        #  For example {'I0': Input DataFrame, 'O': Output DataFrame}
+        if context is None:
+            context = {}
+
+        encoded_context: Dict[str, ValueEncoding] = {k: self.encode_value(k, v) for k, v in context.items()}
+
+        val_collection: ValueCollection = ValueCollection()
+        for k, v in encoded_context.items():
+            v.build()
+            val_collection.add_value_encoding(v)
+
+        for node in val_collection.nodes:
+            if node.label.startswith("I"):
+                node.features.add(NodeSources.INPUT)
+            elif node.label.startswith("O"):
+                node.features.add(NodeSources.OUTPUT)
+            elif node.label.startswith("D"):
+                node.features.add(NodeSources.DOMAIN)
+
+        encoding, node_to_int = val_collection.to_dict()
+        if mode == 'training':
+            encoding['choice'] = domain.index(choice)
+
+        else:
+            encoding['mapping'] = {idx: v for idx, v in enumerate(domain)}
+
+        self.post_process(encoding)
+        return encoding
+
+    def OrderedSubset(self, domain, context=None, choice=None, mode='training', **kwargs):
+        #  We expect domain to be a list of values
+        #  We expect context to be a dictionary with keys as labels and values as the raw values
+        #  For example {'I0': Input DataFrame, 'O': Output DataFrame}
+        if context is None:
+            context = {}
+
+        encoded_domain: Dict[str, ValueEncoding] = {f"D{idx}": self.encode_value(f"D{idx}", v)
+                                                    for idx, v in enumerate(domain)}
+        encoded_context: Dict[str, ValueEncoding] = {k: self.encode_value(k, v) for k, v in context.items()}
+
+        val_collection: ValueCollection = ValueCollection()
+        for k, v in encoded_domain.items():
+            v.build()
+            val_collection.add_value_encoding(v)
+        for k, v in encoded_context.items():
+            v.build()
+            val_collection.add_value_encoding(v)
+
+        for node in val_collection.nodes:
+            if node.label.startswith("I"):
+                node.features.add(NodeSources.INPUT)
+            elif node.label.startswith("O"):
+                node.features.add(NodeSources.OUTPUT)
+            elif node.label.startswith("D"):
+                node.features.add(NodeSources.DOMAIN)
+
+        terminal = GraphNode("TERMINAL", {NodeRoles.TERMINAL})
+        val_collection.nodes.append(terminal)
+
+        encoding, node_to_int = val_collection.to_dict()
+        encoding['domain'] = [node_to_int[v.get_representor_node()]
+                              for v in encoded_domain.values()] + [node_to_int[terminal]]
+        if mode == 'training':
+            encoding['choice'] = []
+            for elem in choice:
+                for k, v in encoded_domain.items():
+                    if Checker.check(v.val, elem):
+                        encoding['choice'].append(node_to_int[v.get_representor_node()])
+                        break
+                else:
+                    raise ValueError(f"Element {elem} of passed choice {choice} could not be found in domain {domain}")
+
+            encoding['choice'].append(node_to_int[terminal])
+            encoding['terminal'] = node_to_int[terminal]
+
+        else:
+            encoding['mapping'] = {node_to_int[encoded_domain[f"D{idx}"].get_representor_node()]: v
+                                   for idx, v in enumerate(domain)}
+            encoding['terminal'] = node_to_int[terminal]
 
         self.post_process(encoding)
         return encoding
