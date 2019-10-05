@@ -108,6 +108,22 @@ class TestBasicStrategyFunctionality(unittest.TestCase):
 
     def test_operator_resolution_5(self):
         class TestStrategy(DfsStrategy):
+            @operator(name='MyOperator', uid="something")
+            def MyOperator(self, domain, **kwargs):
+                yield from reversed(domain)
+
+        @generator(strategy=TestStrategy())
+        def binary(l: int):
+            s = ""
+            for i in range(l):
+                s += MyOperator(["0", "1"], uid="else")
+
+            return s
+
+        self.assertRaisesRegex(ValueError, r"Could not resolve \.*", lambda x: list(binary.generate(x)), 2)
+
+    def test_operator_resolution_6(self):
+        class TestStrategy(DfsStrategy):
             @operator(name='Select', tags=["20", "10"])
             def MyOperator1(self, domain, **kwargs):
                 yield from reversed(domain)
