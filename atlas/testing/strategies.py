@@ -1,3 +1,4 @@
+import itertools
 import unittest
 
 from atlas import generator
