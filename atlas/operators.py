@@ -127,8 +127,6 @@ def find_known_methods(obj: OpResolvable):
 
 def resolve_operator(operators: Dict[str, List[Tuple[Callable, Dict]]], op_info: OpInfo):
     candidates = operators[op_info.op_type]
-    if len(candidates) == 1:
-        return candidates[0][0]
 
     #  First filter out downright mismatches
     candidates = [h for h in candidates if h[1]['gen_name'] in [None, op_info.gen_name]]
@@ -137,7 +135,7 @@ def resolve_operator(operators: Dict[str, List[Tuple[Callable, Dict]]], op_info:
     candidates = [h for h in candidates if set(h[1]['tags'] or op_info.tags or []).issuperset(set(op_info.tags or []))]
 
     #  Get the "most-specific" matches i.e. handlers with the most number of fields specified (not None)
-    min_none_cnts = min(list(h[1].values()).count(None) for h in candidates)
+    min_none_cnts = min([list(h[1].values()).count(None) for h in candidates], default=-1)
     candidates = [h for h in candidates if list(h[1].values()).count(None) == min_none_cnts]
 
     if len(candidates) == 1:

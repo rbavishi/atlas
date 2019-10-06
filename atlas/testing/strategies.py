@@ -108,6 +108,22 @@ class TestBasicStrategyFunctionality(unittest.TestCase):
 
     def test_operator_resolution_5(self):
         class TestStrategy(DfsStrategy):
+            @operator(name='MyOperator', uid="something")
+            def MyOperator(self, domain, **kwargs):
+                yield from reversed(domain)
+
+        @generator(strategy=TestStrategy())
+        def binary(l: int):
+            s = ""
+            for i in range(l):
+                s += MyOperator(["0", "1"], uid="else")
+
+            return s
+
+        self.assertRaisesRegex(ValueError, r"Could not resolve \.*", lambda x: list(binary.generate(x)), 2)
+
+    def test_operator_resolution_6(self):
+        class TestStrategy(DfsStrategy):
             @operator(name='Select', tags=["20", "10"])
             def MyOperator1(self, domain, **kwargs):
                 yield from reversed(domain)
@@ -126,24 +142,26 @@ class TestBasicStrategyFunctionality(unittest.TestCase):
 
         self.assertRaisesRegex(ValueError, r"Could not resolve \.*", lambda x: list(binary.generate(x)), 2)
 
-    def test_random_strategy(self):
+    def test_randomized_operators(self):
         @generator(strategy='randomized')
         def all_ops():
             ctx = {"abc": 123, "def": 456}
 
-            domain = list(range(10))
+            domain = list(range(5))
 
             a = Select(domain, context=ctx)
             b = Sequence(domain, context=ctx, max_len=4)
-            c = Subset(domain, context=ctx, lenghts=[2, 3])
-            d = OrderedSubset(domain, context=ctx)
+            c = Subset(domain, context=ctx)
+            d = OrderedSubset(domain, context=ctx, lengths=[2, 3])
 
-            return (a, b, c ,d)
+            return a, b, c, d
 
-        for ct, x in enumerate(all_ops.generate()):
-            if ct > 10:
-                break
+        domain = list(range(5))
+        for res in itertools.islice(all_ops.generate(), 100):
+            self.assertIn(res[0], domain)
+            for elem in res[1]:
+                self.assertIn(elem, domain)
 
-if __name__ == "__main__":
-    unittest.main()
-
+            self.assertEqual(len(res[2]), len(set(res[2])))
+            self.assertEqual(len(res[3]), len(set(res[3])))
+            self.assertIn(len(res[3]), [2, 3])

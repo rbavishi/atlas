@@ -1,5 +1,6 @@
 import ast
 import inspect
+import textwrap
 from inspect import builtins, ismodule, iscode, ClosureVars
 from typing import Optional
 
@@ -33,8 +34,8 @@ def getclosurevars_recursive(func, f_ast: Optional[ast.FunctionDef] = None):
 
     annotation_names = []
     try:
-        if f_ast is not None:
-            f_ast: ast.FunctionDef = astutils.parse(inspect.getsource(func))
+        if f_ast is None:
+            f_ast: ast.FunctionDef = astutils.parse(textwrap.dedent(inspect.getsource(func)))
 
         for n in ast.walk(f_ast.args):
             if isinstance(n, ast.arg) and n.annotation is not None:

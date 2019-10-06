@@ -663,10 +663,26 @@ class GeneratorExecEnvironment(Iterable):
         return self
 
 
-def generator(*args, **kwargs) -> Generator:
+def generator(func=None, strategy='dfs', name=None, group=None, caching=None, metadata=None) -> Generator:
     """Define a generator from a function
 
-    Can be used with no arguments or specific keyword arguments to define a generator as follows:
+    Args:
+        func (Callable): The function to define generator
+
+        strategy (Union[str, Strategy]): The strategy to use while executing the generator.
+            Can be a string (one of 'dfs' and 'randomized') or an instance of the ``Strategy`` class.
+            Default is 'dfs'.
+
+        name (str): Name used to register the generator.
+            If unspecified, the generator is not registered.
+
+        group (str): Name of the group to register the generator in.
+            If unspecified, the generator is not registered with any group.
+
+        metadata (Dict[Any, Any]): A dictionary containing arbitrary metadata
+            to carry around in the generator object.
+
+    Examples:
 
     .. code-block:: python
 
@@ -696,33 +712,12 @@ def generator(*args, **kwargs) -> Generator:
         10
         11
 
-    The function also accepts specific keyword arguments:
-
-    Keyword Args:
-        strategy (Union[str, Strategy]): The strategy to use while executing the generator.
-            Can be a string (one of 'dfs' and 'randomized') or an instance of the ``Strategy`` class.
-            Default is 'dfs'.
-
-        name (str): Name used to register the generator.
-            If unspecified, the generator is not registered.
-
-        group (str): Name of the group to register the generator in.
-            If unspecified, the generator is not registered with any group.
-
-        metadata (Dict[Any, Any]): A dictionary containing arbitrary metadata
-            to carry around in the generator object.
     """
-    allowed_kwargs = {'strategy', 'name', 'group', 'caching', 'metadata'}
-    error_str = f"The @generator decorator should be applied either with no parentheses or " \
-                f"at least one of the following keyword args - {', '.join(allowed_kwargs)}."
-    assert (len(args) == 1 and len(kwargs) == 0 and callable(args[0])) or \
-           (len(args) == 0 and len(kwargs) > 0 and set(kwargs.keys()).issubset(allowed_kwargs)), error_str
+    def wrapper(func):
+        return Generator(func, strategy=strategy, name=name, group=group, caching=caching, metadata=metadata)
 
-    if len(args) == 1:
-        return Generator(args[0])
-
+    if func:
+        return wrapper(func)
     else:
-        def wrapper(func):
-            return Generator(func, **kwargs)
-
         return wrapper
+
