@@ -4,10 +4,10 @@ from typing import Collection, Any, Optional, Tuple
 
 import tensorflow as tf
 
-from atlas.models import TrainableModel
+from atlas.models import AtlasModel
 
 
-class KerasModel(TrainableModel, ABC):
+class KerasModel(AtlasModel, ABC):
     def __init__(self):
         self.model: Optional[tf.keras.Model] = None
 
@@ -45,14 +45,9 @@ class KerasModel(TrainableModel, ABC):
     def infer(self, data: Collection, **kwargs):
         return self.model.predict(self.preprocess(data, mode='inference'))
 
-    def save(self, path_dir: str):
-        super().save(path_dir)
+    def serialize(self, path_dir: str):
         tf.keras.models.save_model(self.model, f"{path_dir}/model.h5")
 
-    @classmethod
-    def load(cls, path_dir: str):
-        model = cls()
-        model.model = tf.keras.models.load_model(f"{path_dir}/model.h5")
-
-        return model
+    def deserialize(self, path_dir: str):
+        self.model = tf.keras.models.load_model(f"{path_dir}/model.h5")
 

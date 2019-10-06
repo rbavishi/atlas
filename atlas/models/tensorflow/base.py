@@ -5,11 +5,13 @@ from abc import ABC, abstractmethod
 from typing import Iterator, Iterable, Dict, List, Optional
 
 import tensorflow as tf
-from atlas.models import TrainableModel
+from atlas.models import AtlasModel
 from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper, SimpleEarlyStopper
+import random
+random.seed(0)
 
 
-class TensorflowModel(TrainableModel, ABC):
+class TensorflowModel(AtlasModel, ABC):
     def __init__(self, random_seed: int = 0):
         self.sess = None
         self.graph = None
@@ -55,6 +57,7 @@ class TensorflowModel(TrainableModel, ABC):
               training_data: Iterable, validation_data: Iterable,
               batch_size: int = 128,
               num_epochs: int = 1,
+              patience: int = 25,
               early_stopper: EarlyStopper = None,
               **kwargs):
 
@@ -63,7 +66,7 @@ class TensorflowModel(TrainableModel, ABC):
 
         if num_epochs < 0:
             if early_stopper is None:
-                early_stopper = SimpleEarlyStopper()
+                early_stopper = SimpleEarlyStopper(patience=patience)
 
         history: List[Dict] = []
 
@@ -78,6 +81,7 @@ class TensorflowModel(TrainableModel, ABC):
         try:
             tmpdir = tempfile.mkdtemp()
             for epoch in range(1, (num_epochs if num_epochs > 0 else 2**32) + 1):
+                random.shuffle(training_data)
                 history.append({'epoch': epoch})
 
                 train_loss = valid_loss = 0
@@ -139,6 +143,7 @@ class TensorflowModel(TrainableModel, ABC):
                         break
 
             if saved:
+                print(f"Restoring model with accuracy {best_acc} and loss {best_loss}")
                 saver.restore(self.sess, f"{tmpdir}/model.weights")
 
             return history
@@ -151,8 +156,11 @@ class TensorflowModel(TrainableModel, ABC):
     def infer(self, data: Iterator):
         pass
 
-    def save(self, path: str):
-        super().save(path)
+    def warmup(self):
+        #  Useful for speeding up the first inference
+        pass
+
+    def serialize(self, path: str):
         if self.sess is not None:
             with self.graph.as_default():
                 saver = tf.train.Saver()
@@ -161,17 +169,12 @@ class TensorflowModel(TrainableModel, ABC):
         with open(f"{path}/model", 'wb') as f:
             pickle.dump(self, f)
 
-    @classmethod
-    def load(cls, path: str):
-        with open(f"{path}/model", 'rb') as f:
-            model = pickle.load(f)
-
-        model.setup_graph()
-        with model.graph.as_default():
+    def deserialize(self, path: str):
+        self.setup_graph()
+        with self.graph.as_default():
             saver = tf.train.Saver()
-            saver.restore(model.sess, f"{path}/model.weights")
-
-        return model
+            saver.restore(self.sess, f"{path}/model.weights")
+            self.warmup()
 
     def __getstate__(self):
         state = self.__dict__.copy()

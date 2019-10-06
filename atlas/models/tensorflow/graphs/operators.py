@@ -1,4 +1,5 @@
 import collections
+import random
 
 import tensorflow as tf
 import numpy as np
@@ -111,6 +112,22 @@ class SelectFixedGGNN(GGNN):
 
         super().__init__(params, propagator, classifier, optimizer)
 
+    def warmup(self):
+        #  Three domain nodes and some context nodes. Each domain node has a distinct node feature.
+        num_domain_nodes = 3
+        domain = list(range(num_domain_nodes))
+        context = [i + len(domain) for i in range(random.randrange(1, 10))]
+        #  The only node feature is whether it's a domain node or a context node
+        nodes = [[i] for i in domain] + [[num_domain_nodes] for _ in context]
+        choice = random.choice(domain)
+        edges = [(ctx, 0, choice) for ctx in context]
+
+        SelectFixedGGNN.infer(self, [{
+            'nodes': nodes,
+            'domain': domain,
+            'edges': edges,
+        }])
+
     def infer(self, data: Iterable[Dict]):
         num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
         probabilities = self.sess.run(self.classifier.ops['probabilities'], feed_dict=batch_data)
@@ -212,6 +229,23 @@ class SelectGGNN(GGNN):
 
         super().__init__(params, propagator, classifier, optimizer)
 
+    def warmup(self):
+        #  A set of domain nodes, a set of context nodes, and the selected domain node has an edge
+        #  to one of the context nodes.
+        domain = list(range(random.randrange(1, 10)))
+        context = [i + len(domain) for i in range(random.randrange(1, 10))]
+        #  The only node feature is whether it's a domain node or a context node
+        nodes = [[0] for _ in domain] + [[1] for _ in context]
+        choice = random.choice(domain)
+        matched = random.choice(context)
+        edges = [(choice, 0, matched), (matched, 0, choice)]
+
+        SelectGGNN.infer(self, [{
+            'nodes': nodes,
+            'edges': edges,
+            'domain': domain,
+        }])
+
     def infer(self, data: Iterable[Dict]):
         num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
         results = self.sess.run([self.classifier.ops['probabilities'],
@@ -302,6 +336,25 @@ class SubsetGGNN(GGNN):
             classifier = SubsetGGNNClassifier(**params)
 
         super().__init__(params, propagator, classifier, optimizer)
+
+    def warmup(self):
+        #  A set of domain nodes, a set of context nodes, and the selected domain node has an edge
+        #  to one of the context nodes.
+        domain = list(range(random.randrange(2, 10)))
+        context = [i + len(domain) for i in range(random.randrange(1, 10))]
+        #  The only node feature is whether it's a domain node or a context node
+        nodes = [[0] for _ in domain] + [[1] for _ in context]
+        choices = random.sample(domain, random.randrange(1, len(domain)))
+        matched = random.choice(context)
+        edges = []
+        for choice in choices:
+            edges.extend([(choice, 0, matched), (matched, 0, choice)])
+
+        SubsetGGNN.infer(self, [{
+            'nodes': nodes,
+            'edges': edges,
+            'domain': domain,
+        }])
 
     def infer(self, data: Iterable[Dict], top_k: int = 100):
         num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
@@ -487,6 +540,32 @@ class OrderedSubsetGGNN(GGNN):
 
         super().__init__(params, propagator, classifier, optimizer)
 
+    def warmup(self):
+        #  A set of domain nodes, a set of context nodes, and the selected domain nodes have an edge to one of
+        #  the context nodes. The domain nodes also have a direction edge establishing the relative order
+        #  between them.
+        domain = list(range(random.randrange(3, 10)))
+        context = [i + len(domain) for i in range(random.randrange(1, 10))]
+        terminal = len(domain) + len(context)
+        #  The only node feature is whether it's a domain node or a context node
+        nodes = [[0] for _ in domain] + [[1] for _ in context] + [[2]]
+        choices = sorted(random.sample(domain, random.randrange(2, min(4, len(domain)))))
+        choices.append(terminal)
+        matched = random.choice(context)
+        edges = []
+        for choice in choices:
+            edges.extend([(choice, 0, matched), (matched, 0, choice)])
+
+        for i, j in zip(choices, choices[1:]):
+            edges.append((i, 1, j))
+
+        OrderedSubsetGGNN.infer(self, [{
+            'nodes': nodes,
+            'edges': edges,
+            'domain': domain + [terminal],
+            'terminal': terminal
+        }])
+
     def infer(self, data: Iterable[Dict], top_k: int = 100):
         num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
         results = self.sess.run([self.classifier.ops['probabilities'],
@@ -533,6 +612,27 @@ class SequenceFixedGGNN(GGNN):
 
         super().__init__(params, propagator, classifier, optimizer)
 
+    def warmup(self):
+        #  This is a replay the sequence task. Number of possibilities for each sequence element is fixed (as dictated
+        #  by num_classes). There will be n nodes in the graph (n <= num_domain_nodes) with node features equal
+        #  to the element IDs corresponding to the correct sequence. The edges amongst the nodes will dictate the order.
+
+        domain = list(range(3))
+        choices = random.sample(domain, random.randrange(1, 3))
+        random.shuffle(choices)
+        nodes = [[i] for i in choices]
+        edges = []
+
+        for i in range(len(choices)-1):
+            edges.append((i, 0, i+1))
+
+        SequenceFixedGGNN.infer(self, [{
+            'nodes': nodes,
+            'edges': edges,
+            'domain': domain,
+            'choice': choices
+        }])
+
     def infer(self, data: Iterable[Dict], top_k: int = 100):
         num_graphs, batch_data = next(self.get_batch_iterator(iter(data), -1, is_training=False))
         results = self.sess.run(self.classifier.ops['probabilities'], feed_dict=batch_data)
@@ -568,6 +668,33 @@ class SequenceGGNN(OrderedSubsetGGNN):
             classifier = SequenceGGNNClassifier(**params)
 
         super().__init__(params, propagator, classifier, optimizer)
+
+    def warmup(self):
+        #  A set of domain nodes, a set of context nodes, and the selected domain nodes have an edge to one of
+        #  the context nodes. Every selected node is repeated *twice* which is the main change from the OrderedSubset
+        #  test above. The domain nodes also have a direction edge establishing the relative order
+        #  between them.
+        domain = list(range(random.randrange(3, 10)))
+        context = [i + len(domain) for i in range(random.randrange(1, 10))]
+        terminal = len(domain) + len(context)
+        #  The only node feature is whether it's a domain node or a context node
+        nodes = [[0] for _ in domain] + [[1] for _ in context] + [[2]]
+        choices = sorted(random.sample(domain, random.randrange(2, min(4, len(domain)))))
+        choices.append(terminal)
+        matched = random.choice(context)
+        edges = []
+        for choice in choices:
+            edges.extend([(choice, 0, matched), (matched, 0, choice)])
+
+        for i, j in zip(choices, choices[1:]):
+            edges.append((i, 1, j))
+
+        SequenceGGNN.infer(self, [{
+            'nodes': nodes,
+            'edges': edges,
+            'domain': domain + [terminal],
+            'terminal': terminal
+        }])
 
     def beam_search(self, beam_size: int, probs: List[List[float]],
                     mapping: List[Any]) -> List[Tuple[List[Any], float]]:

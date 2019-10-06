@@ -6,23 +6,7 @@ from typing import Any
 from atlas.operators import OpInfo
 
 
-class Saveable(ABC):
-    @abstractmethod
-    def save(self, path: str):
-        os.makedirs(path, exist_ok=True)
-        with open(f"{path}/loader.pkl", 'wb') as f:
-            pickle.dump(self.load, f)
-
-    @classmethod
-    @abstractmethod
-    def load(cls, path: str):
-        with open(f"{path}/loader.pkl", 'rb') as f:
-            loader = pickle.load(f)
-
-        return loader(path)
-
-
-class TrainableModel(Saveable, ABC):
+class AtlasModel(ABC):
     @abstractmethod
     def train(self, *args, **kwargs):
         pass
@@ -31,8 +15,16 @@ class TrainableModel(Saveable, ABC):
     def infer(self, *args, **kwargs):
         pass
 
+    @abstractmethod
+    def serialize(self, path: str):
+        pass
 
-class GeneratorModel(TrainableModel, ABC):
+    @abstractmethod
+    def deserialize(self, path: str):
+        pass
+
+
+class GeneratorModel(AtlasModel, ABC):
     @abstractmethod
     def train(self, data: Any, *args, **kwargs):
         pass
