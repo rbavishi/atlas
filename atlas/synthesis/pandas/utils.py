@@ -1,4 +1,6 @@
 import ast
+
+import numpy as np
 import pandas as pd
 from typing import List, Any, Dict
 
@@ -25,12 +27,12 @@ class Program:
     Essentially captures a straight line sequence of function calls along with their arguments
     """
 
-    def __init__(self):
-        self.inputs: List[Any] = []
-        self.output: Any = None
-        self.intermediates: List[Any] = []
-        self.arguments: List[Dict] = []
-        self.functions: List[str] = []
+    def __init__(self, inputs=None, output=None, intermediates=None, arguments=None, functions=None):
+        self.inputs: List[Any] = inputs or []
+        self.output: Any = output
+        self.intermediates: List[Any] = intermediates or []
+        self.arguments: List[Dict] = arguments or []
+        self.functions: List[str] = functions or []
 
 
 def create_inversion_template():
@@ -73,3 +75,11 @@ def create_inversion_template():
                 body += get_methods_for_generator(n)
 
     print(body)
+
+
+def check_nan(num):
+    try:
+        #  To get around all the nan + array business
+        return (np.isnan(num) == True) is True
+    except:
+        return False

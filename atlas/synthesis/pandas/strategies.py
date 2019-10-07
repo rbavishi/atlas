@@ -71,6 +71,9 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
 
         return self.Sentinel
 
+    def generate_random_string(self, length: int):
+        return ''.join(random.choice(string.ascii_letters) for _ in range(length))
+
     @operator(name='Sequence', tags=["function_sequence_prediction"])
     def Sequence_func(self, **garbage):
         yield self.func_seq
@@ -382,7 +385,7 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         return random.choice(range(1 - nr, nr))
 
     def get_ext_str_df_add_prefix_suffix(self, context=None):
-        return ''.join(random.choice(string.ascii_letters) for i in range(random.randint(1, 8)))
+        return self.generate_random_string(random.randint(1, 8))
 
     def get_ext_other_df_align(self, context=None):
         df = context['_self']
@@ -417,6 +420,19 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
 
     def get_ext_fill_value_df_reindex(self, context=None):
         return round(random.uniform(-100, 100), 1)
+
+    def get_ext_labels_df_reindex(self, context=None):
+        df = context['_self']
+        nr, nc = df.shape
+        if np.random.choice([0, 1]) == 0:
+            vals = list(df.index)
+            new_vals = [self.generate_random_string(random.randint(1, 8)) for i in range(nr // 2)]
+            return list(random.sample(vals + new_vals, nr))
+
+        else:
+            vals = list(df.columns)
+            new_vals = [self.generate_random_string(random.randint(1, 8)) for i in range(nc // 2)]
+            return list(random.sample(vals + new_vals, nc))
 
     def get_ext_other_df_reindex_like(self, context=None):
         df = context['_self']

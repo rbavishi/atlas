@@ -7,6 +7,7 @@ from typing import Callable
 
 from atlas import generator
 from atlas.synthesis.pandas.stubs import Select, Subset, OrderedSubset, Product, SelectExternal, SelectFixed
+from atlas.synthesis.pandas.utils import check_nan
 
 
 # ======================================================================= #
@@ -1284,7 +1285,7 @@ def gen_df_groupby(inputs, output, *args, **kwargs):
         if single:
             _level = Select(list(range(0, src.nlevels - 1)), context=c, kwargs=kwargs, uid="7")
         else:
-            _level = list(OrderedSubset(list(range(src.levels)),
+            _level = list(OrderedSubset(list(range(src.nlevels)),
                                         lengths=list(range(2, src.nlevels + 1)), context=c, kwargs=kwargs, uid="8"))
 
     if _level is not None:
@@ -1382,8 +1383,11 @@ def gen_df_clip(inputs, output, *args, **kwargs):
     upper_default = None
 
     if isinstance(output, pd.DataFrame):
-        lower_default = np.min(output.select_dtypes(include=np.number).values)
-        upper_default = np.max(output.select_dtypes(include=np.number).values)
+        try:
+            lower_default = np.min(output.select_dtypes(include=np.number).values)
+            upper_default = np.max(output.select_dtypes(include=np.number).values)
+        except:
+            pass
 
     _lower = SelectExternal(inputs, dtype=(float, np.floating, int, np.integer), default=lower_default,
                             kwargs=kwargs, context=c, datagen_label="lower_df_clip", uid="2")
@@ -1406,7 +1410,10 @@ def gen_df_clip_lower(inputs, output, *args, **kwargs):
 
     default_threshold = None
     if isinstance(output, pd.DataFrame):
-        default_threshold = np.min(output.select_dtypes(include=np.number).values)
+        try:
+            default_threshold = np.min(output.select_dtypes(include=np.number).values)
+        except:
+            pass
 
     _threshold = SelectExternal(inputs, dtype=(float, np.floating, int, np.number), kwargs=kwargs, uid="2",
                                 context=c, datagen_label="threshold_df_clip_lower_upper", default=default_threshold)
@@ -1425,7 +1432,10 @@ def gen_df_clip_upper(inputs, output, *args, **kwargs):
 
     default_threshold = None
     if isinstance(output, pd.DataFrame):
-        default_threshold = np.max(output.select_dtypes(include=np.number).values)
+        try:
+            default_threshold = np.max(output.select_dtypes(include=np.number).values)
+        except:
+            pass
 
     _threshold = SelectExternal(inputs, dtype=(float, np.floating, int, np.number), kwargs=kwargs, uid="2",
                                 context=c, datagen_label="threshold_df_clip_lower_upper", default=default_threshold)
@@ -1882,7 +1892,7 @@ def gen_df_sem(inputs, output, *args, **kwargs):
 
     _axis = SelectFixed([0, 1], context=c, kwargs=kwargs, uid="2")
     _numeric_only = SelectFixed([None, True, False], context=c, kwargs=kwargs, uid="3")
-    _skipna = SelectFixed([True, False], context=c, kwargs=kwargs, uid="4")
+    _skipna = SelectFixed([None, True, False], context=c, kwargs=kwargs, uid="4")
 
     level_default = SelectFixed([True, False], context=c, kwargs=kwargs, uid="5")
     if level_default:
@@ -1893,9 +1903,9 @@ def gen_df_sem(inputs, output, *args, **kwargs):
         _level = list(OrderedSubset(levels, context=c, kwargs=kwargs, uid="6"))
 
     if _axis == 0:
-        _ddof = Select(list(range(0, _self.shape[0])), context=c, kwargs=kwargs, uid="7")
+        _ddof = Select(list(range(0, max(_self.shape[0], 2))), context=c, kwargs=kwargs, uid="7")
     else:
-        _ddof = Select(list(range(0, _self.shape[1])), context=c, kwargs=kwargs, uid="8")
+        _ddof = Select(list(range(0, max(_self.shape[1], 2))), context=c, kwargs=kwargs, uid="8")
 
     return _self.sem(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, ddof=_ddof), {
         'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'ddof': _ddof
@@ -1961,7 +1971,7 @@ def gen_df_std(inputs, output, *args, **kwargs):
 
     _axis = SelectFixed([0, 1], context=c, kwargs=kwargs, uid="2")
     _numeric_only = SelectFixed([None, True, False], context=c, kwargs=kwargs, uid="3")
-    _skipna = SelectFixed([True, False], context=c, kwargs=kwargs, uid="4")
+    _skipna = SelectFixed([None, True, False], context=c, kwargs=kwargs, uid="4")
 
     level_default = SelectFixed([True, False], context=c, kwargs=kwargs, uid="5")
     if level_default:
@@ -1972,9 +1982,9 @@ def gen_df_std(inputs, output, *args, **kwargs):
         _level = list(OrderedSubset(levels, context=c, kwargs=kwargs, uid="6"))
 
     if _axis == 0:
-        _ddof = Select(list(range(0, _self.shape[0])), context=c, kwargs=kwargs, uid="7")
+        _ddof = Select(list(range(0, max(_self.shape[0], 2))), context=c, kwargs=kwargs, uid="7")
     else:
-        _ddof = Select(list(range(0, _self.shape[1])), context=c, kwargs=kwargs, uid="8")
+        _ddof = Select(list(range(0, max(_self.shape[1], 2))), context=c, kwargs=kwargs, uid="7")
 
     return _self.std(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, ddof=_ddof), {
         'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'ddof': _ddof
@@ -1990,7 +2000,7 @@ def gen_df_var(inputs, output, *args, **kwargs):
 
     _axis = SelectFixed([0, 1], context=c, kwargs=kwargs, uid="2")
     _numeric_only = SelectFixed([None, True, False], context=c, kwargs=kwargs, uid="3")
-    _skipna = SelectFixed([True, False], context=c, kwargs=kwargs, uid="4")
+    _skipna = SelectFixed([None, True, False], context=c, kwargs=kwargs, uid="4")
 
     level_default = SelectFixed([True, False], context=c, kwargs=kwargs, uid="5")
     if level_default:
@@ -2001,9 +2011,9 @@ def gen_df_var(inputs, output, *args, **kwargs):
         _level = list(OrderedSubset(levels, context=c, kwargs=kwargs, uid="6"))
 
     if _axis == 0:
-        _ddof = Select(list(range(0, _self.shape[0])), context=c, kwargs=kwargs, uid="7")
+        _ddof = Select(list(range(0, max(_self.shape[0], 2))), context=c, kwargs=kwargs, uid="7")
     else:
-        _ddof = Select(list(range(0, _self.shape[1])), context=c, kwargs=kwargs, uid="8")
+        _ddof = Select(list(range(0, max(_self.shape[1], 2))), context=c, kwargs=kwargs, uid="7")
 
     return _self.var(axis=_axis, numeric_only=True, skipna=_skipna, level=_level, ddof=_ddof), {
         'self': _self, 'axis': _axis, 'numeric_only': True, 'skipna': _skipna, 'level': _level, 'ddof': _ddof
@@ -2064,7 +2074,8 @@ def gen_df_align(inputs, output, *args, **kwargs):
         _level = None
     else:
         src = _self.index if _axis == 0 else _self.columns
-        _level = Select([(src.names[i] or i) for i in range(src.nlevels)], context=c, kwargs=kwargs, uid="7")
+        _level = list(OrderedSubset([(src.names[i] or i) for i in range(src.nlevels)],
+                                    context=c, kwargs=kwargs, uid="7"))
 
     return _self.align(_other, join=_join, axis=_axis, level=_level, broadcast_axis=_broadcast_axis), {
         'self': _self, 'other': _other, 'join': _join, 'axis': _axis, 'level': _level, 'broadcast_axis': _broadcast_axis
@@ -2236,26 +2247,29 @@ def gen_df_reindex(inputs, output, *args, **kwargs):
                          fill_value=nan, limit=None, tolerance=None) """
 
     _self = SelectExternal(inputs, dtype=pd.DataFrame, kwargs=kwargs, uid="1")
-    c = {'I0': _self, 'O': output}
+    c = {'I0': _self, 'O': output, '_self': _self}
 
+    _labels = SelectExternal(inputs, dtype=(tuple, list), datagen_label="labels_df_reindex",
+                             kwargs=kwargs, default=None, context=c, uid="2")
     _fill_value = SelectExternal(inputs, dtype=object, preds=[np.isscalar], datagen_label="fill_value_df_reindex",
-                                 kwargs=kwargs, default=np.NaN, context=c, uid="2")
-    _limit = SelectExternal(inputs, dtype=(int, np.integer), default=None, kwargs=kwargs, context=c, uid="3")
+                                 kwargs=kwargs, default=np.NaN, context=c, uid="3")
+    _limit = SelectExternal(inputs, dtype=(int, np.integer), default=None, kwargs=kwargs, context=c, uid="4")
 
-    if isinstance(output, pd.DataFrame) and SelectFixed([True, False], context=c, kwargs=kwargs, uid="4"):
+    if isinstance(output, pd.DataFrame) and SelectFixed([True, False], context=c, kwargs=kwargs, uid="5"):
         return _self.reindex(index=output.index, columns=output.columns, limit=_limit, fill_value=_fill_value), {
-            'self': _self, 'index': output.index, 'columns': output.columns, 'limit': _limit, 'fill_value': _fill_value,
+            'self': _self, 'labels': None, 'index': output.index, 'columns': output.columns, 'limit': _limit,
+            'fill_value': _fill_value,
         }
 
-    _axis = SelectFixed([0, 1], context=c, kwargs=kwargs, uid="5")
+    _axis = SelectFixed([0, 1], context=c, kwargs=kwargs, uid="6")
     src = _self.index if _axis == 0 else _self.columns
     if src.nlevels == 1:
         _level = None
     else:
-        _level = Select([(src.names[i] or i) for i in range(0, src.nlevels)], context=c, kwargs=kwargs, uid="6")
+        _level = Select([(src.names[i] or i) for i in range(0, src.nlevels)], context=c, kwargs=kwargs, uid="7")
 
-    return _self.reindex(axis=_axis, level=_level, fill_value=_fill_value, limit=_limit), {
-        'axis': _axis, 'level': _level, 'fill_value': _fill_value, 'limit': _limit
+    return _self.reindex(labels=_labels, axis=_axis, level=_level, fill_value=_fill_value, limit=_limit), {
+        'labels': _labels, 'axis': _axis, 'level': _level, 'fill_value': _fill_value, 'limit': _limit
     }
 
 
@@ -2405,7 +2419,8 @@ def gen_df_fillna(inputs, output, *args, **kwargs):
 
     _axis = SelectFixed([None, 0, 1], context=c, kwargs=kwargs, uid="2")
     _method = SelectFixed([None, 'backfill', 'bfill', 'pad', 'ffill'], context=c, kwargs=kwargs, uid="3")
-    _limit = Select([None] + list(range(1, _self.count().sum() + 1)), context=c, kwargs=kwargs, uid="4")
+    nans = max(sum(1 for i in _self.values if check_nan(i)), _self.count().sum())
+    _limit = Select([None] + list(range(1, nans + 1)), context=c, kwargs=kwargs, uid="4")
 
     value_default = (_method is not None) and SelectFixed([True, False], context=c, kwargs=kwargs, uid="5")
     if value_default:
@@ -2462,7 +2477,10 @@ def gen_df_pivot_table(inputs, output, *args, **kwargs):
 
     #  Check if aggfunc works on non-numeric stuff
     try:
-        _ = _aggfunc(pd.Series(['a', 'b']))
+        agg = {
+            'mean': np.mean, 'sum': np.sum, 'min': np.min, 'max': np.max, 'median': np.median
+        }[_aggfunc]
+        _ = agg(pd.Series(['a', 'b']))
         works = True
 
     except:

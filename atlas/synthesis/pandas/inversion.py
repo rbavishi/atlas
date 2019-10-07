@@ -1,4 +1,3 @@
-import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -6,7 +5,7 @@ from typing import Dict, Any
 
 from atlas.strategies import DfsStrategy, operator
 from atlas.synthesis.pandas.checker import Checker
-from atlas.synthesis.pandas.utils import Program
+from atlas.synthesis.pandas.utils import Program, check_nan
 
 
 #  ---------------------------------------------------------------------
@@ -24,10 +23,12 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
 
     def checked_select(self, domain, key, **kwargs):
         try:
-            if 'default' in kwargs and kwargs['default'] == key:
+            if 'default' in kwargs and (kwargs['default'] == key or kwargs['default'] is key or
+                                        (str(key) in ['nan', 'None'] and str(kwargs['default']) == str(key))):
                 yield key
                 return
-        except:
+        except Exception as e:
+            # logging.exception(e)
             pass
 
         try:
@@ -168,6 +169,8 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
         args = self.get_args(state=kwargs)
         if isinstance(args['dtype'], str):
             yield from self.checked_select(domain, np.dtype(args['dtype']))
+        elif isinstance(args['dtype'], dict):
+            yield from set(domain) & {np.dtype(i) for i in args['dtype'].values()}
         else:
             yield from self.checked_select(domain, args['dtype'])
 
@@ -1409,11 +1412,13 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
     def Inv236(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
         yield from self.checked_select(domain, args['lower'], default=extra_kwargs['default'])
+        yield from self.checked_select(domain, args['lower'], default=None)
 
     @operator(name="SelectExternal", gen_name="df.clip", uid="3")
     def Inv237(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
         yield from self.checked_select(domain, args['upper'], default=extra_kwargs['default'])
+        yield from self.checked_select(domain, args['upper'], default=None)
 
     @operator(name="SelectExternal", gen_name="df.clip_lower", uid="1")
     def Inv238(self, domain, kwargs, **extra_kwargs):
@@ -1503,7 +1508,7 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
     @operator(name="SelectExternal", gen_name="df.cov", uid="2")
     def Inv255(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
-        yield from self.checked_select(domain, args['min_periods'])
+        yield from self.checked_select(domain, args['min_periods'], default=None)
 
     @operator(name="SelectExternal", gen_name="df.cummax", uid="1")
     def Inv256(self, domain, kwargs, **extra_kwargs):
@@ -2135,10 +2140,10 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
         args = self.get_args(state=kwargs)
         yield args['level'] is None
 
-    @operator(name="Select", gen_name="df.align", uid="7")
+    @operator(name="OrderedSubset", gen_name="df.align", uid="7")
     def Inv382(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
-        yield from self.checked_select(domain, args['level'])
+        yield from self.checked_ordered_subset(domain, tuple(args['level']))
 
     @operator(name="SelectExternal", gen_name="df.drop", uid="1")
     def Inv383(self, domain, kwargs, **extra_kwargs):
@@ -2298,29 +2303,37 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
     @operator(name="SelectExternal", gen_name="df.reindex", uid="1")
     def Inv413(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
+        print("Got here")
         yield from self.checked_select(domain, args['self'])
 
     @operator(name="SelectExternal", gen_name="df.reindex", uid="2")
-    def Inv414(self, domain, kwargs, **extra_kwargs):
+    def Inv413_2(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
-        yield from self.checked_select(domain, args['fill_value'], default=np.nan)
+        yield from self.checked_select(domain, args['labels'], default=None)
 
     @operator(name="SelectExternal", gen_name="df.reindex", uid="3")
+    def Inv414(self, domain, kwargs, **extra_kwargs):
+        args = self.get_args(state=kwargs)
+        print("Got here")
+        yield from self.checked_select(domain, args['fill_value'], default=np.nan)
+
+    @operator(name="SelectExternal", gen_name="df.reindex", uid="4")
     def Inv415(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
+        print("Got here")
         yield from self.checked_select(domain, args['limit'], default=None)
 
-    @operator(name="SelectFixed", gen_name="df.reindex", uid="4")
+    @operator(name="SelectFixed", gen_name="df.reindex", uid="5")
     def Inv416(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
         yield args.get('index', None) is not None
 
-    @operator(name="SelectFixed", gen_name="df.reindex", uid="5")
+    @operator(name="SelectFixed", gen_name="df.reindex", uid="6")
     def Inv417(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
         yield from self.checked_select(domain, args['axis'])
 
-    @operator(name="Select", gen_name="df.reindex", uid="6")
+    @operator(name="Select", gen_name="df.reindex", uid="7")
     def Inv418(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
         yield from self.checked_select(domain, args['level'])
@@ -2494,6 +2507,7 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
     def Inv452(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
         yield from self.checked_select(domain, args['limit'])
+        yield max(domain)
 
     @operator(name="SelectFixed", gen_name="df.fillna", uid="5")
     def Inv453(self, domain, kwargs, **extra_kwargs):
@@ -2518,7 +2532,18 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
     @operator(name="Select", gen_name="df.pivot_table", uid="3")
     def Inv457(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
-        yield from self.checked_select(domain, args['aggfunc'])
+        if isinstance(args['aggfunc'], str):
+            yield from self.checked_select(domain, args['aggfunc'])
+        elif args['aggfunc'] is np.amax or args['aggfunc'] is np.max:
+            yield 'max'
+        elif args['aggfunc'] is np.amin or args['aggfunc'] is np.min:
+            yield 'min'
+        elif args['aggfunc'] is np.sum:
+            yield 'sum'
+        elif args['aggfunc'] is np.median:
+            yield 'median'
+        elif args['aggfunc'] is np.mean:
+            yield 'mean'
 
     @operator(name="Select", gen_name="df.pivot_table", uid="4")
     def Inv458(self, domain, kwargs, **extra_kwargs):
@@ -2548,7 +2573,7 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
     @operator(name="SelectFixed", gen_name="df.pivot_table", uid="9")
     def Inv463(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
-        yield args['columns'] == []
+        yield args['index'] == []
 
     @operator(name="OrderedSubset", gen_name="df.pivot_table", uid="10")
     def Inv464(self, domain, kwargs, **extra_kwargs):
