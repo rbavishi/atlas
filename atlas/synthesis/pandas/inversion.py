@@ -2861,7 +2861,7 @@ class SequenceFirstInversionStrategy(GeneratorInversionStrategy):
         self.program: Program = program
 
     def get_args(self, state: Dict) -> Dict[str, Any]:
-        return self.program.arguments[state['idx']]
+        return self.program.arguments[state['idx'] - 1]
 
     @operator(name='Sequence', tags=['function_sequence_prediction'])
     def FuncSeqInverter(self, **kwargs):
