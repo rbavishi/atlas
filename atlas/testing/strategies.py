@@ -1,3 +1,4 @@
+import itertools
 import unittest
 
 from atlas import generator
@@ -141,3 +142,27 @@ class TestBasicStrategyFunctionality(unittest.TestCase):
             return s
 
         self.assertRaisesRegex(ValueError, r"Could not resolve \.*", lambda x: list(binary.generate(x)), 2)
+
+    def test_randomized_operators(self):
+        @generator(strategy='randomized')
+        def all_ops():
+            ctx = {"abc": 123, "def": 456}
+
+            domain = list(range(5))
+
+            a = Select(domain, context=ctx)
+            b = Sequence(domain, context=ctx, max_len=4)
+            c = Subset(domain, context=ctx)
+            d = OrderedSubset(domain, context=ctx, lengths=[2, 3])
+
+            return a, b, c, d
+
+        domain = list(range(5))
+        for res in itertools.islice(all_ops.generate(), 100):
+            self.assertIn(res[0], domain)
+            for elem in res[1]:
+                self.assertIn(elem, domain)
+
+            self.assertEqual(len(res[2]), len(set(res[2])))
+            self.assertEqual(len(res[3]), len(set(res[3])))
+            self.assertIn(len(res[3]), [2, 3])
