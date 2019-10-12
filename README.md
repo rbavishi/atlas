@@ -1,3 +1,5 @@
+<img align="left" src="atlas-logo.png" width=150>
+
 # Atlas
 
 [![Stage](https://img.shields.io/badge/Stage-Alpha-red)]()
@@ -5,6 +7,7 @@
 [![codecov](https://codecov.io/gh/rbavishi/atlas/branch/master/graph/badge.svg)](https://codecov.io/gh/rbavishi/atlas)
 
 A Framework for Model-Backed Generators
+
 
 ## Installation
 
