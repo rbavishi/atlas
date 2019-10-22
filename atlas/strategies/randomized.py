@@ -18,6 +18,9 @@ class RandStrategy(Strategy):
         return random.choice(domain)
 
     @operator
+    def SelectFixed(self, domain: Any, **kwargs):
+        return self.Select(domain)
+
     def Subset(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
                include_empty: bool = False, **kwargs):
         if lengths is None:
@@ -46,4 +49,9 @@ class RandStrategy(Strategy):
             lengths = range(1, max_len + 1)
 
         return random.choices(domain, k=random.choice(lengths))
-    
+
+    @operator
+    def SequenceFixed(self, domain: Any, context: Any = None, max_len: int = None,
+                      lengths: Collection[int] = None, **kwargs):
+        return self.Sequence(domain, context, max_len, lengths, **kwargs)
+
