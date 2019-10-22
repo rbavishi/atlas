@@ -11,7 +11,7 @@ from typing import Collection, Dict, Optional, Any, Callable
 import tqdm
 
 from atlas.models import GeneratorModel, TrainableModel
-from atlas.models.tensorflow.earlystoppers import EarlyStopper
+from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper
 from atlas.tracing import GeneratorTrace, OpTrace
 from atlas.operators import unpack_sid, OpInfo
 from atlas.utils.ioutils import IndexedFileWriter, IndexedFileReader
