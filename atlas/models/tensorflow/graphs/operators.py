@@ -339,12 +339,18 @@ class SubsetGGNN(GGNN):
 
 
 class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
-    def __init__(self, classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
+    def __init__(self, classifier_hidden_dims: List[int], max_length: int, 
+                 agg: str = 'sum', **kwargs):
+        self.max_length = max_length
         super().__init__(num_classes=-1, classifier_hidden_dims=classifier_hidden_dims, agg=agg, **kwargs)
 
     def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True, max_length: Optional[int] = None):
         batch_data = super().define_batch(graphs, is_training)
         batch_data.pop(self.placeholders['labels'])
+
+        max_length = max_length or self.max_length
+        if max_length is None:
+            max_length = max(len(g['domain']) for g in graphs)
 
         node_offset = 0
         domain = []
@@ -354,8 +360,6 @@ class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
         domain_node_timestep_graph_ids_list_unshifted = []
         loss_mask = []
         acc_mask = []
-        if max_length is None:
-            max_length = max(len(g['domain']) for g in graphs)
         for idx, g in enumerate(graphs):
             domain.extend([i + node_offset for i in g['domain']])
             domain_node_graph_ids_list.extend([idx for _ in range(len(g['domain']))])
@@ -554,12 +558,12 @@ class SequenceFixedGGNN(GGNN):
 
 
 class SequenceGGNNClassifier(OrderedSubsetGGNNClassifier):
-    def __init__(self, max_length: int, classifier_hidden_dims: List[int], agg: str = 'sum', **kwargs):
-        self.max_length = max_length
-        super().__init__(classifier_hidden_dims, agg, **kwargs)
+    def __init__(self, classifier_hidden_dims: List[int], max_length: int,
+                 agg: str = 'sum', **kwargs):
+        super().__init__(classifier_hidden_dims, max_length, agg, **kwargs)
 
     def define_batch(self, graphs: List[Dict[str, Any]], is_training: bool = True, max_length: Optional[int] = None):
-        return super().define_batch(graphs, is_training=is_training, max_length=self.max_length)
+        return super().define_batch(graphs, is_training=is_training, max_length=max_length)
 
 
 class SequenceGGNN(OrderedSubsetGGNN):

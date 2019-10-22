@@ -117,6 +117,7 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
                             (not (isinstance(d, ast.Call) and isinstance(d.func,
                                                                          ast.Name)) or d.func.id != 'generator')]
 
+
     #  Get all the external dependencies of this function.
     #  We rely on a modified closure function adopted from the ``inspect`` library.
     closure_vars = getclosurevars_recursive(func, f_ast)
@@ -657,7 +658,7 @@ class GeneratorExecEnvironment(Iterable):
         Returns:
              The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
         """
-        if not self.args and not self.kwargs:
+        if not self.args and not self.kwargs and isinstance(trace, GeneratorTrace):
             self.args, self.kwargs = trace.f_inputs
         self.strategy = PartialReplayStrategy(trace, self.strategy)
         return self

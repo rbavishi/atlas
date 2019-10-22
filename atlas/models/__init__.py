@@ -1,1 +1,2 @@
-from atlas.models.core import GeneratorModel, TrainableModel
+from .core import GeneratorModel, TrainableModel
+from .imitation import IndependentOperatorsModel

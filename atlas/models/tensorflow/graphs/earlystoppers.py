@@ -22,16 +22,18 @@ class EarlyStopper(ABC):
 
 
 class SimpleEarlyStopper(EarlyStopper):
-    def __init__(self, patience: int = 25, val_loss_threshold: float = 0.01,
-                 patience_zero_threshold: Optional[float] = None):
+    def __init__(self, patience: int = 25, 
+                 val_loss_threshold: Optional[float] = 0.01,
+                 val_acc_threshold: Optional[float] = 0.01,
+                 patience_zero_threshold: Optional[float] = 0.999):
         self.best_val_acc: float = -1
         self.best_val_loss: float = -1
         self.wait_cnt = 0
 
         self.patience = patience
         self.val_loss_threshold = val_loss_threshold
-        #  Default is 2.0 to avoid making patience zero unless explicitly supplied
-        self.patience_zero_threshold = patience_zero_threshold or 2.0
+        self.val_acc_threshold = val_acc_threshold
+        self.patience_zero_threshold = patience_zero_threshold
 
     def reset(self):
         self.best_val_acc: float = -1
@@ -42,7 +44,7 @@ class SimpleEarlyStopper(EarlyStopper):
         if val_acc >= self.patience_zero_threshold:
             return True
 
-        if val_acc > self.best_val_acc:
+        if val_acc > self.best_val_acc + self.val_acc_threshold:
             self.best_val_acc = val_acc
             self.best_val_loss = val_loss
             self.wait_cnt = 0

@@ -2,13 +2,16 @@ import datetime
 import json
 import os
 import shutil
+import time
 import tempfile
+import datetime
 from abc import ABC, abstractmethod
-from typing import Collection, Dict, Optional, Any
+from typing import Collection, Dict, Optional, Any, Callable
 
 import tqdm
 
 from atlas.models import GeneratorModel, TrainableModel
+from atlas.models.tensorflow.earlystoppers import EarlyStopper
 from atlas.tracing import GeneratorTrace, OpTrace
 from atlas.operators import unpack_sid, OpInfo
 from atlas.utils.ioutils import IndexedFileWriter, IndexedFileReader
@@ -39,6 +42,7 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
     def train(self,
               train_traces: Collection[GeneratorTrace],
               val_traces: Collection[GeneratorTrace] = None,
+              skip_sid: Callable = None,
               **kwargs):
 
         #  First, go over all the traces and create separate data-sets for each operator
@@ -47,32 +51,53 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
         if val_traces is not None:
             val_datasets: Dict[str, Collection[OpTrace]] = self.create_operator_datasets(val_traces, mode='validation')
 
+        self.train_with_datasets(train_datasets, valid_datasets, skip_id, **kwargs)
+
+    def train_with_datasets(self,
+                            train_datasets: Dict[str, Collection[OpTrace]], 
+                            valid_datasets: Dict[str, Collection[OpTrace]],
+                            skip_sid: Callable = None,
+                            early_stopper: EarlyStopper = None,
+                            **kwargs):
+        tbegin = datetime.datetime.now()
         for sid, dataset in train_datasets.items():
-            model: TrainableModel = self.get_op_model(sid)
-            if model is None:
+            if skip_sid and skip_sid(sid):
+                print(f"Skip {sid}")
                 continue
 
-            print(f"[+] Training model for {sid}")
-            model_dir = f"{self.work_dir}/models/{sid}"
-            os.makedirs(model_dir, exist_ok=True)
-            self.model_map[sid] = model
-            self.modeled_sids[sid] = model_dir
+            if sid in self.model_map:
+                print(f"[+] Training the existing model for {sid}")
+                model = self.model_map[sid]
+                model_dir = self.modeled_sids[sid]
+            else:
+                model: TrainableModel = self.get_op_model(sid, dataset)
+                if model is None:
+                    continue
+                print(f"[+] Training a new model for {sid}")
+                model_dir = f"{self.work_dir}/models/{sid}"
+                os.makedirs(model_dir, exist_ok=True)
+                self.model_map[sid] = model
+                self.modeled_sids[sid] = model_dir
 
-            model.train(dataset, val_datasets.get(sid, None), **kwargs)
+            early_stopper.reset()
+            model.train(dataset, valid_datasets.get(sid, None), 
+                        early_stopper=early_stopper, **kwargs)
             model.save(f"{model_dir}")
+
+            print(f"Done. Time elapsed: {datetime.datetime.now() - tbegin}")
 
     def infer(self, domain: Any, context: Any = None, op_info: OpInfo = None, **kwargs):
         sid: str = op_info.sid
         if sid not in self.model_map:
             return None
 
-        return self.model_map[sid].infer(domain, context, sid, **kwargs)
+        return self.model_map[sid].infer(domain, context=context, sid=sid, **kwargs)
 
     def create_operator_datasets(self, traces: Collection[GeneratorTrace],
                                  mode: str = 'training') -> Dict[str, Collection[OpTrace]]:
         file_maps: Dict[str, IndexedFileWriter] = {}
         path_maps: Dict[str, str] = {}
-        for trace in tqdm.tqdm(traces):
+        for trace in tqdm.tqdm(traces, ascii=True):
             for op in trace.op_traces:
                 sid = op.op_info.sid
                 if sid not in file_maps:
@@ -88,11 +113,14 @@ class IndependentOperatorsModel(TraceImitationModel, ABC):
 
         return {k: IndexedFileReader(v) for k, v in path_maps.items()}
 
-    def get_op_model(self, sid: str) -> Optional[TrainableModel]:
+    def load_operator_datasets(self, path_maps: Dict[str, str]):
+        return {k: IndexedFileReader(v) for k, v in path_maps.items()}
+
+    def get_op_model(self, sid: str, dataset: Collection[OpTrace]) -> Optional[TrainableModel]:
         unpacked = unpack_sid(sid)
-        op_type, label = unpacked.op_type, unpacked.label
-        if label is not None and hasattr(self, f"{op_type}_{label}"):
-            return getattr(self, f"{op_type}_{label}")(sid)
+        op_type, uid = unpacked.op_type, unpacked.uid
+        if uid is not None and hasattr(self, f"{op_type}_{uid}"):
+            return getattr(self, f"{op_type}_{uid}")(sid)
 
         if hasattr(self, op_type):
             return getattr(self, op_type)(sid)
