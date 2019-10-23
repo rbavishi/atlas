@@ -21,6 +21,7 @@ class RandStrategy(Strategy):
     def SelectFixed(self, domain: Any, **kwargs):
         return self.Select(domain)
 
+    @operator
     def Subset(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
                include_empty: bool = False, **kwargs):
         if lengths is None:
