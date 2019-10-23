@@ -339,7 +339,7 @@ class SubsetGGNN(GGNN):
 
 
 class OrderedSubsetGGNNClassifier(GGNNGraphClassifier):
-    def __init__(self, classifier_hidden_dims: List[int], max_length: int, 
+    def __init__(self, classifier_hidden_dims: List[int], max_length: int=None,
                  agg: str = 'sum', **kwargs):
         self.max_length = max_length
         super().__init__(num_classes=-1, classifier_hidden_dims=classifier_hidden_dims, agg=agg, **kwargs)
