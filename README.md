@@ -1,4 +1,4 @@
-<img align="left" src="atlas-logo.png" width=150>
+<img align="left" src="atlas-logo.png" width=110>
 
 # Atlas
 
