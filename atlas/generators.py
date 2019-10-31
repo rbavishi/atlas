@@ -1,14 +1,12 @@
 import ast
 import collections
 import inspect
-import itertools
 import textwrap
 import weakref
 from typing import Callable, Set, Optional, Union, Dict, List, Any, Iterable, Iterator, Type, Tuple
 
 import astunparse
 
-from atlas.exceptions import ExceptionAsContinue
 from atlas.hooks import Hook
 from atlas.models import GeneratorModel
 from atlas.operators import OpInfo, OpInfoConstructor
@@ -221,6 +219,10 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     #  we assigned to every operator call in the previous AST walk
     exec(compile(module, filename=inspect.getabsfile(func), mode="exec"), g)
     result = g[func.__name__]
+
+    if inspect.ismethod(func):
+        result = result.__get__(func.__self__, func.__self__.__class__)
+
     #  Restore the correct namespace so that tracebacks contain actual function names
     g[gen.name] = gen
     g[func_name] = result
@@ -436,6 +438,7 @@ class Generator:
                  tracing: bool = False, hooks: List[Hook] = None,
                  replay: Union[Dict[str, List[Any]], GeneratorTrace] = None) -> 'GeneratorExecEnvironment':
         """
+        Temporarily modify the config of the generator.
 
         Args:
             strategy:
@@ -455,6 +458,16 @@ class Generator:
             hooks=list(hooks or self.hooks),
             replay=replay
         )
+
+    def __get__(self, instance, owner):
+        #  This is required to handle class methods that have been marked as generators.
+        #  This helps us create "bound" generators
+
+        #  Create a replica with a different func
+        replica = Generator(self.func)
+        replica.__dict__ = self.__dict__.copy()
+        replica.func = self.func.__get__(instance, owner)
+        return replica
 
 
 class GeneratorExecEnvironment:
@@ -525,6 +538,33 @@ class GeneratorExecEnvironment:
 
     def __call__(self, *args, **kwargs):
         return next(self.generate(*args, **kwargs))
+
+    def with_env(self,
+                 strategy: Strategy = None,
+                 model: GeneratorModel = None,
+                 tracing: bool = False, hooks: List[Hook] = None,
+                 replay: Union[Dict[str, List[Any]], GeneratorTrace] = None) -> 'GeneratorExecEnvironment':
+        """
+        Temporarily modify the config of the generator.
+
+        Args:
+            strategy:
+            model:
+            tracing:
+            hooks:
+            replay:
+
+        Returns:
+
+        """
+        return GeneratorExecEnvironment(
+            gen=self,
+            strategy=strategy or self.strategy,
+            model=model or self.model,
+            tracing=tracing,
+            hooks=list(hooks or self.hooks),
+            replay=replay
+        )
 
 
 def generator(func=None, strategy='dfs', name=None, group=None, caching=None, metadata=None) -> Generator:

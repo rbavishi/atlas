@@ -326,6 +326,28 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
         self.assertEqual(binary.with_env(replay={"bit_select": ["0", "1"]}).call(2), "01")
 
+    def test_gen_class_method_1(self):
+        class TestClass:
+            @generator
+            def gen_method1(self):
+                return Select([1, 2, 3])
+
+        t = TestClass()
+        self.assertEqual(list(t.gen_method1.generate()), [1, 2, 3])
+
+    def test_gen_class_method_2(self):
+        class TestClass:
+            @generator
+            def gen_method1(self):
+                return self.gen_method2()
+
+            @generator
+            def gen_method2(self):
+                return Select([1, 2, 3])
+
+        t = TestClass()
+        self.assertEqual(list(t.gen_method1.generate()), [1, 2, 3])
+
 
 class TestGeneratorCompilation(unittest.TestCase):
     def test_arg_handling_1(self):
