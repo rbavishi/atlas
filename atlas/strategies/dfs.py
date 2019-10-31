@@ -2,9 +2,8 @@ import itertools
 from typing import Dict, Any, Callable, Collection, Optional, Iterator, Tuple
 
 from atlas.exceptions import ExceptionAsContinue
-from atlas.strategies import operator
-from atlas.strategies.strategy import IteratorBasedStrategy
-from atlas.operators import OpInfo
+from atlas.strategy import IteratorBasedStrategy
+from atlas.operators import OpInfo, operator
 
 
 class DfsStrategy(IteratorBasedStrategy):
@@ -77,8 +76,21 @@ class DfsStrategy(IteratorBasedStrategy):
 
         return False, False
 
-    def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
-                     **kwargs):
+    def gen_call(self, func: Callable, args, kwargs, gen: 'Generator'):
+        if gen.caching:
+            is_cached, result = self.cached_generator_invocation()
+            if is_cached:
+                return result
+
+            call_id = self.generator_invoked()
+            result = func(*args, **kwargs)
+            self.generator_returned(call_id, result)
+            return result
+
+        return func(*args, **kwargs)
+
+    def generic_op(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                   **kwargs):
         t = self.call_id
         self.call_id += 1
 

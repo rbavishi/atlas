@@ -2,7 +2,8 @@ import itertools
 import unittest
 
 from atlas import generator
-from atlas.strategies import DfsStrategy, operator
+from atlas.operators import operator
+from atlas.strategies import DfsStrategy
 from atlas.utils.stubs import stub
 
 

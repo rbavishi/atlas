@@ -2,7 +2,6 @@ import ast
 import collections
 import inspect
 import itertools
-import sys
 import textwrap
 import weakref
 from typing import Callable, Set, Optional, Union, Dict, List, Any, Iterable, Iterator, Type, Tuple
@@ -13,8 +12,8 @@ from atlas.exceptions import ExceptionAsContinue
 from atlas.hooks import Hook
 from atlas.models import GeneratorModel
 from atlas.operators import OpInfo, OpInfoConstructor
-from atlas.strategies import Strategy, RandStrategy, DfsStrategy, PartialReplayStrategy, FullReplayStrategy
-from atlas.strategies.strategy import IteratorBasedStrategy
+from atlas.strategies import RandStrategy, DfsStrategy, PartialReplayStrategy
+from atlas.strategy import IteratorBasedStrategy, Strategy
 from atlas.tracing import DefaultTracer, GeneratorTrace
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
@@ -22,6 +21,7 @@ from atlas.utils.inspection import getclosurevars_recursive
 
 _GEN_EXEC_ENV_VAR = "_atlas_gen_exec_env"
 _GEN_STRATEGY_VAR = "_atlas_gen_strategy"
+_GEN_MODEL_VAR = "_atlas_gen_model"
 _GEN_HOOK_WRAPPER = "_atlas_hook_wrapper"
 _GEN_HOOK_VAR = "_atlas_gen_hooks"
 _GEN_COMPOSITION_ID = "_atlas_composition_call"
@@ -45,7 +45,7 @@ def hook_wrapper(*args, _atlas_gen_strategy=None, _atlas_gen_hooks=None, **kwarg
     for h in _atlas_gen_hooks:
         h.before_op(*args, **kwargs)
 
-    result = _atlas_gen_strategy.generic_call(*args, **kwargs)
+    result = _atlas_gen_strategy.generic_op(*args, **kwargs)
 
     for h in _atlas_gen_hooks:
         h.after_op(*args, **kwargs, retval=result)
@@ -148,7 +148,7 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
             handlers[f"_handler_{handler_idx}"] = handler
 
             if not with_hooks:
-                n.func = astutils.parse(f"{_GEN_STRATEGY_VAR}.generic_call").value
+                n.func = astutils.parse(f"{_GEN_STRATEGY_VAR}.generic_op").value
             else:
                 n.keywords.append(ast.keyword(arg=_GEN_HOOK_VAR, value=ast.Name(_GEN_HOOK_VAR, ctx=ast.Load())))
                 n.keywords.append(ast.keyword(arg=_GEN_STRATEGY_VAR, value=ast.Name(_GEN_STRATEGY_VAR, ctx=ast.Load())))
@@ -178,6 +178,8 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
                                                   value=ast.Name(_GEN_EXEC_ENV_VAR, ctx=ast.Load())))
                     n.keywords.append(ast.keyword(arg=_GEN_STRATEGY_VAR,
                                                   value=ast.Name(_GEN_STRATEGY_VAR, ctx=ast.Load())))
+                    n.keywords.append(ast.keyword(arg=_GEN_MODEL_VAR,
+                                                  value=ast.Name(_GEN_MODEL_VAR, ctx=ast.Load())))
                     n.keywords.append(ast.keyword(arg=_GEN_HOOK_VAR,
                                                   value=ast.Name(_GEN_HOOK_VAR, ctx=ast.Load())))
                     ast.fix_missing_locations(n)
@@ -197,6 +199,10 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     f_ast.args.kw_defaults.append(ast.NameConstant(value=None))
 
     #  Add the strategy argument to the function
+    f_ast.args.kwonlyargs.append(ast.arg(arg=_GEN_MODEL_VAR, annotation=None))
+    f_ast.args.kw_defaults.append(ast.NameConstant(value=None))
+
+    #  Add the hook argument to the function
     f_ast.args.kwonlyargs.append(ast.arg(arg=_GEN_HOOK_VAR, annotation=None))
     f_ast.args.kw_defaults.append(ast.NameConstant(value=None))
     ast.fix_missing_locations(f_ast)
@@ -348,9 +354,8 @@ class Generator:
 
     def __call__(self, *args, **kwargs):
         """Functions with an ``@generator`` annotation can be called as any regular function as a result of this method.
-        In case of deterministic strategies such as DFS, this will return first possible value. For model-backed
-        strategies, the generator will return the value corresponding to an execution path where all the operators
-        make the choice with the highest probability as directed by their respective models.
+        Invocation during the execution of a top-level generator enables generator composition i.e. the same strategy is
+        used to call this generator. If this is the top-level generator, then this is equivalent to the ``.call`` method.
 
         Args:
             *args: Positional arguments to the original function
@@ -358,15 +363,21 @@ class Generator:
         """
 
         _atlas_gen_exec_env: GeneratorExecEnvironment = kwargs.get(_GEN_EXEC_ENV_VAR, None)
-        if _atlas_gen_exec_env is None:
-            #  TODO : Add a one-time performance warning
-            frame = inspect.currentframe().f_back
-            while not ('self' in frame.f_locals and isinstance(frame.f_locals['self'], GeneratorExecEnvironment)):
-                frame = frame.f_back
+        if _atlas_gen_exec_env is not None:
+            return _atlas_gen_exec_env.compositional_call(self, self.func, args, kwargs)
 
-            _atlas_gen_exec_env = frame.f_locals['self']
+        #  Try to find the calling generator execution environment
+        #  TODO : Add a one-time performance warning
+        frame = inspect.currentframe().f_back
+        while frame is not None and not ('self' in frame.f_locals and
+                                         isinstance(frame.f_locals['self'], GeneratorExecEnvironment)):
+            frame = frame.f_back
 
-        return _atlas_gen_exec_env.compositional_call(self, self.func, args, kwargs)
+        if frame is None:
+            return self.call(*args, **kwargs)
+
+        _atlas_gen_exec_env = frame.f_locals['self']
+        return _atlas_gen_exec_env.compositional_call(self, args, kwargs)
 
     def generate(self, *args, **kwargs):
         """
@@ -378,23 +389,25 @@ class Generator:
             **kwargs: Keyword arguments to the original function
 
         Returns:
-            An instance of GeneratorExecEnvironment (which subclasses Iterable)
+            An iterator
 
         """
 
-        return GeneratorExecEnvironment(
-            args=args,
-            kwargs=kwargs,
-            func=self.func,
-            strategy=self.strategy,
-            model=self.model,
-            hooks=list(self.hooks),
-            parent_gen=self
-        )
+        if self._default_exec_env is None:
+            self._default_exec_env = GeneratorExecEnvironment(
+                gen=self,
+                strategy=self.strategy,
+                model=self.model,
+                tracing=False,
+                hooks=list(self.hooks),
+                replay=None
+            )
+
+        yield from self._default_exec_env.generate(*args, **kwargs)
 
     def call(self, *args, **kwargs):
         """
-        Return the value returned by the frst execution of the generator for the given input i.e. ``(*args, **kwargs)``.
+        Return the value returned by the first execution of the generator for the given input i.e. ``(*args, **kwargs)``.
         This is useful when dealing with randomized generators where iteration is not required.
 
         Args:
@@ -405,262 +418,113 @@ class Generator:
             Value returned by the first invocation of the generator
 
         """
-
         if self._default_exec_env is None:
             self._default_exec_env = GeneratorExecEnvironment(
-                args=args,
-                kwargs=kwargs,
-                func=self.func,
+                gen=self,
                 strategy=self.strategy,
                 model=self.model,
+                tracing=False,
                 hooks=list(self.hooks),
-                parent_gen=self
+                replay=None
             )
 
-        return self._default_exec_env.single_call(args, kwargs)
+        return self._default_exec_env.call(*args, **kwargs)
 
-    def replay(self, trace: GeneratorTrace):
+    def with_env(self,
+                 strategy: Strategy = None,
+                 model: GeneratorModel = None,
+                 tracing: bool = False, hooks: List[Hook] = None,
+                 replay: Union[Dict[str, List[Any]], GeneratorTrace] = None) -> 'GeneratorExecEnvironment':
         """
-        Replay a trace. Raises an error if trace and generator execution diverge at any point.
 
         Args:
-            trace (GeneratorTrace): The trace to replay
+            strategy:
+            model:
+            tracing:
+            hooks:
+            replay:
 
         Returns:
-            The result of the generator after executing the trace.
+
         """
-
         return GeneratorExecEnvironment(
-            args=trace.f_inputs[0],
-            kwargs=trace.f_inputs[1],
-            func=self.func,
-            strategy=FullReplayStrategy(trace, self.strategy),
-            model=None,
-            hooks=[],
-            parent_gen=self
-        ).first()
+            gen=self,
+            strategy=strategy or self.strategy,
+            model=model or self.model,
+            tracing=tracing,
+            hooks=list(hooks or self.hooks),
+            replay=replay
+        )
 
 
-class GeneratorExecEnvironment(Iterable):
+class GeneratorExecEnvironment:
     """
-    The result of calling ``generate(...)`` on a Generator object.
+    Execution environment for a generator. Provides isolation between simultaneous uses of the generator.
     """
 
     def __init__(self,
-                 args: Optional,
-                 kwargs: Optional[Dict],
-                 func: Callable,
+                 gen: Generator,
                  strategy: Strategy,
                  model: Optional[GeneratorModel],
+                 tracing: bool,
                  hooks: List[Hook],
-                 parent_gen: Generator):
+                 replay: Optional[Union[Dict[str, List[Any]], GeneratorTrace]],
+                 ):
 
-        self.args = args
-        self.kwargs = kwargs
-        self.func = func
+        self.gen = gen
         self.strategy = strategy
         self.model = model
+        self.tracing = tracing
         self.hooks = hooks
-        self.parent_gen: Generator = parent_gen
+        self.replay = replay
 
         self._compiled_func: Optional[Callable] = None
         self._compilation_cache: Dict[Generator, Callable] = {}
         self.tracer: Optional[DefaultTracer] = None
 
-        self.extra_kwargs = {}
-        self.reset_compilation()
+        self.init()
 
-    def reset_compilation(self):
-        self._compiled_func = None
+    def init(self):
+        if self.tracing:
+            self.tracer = DefaultTracer()
+            self.hooks.append(self.tracer)
+
+        if self.replay is not None:
+            self.strategy = PartialReplayStrategy(self.replay, self.strategy)
+
         self._compilation_cache = {}
+        self._compiled_func = compile_func(self.gen, self.gen.func, self.strategy, len(self.hooks) > 0)
 
-        if self.model is not None and isinstance(self.strategy, IteratorBasedStrategy):
-            self.strategy.set_model(self.model)
+    def compositional_call(self, gen: Generator, args, kwargs):
+        extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy,
+                        _GEN_MODEL_VAR: self.model, _GEN_HOOK_VAR: self.hooks}
+        kwargs = {**kwargs, **extra_kwargs}
 
-        if self._compiled_func is None:
-            self._compiled_func = compile_func(self.parent_gen, self.func, self.strategy, len(self.hooks) > 0)
+        if gen not in self._compilation_cache:
+            self._compilation_cache[gen] = compile_func(gen, gen.func, self.strategy, len(self.hooks) > 0)
 
-    def compositional_call(self, parent_gen: Generator, func: Callable, args, kwargs):
-        extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy, _GEN_HOOK_VAR: self.hooks}
+        return self.strategy.gen_call(self._compilation_cache[gen], args, kwargs, self.gen)
 
-        if parent_gen not in self._compilation_cache:
-            self._compilation_cache[parent_gen] = compile_func(parent_gen, func, self.strategy, len(self.hooks) > 0)
+    def generate(self, *args, **kwargs):
+        if len(args) == 0 and len(kwargs) == 0 and isinstance(self.replay, GeneratorTrace):
+            args, kwargs = self.replay.f_inputs
 
-        if parent_gen.caching and isinstance(self.strategy, DfsStrategy):
-            is_cached, result = self.strategy.cached_generator_invocation()
-            if is_cached:
-                return result
+        extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy,
+                        _GEN_HOOK_VAR: self.hooks, _GEN_MODEL_VAR: self.model}
 
-            call_id = self.strategy.generator_invoked()
-            result = self._compilation_cache[parent_gen](*args, **kwargs, **extra_kwargs)
-            self.strategy.generator_returned(call_id, result)
-            return result
-
-        return self._compilation_cache[parent_gen](*args, **kwargs, **extra_kwargs)
-
-    def single_call(self, args, kwargs):
-        extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy, _GEN_HOOK_VAR: self.hooks}
-
-        self.strategy.init()
-        while not self.strategy.is_finished():
-            self.strategy.init_run()
-            try:
-                result = self._compiled_func(*args, **kwargs, **extra_kwargs)
-                self.strategy.finish_run()
-                self.strategy.finish()
-                return result
-
-            except ExceptionAsContinue:
-                pass
-
-            finally:
-                self.strategy.finish_run()
-
-    def __iter__(self) -> Iterator:
-        extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy, _GEN_HOOK_VAR: self.hooks}
-
-        for h in self.hooks:
-            h.init(self.args, self.kwargs)
-
-        self.strategy.init()
-        while not self.strategy.is_finished():
-            for h in self.hooks:
-                h.init_run(self.args, self.kwargs)
-
-            self.strategy.init_run()
-            try:
-                result = self._compiled_func(*self.args, **self.kwargs, **extra_kwargs)
-                if self.tracer is None:
-                    yield result
-                else:
-                    yield result, self.tracer.get_last_trace()
-
-            except ExceptionAsContinue:
-                pass
-
-            self.strategy.finish_run()
-
-            for h in self.hooks:
-                h.finish_run()
-
-        self.strategy.finish()
-
-        for h in self.hooks:
-            h.finish()
-
-    def first(self, **kwargs):
-        """
-        Return the first `k` values. If k is not passed as a keyword argument, this returns the first value returned
-        by the generator. If `k` is passed as an argument, a list of length `k` is returned containing the first `k`
-        values returned by the generator in-order. If generator produces less than `k` values, the result has `None`
-        in place of these values. Note that even if `k=1` is passed as an argument, a singleton list will be returned.
-
-        Keyword Args:
-            k (int): (Optional) The number of values to be returned
-
-        Returns:
-            The first value returned by the generator (if `k` is not passed) or a list of length `k` corresponding
-            to the first `k` elements produced by the generator,
-
-        """
-        if 'k' in kwargs:
-            assert isinstance(kwargs['k'], int), "k passed to first() must be an int"
-            k = kwargs['k']
-        else:
-            k = None
-
-        iterator = iter(self)
-
-        if k is None:
-            return next(iterator)
+        kwargs = {**kwargs, **extra_kwargs}
+        if self.tracer is None:
+            yield from self.strategy.gen_iterate(self._compiled_func, args, kwargs, self.hooks, self.gen)
 
         else:
-            result = list(itertools.islice(iterator, k))
-            if len(result) < k:
-                result.extend([None for _ in range(k - len(result))])
+            for result in self.strategy.gen_iterate(self._compiled_func, args, kwargs, self.hooks, self.gen):
+                yield result, self.tracer.get_last_trace()
 
-            return result
+    def call(self, *args, **kwargs):
+        return next(self.generate(*args, **kwargs))
 
-    def with_tracing(self) -> 'GeneratorExecEnvironment':
-        """
-        Enable tracing in this environment. During iteration, the trace of the choices made by the operators
-        along with some other meta-data will be returned alongside the result of the generator.
-
-        Returns:
-            The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
-
-        """
-        self.tracer = DefaultTracer()
-        self.hooks.append(self.tracer)
-        self.reset_compilation()
-        return self
-
-    def with_hooks(self, *hooks: Hook) -> 'GeneratorExecEnvironment':
-        """
-         Register hooks in this environment. This is useful if you want to register hooks temporarily for one
-         particular ``.generate(...)`` call of a Generator object without resetting the default hooks of the Generator.
-
-         Args:
-             *hooks (Hook): The hooks to add to the environment
-
-         Returns:
-             The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
-
-         """
-        self.hooks.extend(hooks)
-        self.reset_compilation()
-        return self
-
-    def with_strategy(self, strategy: Union[str, Strategy]) -> 'GeneratorExecEnvironment':
-        """
-        Set the strategy to be used in this environment. This is useful if you want to use a different
-        strategy temporarily for one particular ``.generate(...)`` call of a Generator object
-        without resetting the default strategy for the Generator.
-
-        Args:
-            strategy (Union[str, Strategy]): The strategy to set for this particular environment.
-
-        Returns:
-             The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
-
-        """
-        self.strategy = make_strategy(strategy)
-        self.reset_compilation()
-        return self
-
-    def with_model(self, model: GeneratorModel) -> 'GeneratorExecEnvironment':
-        """
-        Set the model to be used in this environment. This is useful if you want to use a different
-        model temporarily for one particular ``.generate(...)`` call of a Generator object
-        without resetting the default model for the Generator.
-
-        Args:
-            model (GeneratorModel): The model to use in this particular environment.
-
-        Returns:
-             The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
-
-        """
-        self.model = model
-        return self
-
-    def with_replay(self, trace: Union[Dict[str, List[Any]], GeneratorTrace]):
-        """
-        Replay the choices made by the operators in a trace. The trace can either be a GeneratorTrace object,
-        or a mapping/dict from operator labels to a list of values. Operators with the same label will consume
-        values from the corresponding list in execution order. If labels are unique (recommended practice),
-        the list should be a singleton.
-
-        Args:
-            trace (Union[Dict[str, List[Any]], GeneratorTrace]): The trace to be replayed
-
-        Returns:
-             The same GeneratorExecEnvironment object (self) to enable chaining of ``with_*`` calls
-        """
-        if not self.args and not self.kwargs:
-            self.args, self.kwargs = trace.f_inputs
-        self.strategy = PartialReplayStrategy(trace, self.strategy)
-        return self
+    def __call__(self, *args, **kwargs):
+        return next(self.generate(*args, **kwargs))
 
 
 def generator(func=None, strategy='dfs', name=None, group=None, caching=None, metadata=None) -> Generator:

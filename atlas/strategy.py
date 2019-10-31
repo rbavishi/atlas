@@ -1,7 +1,9 @@
 import collections
 from abc import abstractmethod, ABC
-from typing import Callable, Optional, Set
+from typing import Callable, Optional, Set, List
 
+from atlas.exceptions import ExceptionAsContinue
+from atlas.hooks import Hook
 from atlas.models.core import GeneratorModel
 from atlas.operators import OpInfo, is_operator, is_method, get_attrs, OpResolvable, resolve_operator, \
     find_known_operators, find_known_methods
@@ -37,9 +39,38 @@ class Strategy(ABC, OpResolvable):
     def get_known_methods(self):
         return self.known_methods
 
-    def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
-                     **kwargs):
+    def generic_op(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                   **kwargs):
         pass
+
+    def gen_iterate(self, func: Callable, args, kwargs, hooks: List[Hook], gen: 'Generator'):
+        for h in hooks:
+            h.init(args, kwargs)
+
+        self.init()
+        while not self.is_finished():
+            for h in hooks:
+                h.init_run(args, kwargs)
+
+            self.init_run()
+            try:
+                yield func(*args, **kwargs)
+
+            except ExceptionAsContinue:
+                pass
+
+            self.finish_run()
+
+            for h in hooks:
+                h.finish_run()
+
+        self.finish()
+
+        for h in hooks:
+            h.finish()
+
+    def gen_call(self, func: Callable, args, kwargs, gen: 'Generator'):
+        return func(*args, **kwargs)
 
 
 class IteratorBasedStrategy(Strategy, ABC):
