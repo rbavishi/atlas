@@ -163,11 +163,10 @@ class TensorflowModel(TrainableModel, SerializableModel, ABC):
 
     def deserialize(self, path: str):
         self.setup_graph()
-        if os.path.exists(f"{path}/model.weights"):
-            with self.graph.as_default():
-                saver = tf.train.Saver()
-                saver.restore(self.sess, f"{path}/model.weights")
-                self.warmup()
+        with self.graph.as_default():
+            saver = tf.train.Saver()
+            saver.restore(self.sess, f"{path}/model.weights")
+            self.warmup()
 
     def __getstate__(self):
         state = self.__dict__.copy()

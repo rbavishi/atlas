@@ -434,7 +434,8 @@ class Generator:
         return self._default_exec_env.call(*args, **kwargs)
 
     def with_env(self,
-                 strategy: Strategy = None,
+                 *args,
+                 strategy: Union[str, Strategy] = None,
                  model: GeneratorModel = None,
                  tracing: bool = False, hooks: List[Hook] = None,
                  replay: Union[Dict[str, List[Any]], GeneratorTrace] = None) -> 'GeneratorExecEnvironment':
@@ -451,9 +452,12 @@ class Generator:
         Returns:
 
         """
+        if len(args) != 0:
+            raise SyntaxError("with_env accepts only keyword arguments")
+
         return GeneratorExecEnvironment(
             gen=self,
-            strategy=strategy or self.strategy,
+            strategy=make_strategy(strategy or self.strategy),
             model=model or self.model,
             tracing=tracing,
             hooks=list(hooks or self.hooks),
@@ -512,12 +516,11 @@ class GeneratorExecEnvironment:
     def compositional_call(self, gen: Generator, args, kwargs):
         extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy,
                         _GEN_MODEL_VAR: self.model, _GEN_HOOK_VAR: self.hooks}
-        kwargs = {**kwargs, **extra_kwargs}
 
         if gen not in self._compilation_cache:
             self._compilation_cache[gen] = compile_func(gen, gen.func, self.strategy, len(self.hooks) > 0)
 
-        return self.strategy.gen_call(self._compilation_cache[gen], args, kwargs, self.gen)
+        return self.strategy.gen_call(self._compilation_cache[gen], args, kwargs, extra_kwargs, self.gen)
 
     def generate(self, *args, **kwargs):
         if len(args) == 0 and len(kwargs) == 0 and isinstance(self.replay, GeneratorTrace):
@@ -526,12 +529,11 @@ class GeneratorExecEnvironment:
         extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy,
                         _GEN_HOOK_VAR: self.hooks, _GEN_MODEL_VAR: self.model}
 
-        kwargs = {**kwargs, **extra_kwargs}
         if self.tracer is None:
-            yield from self.strategy.gen_iterate(self._compiled_func, args, kwargs, self.hooks, self.gen)
+            yield from self.strategy.gen_iterate(self._compiled_func, args, kwargs, extra_kwargs, self.hooks, self.gen)
 
         else:
-            for result in self.strategy.gen_iterate(self._compiled_func, args, kwargs, self.hooks, self.gen):
+            for result in self.strategy.gen_iterate(self._compiled_func, args, kwargs, extra_kwargs, self.hooks, self.gen):
                 yield result, self.tracer.get_last_trace()
 
     def call(self, *args, **kwargs):
@@ -539,33 +541,6 @@ class GeneratorExecEnvironment:
 
     def __call__(self, *args, **kwargs):
         return next(self.generate(*args, **kwargs))
-
-    def with_env(self,
-                 strategy: Strategy = None,
-                 model: GeneratorModel = None,
-                 tracing: bool = False, hooks: List[Hook] = None,
-                 replay: Union[Dict[str, List[Any]], GeneratorTrace] = None) -> 'GeneratorExecEnvironment':
-        """
-        Temporarily modify the config of the generator.
-
-        Args:
-            strategy:
-            model:
-            tracing:
-            hooks:
-            replay:
-
-        Returns:
-
-        """
-        return GeneratorExecEnvironment(
-            gen=self,
-            strategy=strategy or self.strategy,
-            model=model or self.model,
-            tracing=tracing,
-            hooks=list(hooks or self.hooks),
-            replay=replay
-        )
 
 
 def generator(func=None, strategy='dfs', name=None, group=None, caching=None, metadata=None) -> Generator:

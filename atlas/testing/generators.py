@@ -37,6 +37,17 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
         self.assertEqual(list(binary.generate(2)), ["00", "01", "10", "11"])
 
+    def test_gen_single_2(self):
+        @generator
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+        self.assertEqual(list(binary.with_env(strategy='dfs').generate(2)), ["00", "01", "10", "11"])
+
     def test_gen_custom_strategy_1(self):
         class ReversedDFS(DfsStrategy):
             @operator(name='Select', uid="reversed")
@@ -55,6 +66,23 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
     def test_gen_custom_strategy_2(self):
         class ReversedDFS(DfsStrategy):
+            @operator(name='Select', uid="reversed")
+            def Select_reversed(self, domain, *args, **kwargs):
+                yield from reversed(domain)
+
+        @generator
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"], uid='reversed')
+
+            return s
+
+        self.assertEqual(list(binary.with_env(strategy=ReversedDFS()).generate(2)),
+                         list(reversed(["00", "01", "10", "11"])))
+
+    def test_gen_custom_strategy_3(self):
+        class ReversedDFS(DfsStrategy):
             @operator
             def SelectReversed(self, domain, *args, **kwargs):
                 yield from reversed(domain)
@@ -69,7 +97,7 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
         self.assertEqual(list(binary.generate(2)), list(reversed(["00", "01", "10", "11"])))
 
-    def test_gen_custom_strategy_3(self):
+    def test_gen_custom_strategy_4(self):
         shared_var = []
 
         class ReversedDFS(DfsStrategy):

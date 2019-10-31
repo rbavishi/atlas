@@ -182,9 +182,9 @@ class OpInfoConstructor:
         tags: Optional[List[str]] = self.extract_tags(op_call)
         op_type: str = op_call.func.id
 
-        sid_key = (gen_name, gen_group, op_type, uid)
-        self.sid_index_map[sid_key] += 1
-        index = self.sid_index_map[sid_key]
+        index_key = (gen_name, gen_group)
+        self.sid_index_map[index_key] += 1
+        index = self.sid_index_map[index_key]
         sid = create_sid(gen_name, gen_group, op_type, uid, index)
 
         return OpInfo(

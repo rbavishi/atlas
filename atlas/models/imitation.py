@@ -26,8 +26,10 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
 
     def __init__(self):
         self.work_dir = tempfile.mkdtemp(prefix=f"generator-model-{datetime.datetime.today():%d-%m-%Y-%H-%M-%S}")
-        self.model_map: Dict[OpInfo, TrainableSerializableModel] = {}
+        self.model_map: Dict[int, TrainableSerializableModel] = {}
         self.model_paths: Dict[OpInfo, str] = {}
+
+        self.op_info_mapping: Dict[OpInfo, OpInfo] = {}
 
         self.model_definitions = find_known_operators(self)
 
@@ -37,6 +39,12 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
         except ValueError:
             #  None implies that no model is defined for this operator
             return None
+
+    def infer(self, domain: Any, context: Any = None, op_info: OpInfo = None, **kwargs):
+        if op_info.index not in self.model_map:
+            return None
+
+        return self.model_map[op_info.index].infer(domain, context, op_info, **kwargs)
 
     def train(self, traces: Collection[GeneratorTrace], val_traces: Collection[GeneratorTrace] = None, **kwargs):
         #  First, go over all the traces and create separate data-sets for each operator
@@ -54,7 +62,7 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
 
             print(f"[+] Training model for {op_info}")
             model_dir = f"{self.work_dir}/models/{op_info.sid}"
-            self.model_map[op_info] = model
+            self.model_map[op_info.index] = model
             self.model_paths[op_info] = model_dir
 
             model.train(dataset, val_data.get(op_info, None), **kwargs)
@@ -106,7 +114,7 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
     def load_models(self):
         for op_info, model_dir in self.model_paths.items():
             if op_info not in self.model_map:
-                self.model_map[op_info] = restore_model(model_dir)
+                self.model_map[op_info.index] = restore_model(model_dir)
 
     def __getstate__(self):
         state = self.__dict__.copy()

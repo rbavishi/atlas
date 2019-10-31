@@ -77,18 +77,18 @@ class DfsStrategy(Strategy):
 
         return False, False
 
-    def gen_call(self, func: Callable, args, kwargs, gen: 'Generator'):
+    def gen_call(self, func: Callable, args, kwargs, atlas_kwargs, gen: 'Generator'):
         if gen.caching:
             is_cached, result = self.cached_generator_invocation()
             if is_cached:
                 return result
 
             call_id = self.generator_invoked()
-            result = func(*args, **kwargs)
+            result = func(*args, **kwargs, **atlas_kwargs)
             self.generator_returned(call_id, result)
             return result
 
-        return func(*args, **kwargs)
+        return func(*args, **kwargs, **atlas_kwargs)
 
     def generic_op(self, domain=None, context=None, model: GeneratorModel = None,
                    op_info: OpInfo = None, handler: Optional[Callable] = None,
