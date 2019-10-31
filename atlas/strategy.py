@@ -39,7 +39,8 @@ class Strategy(ABC, OpResolvable):
     def get_known_methods(self):
         return self.known_methods
 
-    def generic_op(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+    def generic_op(self, domain=None, context=None, model: GeneratorModel = None,
+                   op_info: OpInfo = None, handler: Optional[Callable] = None,
                    **kwargs):
         pass
 
@@ -71,12 +72,3 @@ class Strategy(ABC, OpResolvable):
 
     def gen_call(self, func: Callable, args, kwargs, gen: 'Generator'):
         return func(*args, **kwargs)
-
-
-class IteratorBasedStrategy(Strategy, ABC):
-    def __init__(self):
-        super().__init__()
-        self.model: Optional[GeneratorModel] = None
-
-    def set_model(self, model: Optional[GeneratorModel]):
-        self.model = model

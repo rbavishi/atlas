@@ -1,9 +1,11 @@
 import itertools
 import unittest
+from typing import Any
 
 from atlas import generator
 from atlas.exceptions import ExceptionAsContinue
-from atlas.operators import operator, method
+from atlas.models import GeneratorModel
+from atlas.operators import operator, method, OpInfo
 from atlas.strategies import DfsStrategy
 from atlas.utils.stubs import stub
 
@@ -280,27 +282,6 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
         self.assertEqual(binary.with_env(replay=traces[0]).call(), "00")
         self.assertEqual(binary.with_env(replay=traces[0])(), "00")
 
-    # def test_gen_replay_error_1(self):
-    #     @generator(strategy='dfs')
-    #     def binary(length: int):
-    #         s = ""
-    #         for i in range(length):
-    #             s += Select(["0", "1"])
-    #
-    #         return s
-    #
-    #     @generator(strategy='randomized')
-    #     def impersonator(length: int):
-    #         s = ""
-    #         for i in range(length):
-    #             s += Select(["0", "1"])
-    #
-    #         return s
-    #
-    #     _, trace = binary.with_env(tracing=True).call(2)
-    #     self.assertRaisesRegex(KeyError, r"Generator and trace are inconsistent\. .*",
-    #                            impersonator.with_env(replay=trace).call)
-
     def test_gen_replay_randomized_1(self):
         @generator(strategy='randomized')
         def binary(length: int):
@@ -360,3 +341,33 @@ class TestGeneratorCompilation(unittest.TestCase):
             return s
 
         self.assertEqual(list(binary.generate(2, 'dummy')), ["00", "01", "10", "11"])
+
+
+class TestGeneratorModels(unittest.TestCase):
+    def test_model_1(self):
+        class TestModel(GeneratorModel):
+            def save(self, path: str):
+                pass
+
+            @classmethod
+            def load(cls, path: str):
+                pass
+
+            def train(self, data: Any, *args, **kwargs):
+                pass
+
+            def infer(self, domain: Any, context: Any = None, op_info: OpInfo = None, **kwargs):
+                yield from reversed(domain)
+
+        @generator(strategy='dfs')
+        def binary(length: int):
+            s = ""
+            for i in range(length):
+                s += Select(["0", "1"])
+
+            return s
+
+        self.assertEqual(list(binary.with_env(model=TestModel()).generate(2)), ["11", "10", "01", "00"])
+        self.assertEqual([r for r, t in binary.with_env(model=TestModel(), tracing=True).generate(2)],
+                         ["11", "10", "01", "00"])
+

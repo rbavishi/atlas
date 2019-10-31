@@ -11,7 +11,7 @@ from atlas.hooks import Hook
 from atlas.models import GeneratorModel
 from atlas.operators import OpInfo, OpInfoConstructor
 from atlas.strategies import RandStrategy, DfsStrategy, PartialReplayStrategy
-from atlas.strategy import IteratorBasedStrategy, Strategy
+from atlas.strategy import Strategy
 from atlas.tracing import DefaultTracer, GeneratorTrace
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
@@ -137,6 +137,8 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
             op_idx += 1
             handler_idx = len(handlers)
             op_info: OpInfo = op_info_constructor.get(n, gen.name, gen.group)
+
+            n.keywords.append(ast.keyword(arg='model', value=ast.Name(_GEN_MODEL_VAR, ctx=ast.Load())))
 
             n.keywords.append(ast.keyword(arg='op_info', value=ast.Name(f"_op_info_{op_idx}", ctx=ast.Load())))
             op_infos[f"_op_info_{op_idx}"] = op_info
@@ -305,8 +307,7 @@ class Generator:
 
     def set_default_model(self, model: GeneratorModel):
         """
-        Set a model to be used by the generator (strategy). Note that a model can work only with a strategy
-        that is an instance of the IteratorBasedStrategy abstract class. DfsStrategy is an example of such a strategy
+        Set a model to be used by the generator (strategy).
         Args:
             model (GeneratorModel): The model to use
 
