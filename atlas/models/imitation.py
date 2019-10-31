@@ -1,16 +1,17 @@
+import collections
 import datetime
-import json
 import os
+import pickle
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
-from typing import Collection, Dict, Optional, Any
+from typing import Collection, Dict, Optional, Any, List
 
 import tqdm
-
-from atlas.models import GeneratorModel, TrainableModel
+from atlas.models.core import GeneratorModel, TrainableModel, SerializableModel, TrainableSerializableModel
+from atlas.models.utils import save_model, restore_model
+from atlas.operators import OpInfo, OpResolvable, find_known_operators, resolve_operator
 from atlas.tracing import GeneratorTrace, OpTrace
-from atlas.operators import unpack_sid, OpInfo
 from atlas.utils.ioutils import IndexedFileWriter, IndexedFileReader
 
 
@@ -20,111 +21,104 @@ class TraceImitationModel(GeneratorModel, ABC):
         pass
 
 
-class IndependentOperatorsModel(TraceImitationModel, ABC):
-    def __init__(self, work_dir: str = None):
-        if work_dir is None:
-            work_dir = tempfile.mkdtemp(prefix=f"generator-model-{datetime.datetime.today():%d-%m-%Y-%H-%M-%S}")
+class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolvable, ABC):
+    USE_DISK = False
 
-        os.makedirs(work_dir, exist_ok=True)
-        self.work_dir = work_dir
-        self._safe_del = False
+    def __init__(self):
+        self.work_dir = tempfile.mkdtemp(prefix=f"generator-model-{datetime.datetime.today():%d-%m-%Y-%H-%M-%S}")
+        self.model_map: Dict[OpInfo, TrainableSerializableModel] = {}
+        self.model_paths: Dict[OpInfo, str] = {}
 
-        self.model_map: Dict[str, TrainableModel] = {}
-        self.modeled_sids: Dict[str, str] = {}
+        self.model_definitions = find_known_operators(self)
 
-    def __del__(self):
-        if self._safe_del:
-            shutil.rmtree(self.work_dir, ignore_errors=True)
+    def get_op_model(self, op_info: OpInfo) -> Optional[TrainableSerializableModel]:
+        try:
+            return resolve_operator(self.model_definitions, op_info)(self, op_info.sid)
+        except ValueError:
+            #  None implies that no model is defined for this operator
+            return None
 
-    def train(self,
-              train_traces: Collection[GeneratorTrace],
-              val_traces: Collection[GeneratorTrace] = None,
-              **kwargs):
-
+    def train(self, traces: Collection[GeneratorTrace], val_traces: Collection[GeneratorTrace] = None, **kwargs):
         #  First, go over all the traces and create separate data-sets for each operator
-        train_datasets: Dict[str, Collection[OpTrace]] = self.create_operator_datasets(train_traces)
-        val_datasets: Dict[str, Collection[OpTrace]] = {}
-        if val_traces is not None:
-            val_datasets: Dict[str, Collection[OpTrace]] = self.create_operator_datasets(val_traces, mode='validation')
+        train_data: Dict[OpInfo, Collection[OpTrace]] = self.create_operator_datasets(traces)
+        val_data: Dict[OpInfo, Collection[OpTrace]] = {}
 
-        for sid, dataset in train_datasets.items():
-            model: TrainableModel = self.get_op_model(sid)
+        if val_traces is not None:
+            val_data = self.create_operator_datasets(val_traces, mode='validation')
+
+        #  Train each model separately
+        for op_info, dataset in train_data.items():
+            model: TrainableSerializableModel = self.get_op_model(op_info)
             if model is None:
                 continue
 
-            print(f"[+] Training model for {sid}")
-            model_dir = f"{self.work_dir}/models/{sid}"
-            os.makedirs(model_dir, exist_ok=True)
-            self.model_map[sid] = model
-            self.modeled_sids[sid] = model_dir
+            print(f"[+] Training model for {op_info}")
+            model_dir = f"{self.work_dir}/models/{op_info.sid}"
+            self.model_map[op_info] = model
+            self.model_paths[op_info] = model_dir
 
-            model.train(dataset, val_datasets.get(sid, None), **kwargs)
-            model.save(f"{model_dir}")
-
-    def infer(self, domain: Any, context: Any = None, op_info: OpInfo = None, **kwargs):
-        sid: str = op_info.sid
-        if sid not in self.model_map:
-            return None
-
-        return self.model_map[sid].infer(domain, context, sid, **kwargs)
+            model.train(dataset, val_data.get(op_info, None), **kwargs)
+            save_model(model, model_dir, no_zip=True)
 
     def create_operator_datasets(self, traces: Collection[GeneratorTrace],
-                                 mode: str = 'training') -> Dict[str, Collection[OpTrace]]:
-        file_maps: Dict[str, IndexedFileWriter] = {}
-        path_maps: Dict[str, str] = {}
-        for trace in tqdm.tqdm(traces):
-            for op in trace.op_traces:
-                sid = op.op_info.sid
-                if sid not in file_maps:
-                    path = f"{self.work_dir}/data/{sid}"
-                    os.makedirs(path, exist_ok=True)
-                    file_maps[sid] = IndexedFileWriter(f"{path}/{mode}_op_data.pkl")
-                    path_maps[sid] = f"{path}/{mode}_op_data.pkl"
+                                 mode: str = 'training') -> Dict[OpInfo, Collection[OpTrace]]:
+        if self.USE_DISK:
+            file_maps: Dict[str, IndexedFileWriter] = {}
+            path_maps: Dict[str, str] = {}
+            for trace in tqdm.tqdm(traces):
+                for op in trace.op_traces:
+                    op_info = op.op_info
+                    if op_info not in file_maps:
+                        path = f"{self.work_dir}/data/{op_info.sid}"
+                        os.makedirs(path, exist_ok=True)
+                        file_maps[op_info] = IndexedFileWriter(f"{path}/{mode}_op_data.pkl")
+                        path_maps[op_info] = f"{path}/{mode}_op_data.pkl"
 
-                file_maps[sid].append(op)
+                    file_maps[op_info].append(op)
 
-        for v in file_maps.values():
-            v.close()
+            for v in file_maps.values():
+                v.close()
 
-        return {k: IndexedFileReader(v) for k, v in path_maps.items()}
+            return {k: IndexedFileReader(v) for k, v in path_maps.items()}
 
-    def get_op_model(self, sid: str) -> Optional[TrainableModel]:
-        unpacked = unpack_sid(sid)
-        op_type, label = unpacked.op_type, unpacked.label
-        if label is not None and hasattr(self, f"{op_type}_{label}"):
-            return getattr(self, f"{op_type}_{label}")(sid)
+        else:
+            data: Dict[OpInfo, List[OpTrace]] = collections.defaultdict(list)
+            for trace in tqdm.tqdm(traces):
+                for op in trace.op_traces:
+                    data[op.op_info].append(op)
 
-        if hasattr(self, op_type):
-            return getattr(self, op_type)(sid)
+            return data
 
-        return None
-
-    def save(self, path: str):
-        super().save(path)
-        with open(f"{path}/model_list.json", "w") as f:
-            json.dump({k: os.path.relpath(v, self.work_dir) for k, v in self.modeled_sids.items()}, f)
+    def serialize(self, path: str):
+        with open(f"{path}/model_list.pkl", "wb") as f:
+            pickle.dump({k: os.path.relpath(v, self.work_dir) for k, v in self.model_paths.items()}, f)
 
         if path != self.work_dir:
-            self._safe_del = True
             shutil.rmtree(f"{path}/models", ignore_errors=True)
             shutil.copytree(f"{self.work_dir}/models", f"{path}/models")
 
-        else:
-            self._safe_del = False
+    def deserialize(self, path: str):
+        with open(f"{path}/model_list.pkl", "rb") as f:
+            self.model_paths = {k: f"{path}/{v}" for k, v in pickle.load(f).items()}
 
-    @classmethod
-    def load(cls, path: str):
-        model = cls(path)
-        with open(f"{path}/model_list.json", "r") as f:
-            model.modeled_sids = {k: f"{path}/{v}" for k, v in json.load(f).items()}
-
-        model.load_models()
-
-        return model
+        self.load_models()
 
     def load_models(self):
-        for sid, model_dir in self.modeled_sids.items():
-            if sid in self.model_map:
-                continue
+        for op_info, model_dir in self.model_paths.items():
+            if op_info not in self.model_map:
+                self.model_map[op_info] = restore_model(model_dir)
 
-            self.model_map[sid] = TrainableModel.load(model_dir)
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('model_map')
+        state.pop('model_paths')
+        state.pop('model_definitions')
+
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.model_map: Dict[OpInfo, TrainableModel] = {}
+        self.model_paths: Dict[OpInfo, str] = {}
+
+        self.model_definitions = find_known_operators(self)
