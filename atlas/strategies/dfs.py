@@ -1,13 +1,13 @@
 import itertools
 from typing import Dict, Any, Callable, Collection, Optional, Iterator, Tuple
 
+from atlas import Strategy
 from atlas.exceptions import ExceptionAsContinue
-from atlas.strategies import operator
-from atlas.strategies.strategy import IteratorBasedStrategy
-from atlas.operators import OpInfo
+from atlas.models import GeneratorModel
+from atlas.operators import OpInfo, operator
 
 
-class DfsStrategy(IteratorBasedStrategy):
+class DfsStrategy(Strategy):
     def __init__(self):
         super().__init__()
         self.call_id: int = 0
@@ -77,17 +77,31 @@ class DfsStrategy(IteratorBasedStrategy):
 
         return False, False
 
-    def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
-                     **kwargs):
+    def gen_call(self, func: Callable, args, kwargs, atlas_kwargs, gen: 'Generator'):
+        if gen.caching:
+            is_cached, result = self.cached_generator_invocation()
+            if is_cached:
+                return result
+
+            call_id = self.generator_invoked()
+            result = func(*args, **kwargs, **atlas_kwargs)
+            self.generator_returned(call_id, result)
+            return result
+
+        return func(*args, **kwargs, **atlas_kwargs)
+
+    def generic_op(self, domain=None, context=None, model: GeneratorModel = None,
+                   op_info: OpInfo = None, handler: Optional[Callable] = None,
+                   **kwargs):
         t = self.call_id
         self.call_id += 1
 
         if t not in self.op_iter_map:
             try:
                 iterator = None
-                if self.model is not None:
+                if model is not None:
                     try:
-                        iterator = self.model.infer(domain=domain, context=context, op_info=op_info, **kwargs)
+                        iterator = model.infer(domain=domain, context=context, op_info=op_info, **kwargs)
                     except NotImplementedError:
                         pass
 

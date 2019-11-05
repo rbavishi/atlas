@@ -11,8 +11,8 @@ def generate_sequential_data(func_seq: List[str], max_attempts: int = 10):
 
     for _ in range(max_attempts):
         try:
-            return next(iter(sequential_enumerator.generate([], None,
-                                                            allow_unused_intermediates=False).with_strategy(strategy)))
+            return next(iter(sequential_enumerator.with_env(strategy=strategy).generate([], None,
+                                                                                        allow_unused_intermediates=False)))
         except:
             continue
 

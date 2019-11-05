@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 from typing import Dict, Any
 
-from atlas.strategies import DfsStrategy, operator
+from atlas.operators import operator
+from atlas.strategies import DfsStrategy
 from atlas.synthesis.pandas.checker import Checker
 from atlas.synthesis.pandas.utils import Program, check_nan
 

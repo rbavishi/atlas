@@ -1,8 +1,8 @@
 import collections
 from typing import Callable, Optional, List, Union, Dict, Iterator
 
-from atlas.operators import OpInfo
-from atlas.strategies import Strategy
+from atlas import Strategy
+from atlas.operators import OpInfo, operator
 from atlas.tracing import GeneratorTrace
 
 
@@ -30,8 +30,8 @@ class FullReplayStrategy(Strategy):
     def init_run(self):
         self.op_choice_iter_map = {k: iter(v) for k, v in self.op_choices.items()}
 
-    def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
-                     *args, **kwargs):
+    def generic_op(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                   *args, **kwargs):
 
         if op_info.sid in self.op_choice_iter_map:
             return next(self.op_choice_iter_map[op_info.sid])
@@ -87,13 +87,13 @@ class PartialReplayStrategy(Strategy):
     def finish(self):
         self.backup_strategy.finish()
 
-    def generic_call(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
-                     *args, **kwargs):
+    def generic_op(self, domain=None, context=None, op_info: OpInfo = None, handler: Optional[Callable] = None,
+                   *args, **kwargs):
         if op_info.sid in self.op_choice_map:
             return next(self.op_choice_map[op_info.sid])
 
         if op_info.uid in self.uid_choice_map:
             return next(self.uid_choice_map[op_info.uid])
 
-        return self.backup_strategy.generic_call(domain, context=context, op_info=op_info,
-                                                 handler=handler, **kwargs)
+        return self.backup_strategy.generic_op(domain, context=context, op_info=op_info,
+                                               handler=handler, **kwargs)

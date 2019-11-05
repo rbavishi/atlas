@@ -6,12 +6,12 @@ import numpy as np
 
 import atlas.synthesis.pandas.api
 from atlas import generator
+from atlas.operators import operator
 from atlas.exceptions import ExceptionAsContinue
 from atlas.synthesis.pandas.checker import Checker
 from atlas.synthesis.pandas.strategies import PandasSynthesisStrategy
 from atlas.synthesis.pandas.engine import sequential_enumerator
 from atlas.utils import get_group_by_name
-from atlas.strategies import operator
 
 api_gens = {
     gen.name: gen for gen in get_group_by_name('pandas')
@@ -1739,8 +1739,7 @@ class TestSequentialEnumerator(TestAPIGenerators):
         checker = Checker.get_checker(output)
         func_seqs = [[funcs[i] for i in seq] for seq in seqs]
         for func_seq in func_seqs:
-            for result in sequential_enumerator.generate(inputs,
-                                                         output).with_strategy(KnownSequenceStrategy(func_seq)):
+            for result in sequential_enumerator.with_env(strategy=KnownSequenceStrategy(func_seq)).generate(inputs, output):
                 if checker(output, result[0]):
                     return True
 

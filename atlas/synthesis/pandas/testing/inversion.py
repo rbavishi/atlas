@@ -7,6 +7,7 @@ import numpy as np
 
 import atlas.synthesis.pandas.api
 from atlas import generator
+from atlas.operators import operator
 from atlas.exceptions import ExceptionAsContinue
 from atlas.synthesis.pandas.checker import Checker
 from atlas.synthesis.pandas.inversion import GeneratorInversionStrategy
@@ -14,7 +15,6 @@ from atlas.synthesis.pandas.strategies import PandasSynthesisStrategy
 from atlas.synthesis.pandas.engine import sequential_enumerator
 from atlas.synthesis.pandas.utils import Program
 from atlas.utils import get_group_by_name
-from atlas.strategies import operator
 
 api_gens = {
     gen.name: gen for gen in get_group_by_name('pandas')
@@ -72,7 +72,7 @@ class TestGeneratorInversion(unittest.TestCase):
                 program.intermediates = intermediates[:-1]
                 program.arguments = prog
                 s = TestGeneratorInversionStrategy(program)
-                for new_val, _, _ in simple_enumerator.generate(inputs, output, func_seq).with_strategy(s):
+                for new_val, _, _ in simple_enumerator.with_env(strategy=s).generate(inputs, output, func_seq):
                     if not checker(output, new_val):
                         continue
 

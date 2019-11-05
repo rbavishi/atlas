@@ -6,8 +6,8 @@ from typing import Dict, Set, List, Callable, Any, Collection, Optional
 
 import pandas as pd
 import numpy as np
-from atlas.operators import OpInfo
-from atlas.strategies import DfsStrategy, operator
+from atlas.operators import OpInfo, operator
+from atlas.strategies import DfsStrategy
 from atlas.synthesis.pandas.dataframe_generation import DfConfig, Bags
 from atlas.synthesis.pandas.utils import LambdaWrapper
 

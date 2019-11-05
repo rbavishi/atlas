@@ -1,13 +1,14 @@
+import os
 import tempfile
 from abc import ABC, abstractmethod
 from typing import Collection, Any, Optional, Tuple
 
 import tensorflow as tf
 
-from atlas.models import TrainableModel
+from atlas.models.core import TrainableModel, SerializableModel
 
 
-class KerasModel(TrainableModel, ABC):
+class KerasModel(TrainableModel, SerializableModel, ABC):
     def __init__(self):
         self.model: Optional[tf.keras.Model] = None
 
@@ -40,19 +41,24 @@ class KerasModel(TrainableModel, ABC):
                        validation_data=(None if val_data is None else (val_inputs, val_targets)),
                        callbacks=[checkpoint])
 
-        self.model = tf.keras.models.load_model(ckpt_path)
+        if os.path.exists(ckpt_path):
+            self.model = tf.keras.models.load_model(ckpt_path)
 
     def infer(self, data: Collection, **kwargs):
         return self.model.predict(self.preprocess(data, mode='inference'))
 
-    def save(self, path_dir: str):
-        super().save(path_dir)
+    def serialize(self, path_dir: str):
         tf.keras.models.save_model(self.model, f"{path_dir}/model.h5")
 
-    @classmethod
-    def load(cls, path_dir: str):
-        model = cls()
-        model.model = tf.keras.models.load_model(f"{path_dir}/model.h5")
+    def deserialize(self, path_dir: str):
+        self.model = tf.keras.models.load_model(f"{path_dir}/model.h5")
 
-        return model
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('model')
 
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self.model = None

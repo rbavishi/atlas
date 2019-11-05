@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 
 from atlas import generator
-from atlas.strategies import RandStrategy, operator
+from atlas.operators import operator
+from atlas.strategies import RandStrategy
 from atlas.stubs import Select, Subset
 from atlas.synthesis.pandas.stubs import SelectRange, Shuffle, CoinToss
 
