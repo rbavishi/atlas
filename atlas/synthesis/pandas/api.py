@@ -158,7 +158,7 @@ def gen_df_astype(inputs, output, *args, **kwargs):
     c = {'I0': _self, 'O': output}
 
     cand_dtypes = {np.dtype('int64'), np.dtype('int32'), np.dtype('float64'), np.dtype('float32'),
-                   np.dtype('bool'), int, float, str, bool}
+                   np.dtype('bool'), np.dtype('uint32'), np.dtype('uint64'), int, float, str, bool}
     cand_dtypes = set(filter(lambda x: not any(x == i for i in _self.dtypes), cand_dtypes))
 
     if isinstance(output, pd.DataFrame):
@@ -2269,7 +2269,7 @@ def gen_df_reindex(inputs, output, *args, **kwargs):
         _level = Select([(src.names[i] or i) for i in range(0, src.nlevels)], context=c, kwargs=kwargs, uid="7")
 
     return _self.reindex(labels=_labels, axis=_axis, level=_level, fill_value=_fill_value, limit=_limit), {
-        'labels': _labels, 'axis': _axis, 'level': _level, 'fill_value': _fill_value, 'limit': _limit
+        'self': _self, 'labels': _labels, 'axis': _axis, 'level': _level, 'fill_value': _fill_value, 'limit': _limit
     }
 
 

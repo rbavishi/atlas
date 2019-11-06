@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -41,7 +42,7 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
             if any(checker(key, i) for i in domain):
                 yield key
             else:
-                print("Failed", domain, key)
+                warnings.warn("Failed Comparison", domain, key)
 
     def checked_ordered_subset(self, domain, key):
         if all(i in domain for i in key):
@@ -2304,7 +2305,6 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
     @operator(name="SelectExternal", gen_name="df.reindex", uid="1")
     def Inv413(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
-        print("Got here")
         yield from self.checked_select(domain, args['self'])
 
     @operator(name="SelectExternal", gen_name="df.reindex", uid="2")
@@ -2315,13 +2315,11 @@ class GeneratorInversionStrategy(DfsStrategy, ABC):
     @operator(name="SelectExternal", gen_name="df.reindex", uid="3")
     def Inv414(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
-        print("Got here")
         yield from self.checked_select(domain, args['fill_value'], default=np.nan)
 
     @operator(name="SelectExternal", gen_name="df.reindex", uid="4")
     def Inv415(self, domain, kwargs, **extra_kwargs):
         args = self.get_args(state=kwargs)
-        print("Got here")
         yield from self.checked_select(domain, args['limit'], default=None)
 
     @operator(name="SelectFixed", gen_name="df.reindex", uid="5")
