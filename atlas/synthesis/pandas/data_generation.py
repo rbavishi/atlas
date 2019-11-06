@@ -24,7 +24,7 @@ for v in api_gens.values():
 
 @generator(name='pandas_sequential_enumerator', caching=True)
 def sequential_enumerator(inputs, output,
-                          log_errors: bool = True):
+                          log_errors: bool = False):
     """
     Copy of the sequential enumerator for synthesis with extra functionality to aid data-generation.
     """
@@ -76,7 +76,7 @@ def generate_sequential_data(func_seq: List[str], max_attempts: int = 10, attemp
     for _ in range(max_attempts):
         try:
             with ThreadingTimeout(attempt_timeout):
-                return next(iter(sequential_enumerator.with_env(strategy=strategy, tracing=True).generate([], None))), \
+                return sequential_enumerator.with_env(strategy=strategy, tracing=True).call([], None), \
                        strategy.generated_inputs[:]
         except:
             continue

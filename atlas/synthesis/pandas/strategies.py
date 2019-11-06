@@ -57,6 +57,7 @@ class PandasSequentialDataGenerationStrategy(DfsStrategy):
         self.operator_iterator_bound = 10
 
     def init(self):
+        super().init()
         self.generated_inputs = []
 
     def generate_new_external(self, dtype, datagen_label: Optional[str], context):
