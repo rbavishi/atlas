@@ -1,8 +1,11 @@
+import _thread
 import ast
+import sys
+import threading
+import time
+from typing import List, Any, Dict
 
 import numpy as np
-import pandas as pd
-from typing import List, Any, Dict
 
 
 class LambdaWrapper:
@@ -83,3 +86,28 @@ def check_nan(num):
         return (np.isnan(num) == True) is True
     except:
         return False
+
+
+def quit_function():
+    sys.stderr.flush()  # Python 3 stderr is likely buffered.
+    while True:
+        if threading.main_thread()._custom_threading_interrupted is True:
+            break
+
+        _thread.interrupt_main()  # raises KeyboardInterrupt
+        time.sleep(5)
+
+
+class ThreadingTimeout:
+    def __init__(self, timeout):
+        self.timeout = timeout
+        self.timer = None
+
+    def __enter__(self):
+        threading.main_thread()._custom_threading_interrupted = False
+        self.timer = threading.Timer(self.timeout, quit_function)
+        self.timer.start()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        threading.main_thread()._custom_threading_interrupted = True
+        self.timer.cancel()
