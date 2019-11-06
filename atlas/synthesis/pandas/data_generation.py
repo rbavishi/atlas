@@ -11,6 +11,8 @@ from atlas.synthesis.pandas.strategies import PandasSequentialDataGenerationStra
 from atlas.synthesis.pandas.stubs import *
 from atlas.synthesis.pandas.utils import ThreadingTimeout
 from atlas.utils import get_group_by_name
+import atlas.synthesis.pandas.api
+
 
 api_gens = {
     gen.name: gen for gen in get_group_by_name('pandas')
