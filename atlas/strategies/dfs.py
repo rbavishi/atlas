@@ -8,7 +8,7 @@ from atlas.operators import OpInfo, operator
 
 
 class DfsStrategy(Strategy):
-    def __init__(self):
+    def __init__(self, operator_iterator_bound: Optional[int] = None):
         super().__init__()
         self.call_id: int = 0
         self.op_iter_map: Dict[int, Iterator] = {}
@@ -25,7 +25,7 @@ class DfsStrategy(Strategy):
         self.gen_result_cache: Dict[int, Tuple[int, int, Any]] = {}
 
         #  Bound on number of values to return for each operator
-        self.operator_iterator_bound: Optional[int] = None
+        self.operator_iterator_bound = operator_iterator_bound
 
     def init(self):
         self.call_id = 0
@@ -130,6 +130,10 @@ class DfsStrategy(Strategy):
         yield from domain
 
     @operator
+    def SelectFixed(self, domain: Any, context: Any = None, **kwargs):
+        yield from self.Select(domain, context, **kwargs)
+
+    @operator
     def Substr(self, domain: Any, context: Any = None, **kwargs):
         if isinstance(domain, str):
             for i in range(len(domain)):
@@ -175,3 +179,9 @@ class DfsStrategy(Strategy):
         elif lengths is not None:
             for l in list(lengths):
                 yield from itertools.product(domain, repeat=l)
+
+    @operator
+    def SequenceFixed(self, domain: Any, context: Any = None, max_len: int = None,
+                      lengths: Collection[int] = None, **kwargs):
+        return self.Sequence(domain, context, max_len, lengths, **kwargs)
+

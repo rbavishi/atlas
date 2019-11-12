@@ -48,6 +48,10 @@ class TensorflowModel(TrainableModel, SerializableModel, ABC):
         pass
 
     @abstractmethod
+    def get_batch_number(self, graph_iter: Iterator[Dict], batch_size: int) -> int:
+        pass
+
+    @abstractmethod
     def get_batch_iterator(self, data_iter: Iterator, batch_size: int, is_training: bool = True) -> Iterator:
         pass
 
@@ -74,10 +78,13 @@ class TensorflowModel(TrainableModel, SerializableModel, ABC):
         with self.graph.as_default():
             saver = tf.train.Saver()
 
+        num_batches_train = self.get_batch_number(iter(training_data), batch_size)
+        num_batches_valid = self.get_batch_number(iter(validation_data), batch_size)
+
         tmpdir: Optional[str] = None
         try:
             tmpdir = tempfile.mkdtemp()
-            for epoch in range(1, (num_epochs if num_epochs > 0 else 2**32) + 1):
+            for epoch in range(1, (num_epochs if num_epochs >= 0 else 2**32) + 1):
                 history.append({'epoch': epoch})
 
                 train_loss = valid_loss = 0
@@ -87,18 +94,18 @@ class TensorflowModel(TrainableModel, SerializableModel, ABC):
                 training_fetch_list = [self.ops['loss'], self.ops['accuracy'], self.ops['train_step']]
                 validation_fetch_list = [self.ops['loss'], self.ops['accuracy']]
 
-                for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(training_data),
-                                                                                batch_size, is_training=True):
+                for i, (num_datapoints_batch, batch_data) in enumerate(self.get_batch_iterator(
+                                        iter(training_data), batch_size, is_training=True)):
                     batch_loss, batch_acc, _ = self.sess.run(training_fetch_list, feed_dict=batch_data)
                     train_loss += batch_loss * num_datapoints_batch
                     train_acc += batch_acc * num_datapoints_batch
                     num_datapoints += num_datapoints_batch
-                    print(f"[Training({epoch}/{num_epochs})] "
-                          f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}",
+                    print(f"[Training] Epoch: {epoch}/{num_epochs}\tBatch: {i}/{num_batches_train}\t"
+                          f"Loss: {train_loss / num_datapoints: .6f}\tAccuracy: {train_acc / num_datapoints: .4f}",
                           end='\r')
 
-                print(f"[Training({epoch}/{num_epochs})] "
-                      f"Loss: {train_loss / num_datapoints: .6f} Accuracy: {train_acc / num_datapoints: .4f}")
+                print(f"[Training] Epoch: {epoch}/{num_epochs}\tBatch: {num_batches_train}\t"
+                      f"Loss: {train_loss / num_datapoints: .6f}\tAccuracy: {train_acc / num_datapoints: .4f}")
 
                 history[-1].update({
                     'train_loss': train_loss / num_datapoints,
@@ -106,17 +113,17 @@ class TensorflowModel(TrainableModel, SerializableModel, ABC):
                 })
 
                 num_datapoints = 0
-                for num_datapoints_batch, batch_data in self.get_batch_iterator(iter(validation_data),
-                                                                                batch_size, is_training=False):
+                for i, (num_datapoints_batch, batch_data) in enumerate(self.get_batch_iterator(
+                                        iter(validation_data), batch_size, is_training=False)):
                     batch_loss, batch_acc = self.sess.run(validation_fetch_list, feed_dict=batch_data)
                     valid_loss += batch_loss * num_datapoints_batch
                     valid_acc += batch_acc * num_datapoints_batch
                     num_datapoints += num_datapoints_batch
-                    print(f"[Validation({epoch}/{num_epochs})] "
-                          f"Loss: {valid_loss / num_datapoints: .6f} Accuracy: {valid_acc / num_datapoints: .4f}",
+                    print(f"[Validation] Epoch: {epoch}/{num_epochs}\tBatch: {i}/{num_batches_valid}\t"
+                          f"Loss: {valid_loss / num_datapoints: .6f}\tAccuracy: {valid_acc / num_datapoints: .4f}",
                           end='\r')
 
-                print(f"[Validation({epoch}/{num_epochs})] "
+                print(f"[Validation] Epoch: {epoch}/{num_epochs}\tBatch: {num_batches_valid}\t"
                       f"Loss: {valid_loss / num_datapoints: .6f} Accuracy: {valid_acc / num_datapoints: .4f}")
 
                 history[-1].update({
