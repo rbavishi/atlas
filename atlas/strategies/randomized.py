@@ -17,6 +17,7 @@ class RandStrategy(Strategy):
     def Select(self, domain: Any, **kwargs):
         return random.choice(domain)
 
+    @operator
     def Subset(self, domain: Any, context: Any = None, lengths: Collection[int] = None,
                include_empty: bool = False, **kwargs):
         if lengths is None:
