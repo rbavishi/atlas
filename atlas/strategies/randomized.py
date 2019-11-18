@@ -46,4 +46,4 @@ class RandStrategy(Strategy):
             lengths = range(1, max_len + 1)
 
         return random.choices(domain, k=random.choice(lengths))
-    
+

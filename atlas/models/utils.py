@@ -31,6 +31,7 @@ def save_model(model: SerializableModel, path: str, no_zip=False):
         model.serialize(work_dir)
 
         if no_zip:
+            shutil.rmtree(path, ignore_errors=True)
             shutil.copytree(work_dir, path)
             return
 

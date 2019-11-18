@@ -70,6 +70,7 @@ def preorder_traversal(node: ast.AST):
     for field, val in ast.iter_fields(node):
         if isinstance(val, list):
             for i in val:
-                yield from preorder_traversal(i)
+                if i is not None:
+                    yield from preorder_traversal(i)
         elif isinstance(val, ast.AST):
             yield from preorder_traversal(val)

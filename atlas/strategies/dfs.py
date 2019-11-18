@@ -8,7 +8,7 @@ from atlas.operators import OpInfo, operator
 
 
 class DfsStrategy(Strategy):
-    def __init__(self):
+    def __init__(self, operator_iterator_bound: Optional[int] = None):
         super().__init__()
         self.call_id: int = 0
         self.op_iter_map: Dict[int, Iterator] = {}
@@ -25,7 +25,7 @@ class DfsStrategy(Strategy):
         self.gen_result_cache: Dict[int, Tuple[int, int, Any]] = {}
 
         #  Bound on number of values to return for each operator
-        self.operator_iterator_bound: Optional[int] = None
+        self.operator_iterator_bound = operator_iterator_bound
 
     def init(self):
         self.call_id = 0
@@ -175,3 +175,4 @@ class DfsStrategy(Strategy):
         elif lengths is not None:
             for l in list(lengths):
                 yield from itertools.product(domain, repeat=l)
+
