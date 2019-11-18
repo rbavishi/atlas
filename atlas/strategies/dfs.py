@@ -130,10 +130,6 @@ class DfsStrategy(Strategy):
         yield from domain
 
     @operator
-    def SelectFixed(self, domain: Any, context: Any = None, **kwargs):
-        yield from self.Select(domain, context, **kwargs)
-
-    @operator
     def Substr(self, domain: Any, context: Any = None, **kwargs):
         if isinstance(domain, str):
             for i in range(len(domain)):
@@ -179,9 +175,4 @@ class DfsStrategy(Strategy):
         elif lengths is not None:
             for l in list(lengths):
                 yield from itertools.product(domain, repeat=l)
-
-    @operator
-    def SequenceFixed(self, domain: Any, context: Any = None, max_len: int = None,
-                      lengths: Collection[int] = None, **kwargs):
-        return self.Sequence(domain, context, max_len, lengths, **kwargs)
 
