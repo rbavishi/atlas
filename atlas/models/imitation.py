@@ -37,9 +37,10 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
 
         self.model_definitions = find_known_operators(self)
 
-    def get_op_model(self, op_info: OpInfo, dataset: Collection[OpTrace]) -> Optional[TrainableSerializableModel]:
+    def get_op_model(self, op_info: OpInfo,
+                     dataset: Collection[OpTrace], **kwargs) -> Optional[TrainableSerializableModel]:
         try:
-            return resolve_operator(self.model_definitions, op_info)(self, op_info.sid)
+            return resolve_operator(self.model_definitions, op_info)(self, op_info, dataset=dataset, **kwargs)
         except ValueError:
             #  None implies that no model is defined for this operator
             return None
@@ -81,7 +82,7 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
                 model = self.model_map[op_info]
                 model_dir = self.model_paths[op_info]
             else:
-                model: TrainableSerializableModel = self.get_op_model(op_info, dataset)
+                model: TrainableSerializableModel = self.get_op_model(op_info, dataset, **kwargs)
                 if model is None:
                     continue
                 print(f"[+] Training a new model for {op_info.sid}")
@@ -90,7 +91,9 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
                 self.model_map[op_info] = model
                 self.model_paths[op_info] = model_dir
 
-            early_stopper.reset()
+            if early_stopper:
+                early_stopper.reset()
+
             model.train(dataset, valid_datasets.get(op_info, None),
                         early_stopper=early_stopper, **kwargs)
             save_model(model, model_dir, no_zip=True)
