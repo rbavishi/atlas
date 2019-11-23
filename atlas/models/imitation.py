@@ -63,7 +63,7 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
         if val_traces is not None:
             val_data = self.create_operator_datasets(val_traces, mode='validation')
 
-        self.train_with_datasets(train_data, val_data, skip_sid, **kwargs)
+        return self.train_with_datasets(train_data, val_data, skip_sid, **kwargs)
 
     def train_with_datasets(self,
                             train_datasets: Dict[OpInfo, Collection[OpTrace]],
@@ -72,6 +72,7 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
                             early_stopper: EarlyStopper = None,
                             **kwargs):
         tbegin = datetime.datetime.now()
+        result = None
         for op_info, dataset in train_datasets.items():
             if skip_sid and skip_sid(op_info.sid):
                 print(f"Skip {op_info.sid}")
@@ -94,11 +95,20 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
             if early_stopper:
                 early_stopper.reset()
 
-            model.train(dataset, valid_datasets.get(op_info, None),
-                        early_stopper=early_stopper, **kwargs)
+            res = model.train(dataset, valid_datasets.get(op_info, None),
+                              early_stopper=early_stopper, **kwargs)
+
+            if res is not None:
+                if result is None:
+                    result = {}
+
+                result[op_info] = res
+
             save_model(model, model_dir, no_zip=True)
 
             print(f"Done. Time elapsed: {datetime.datetime.now() - tbegin}")
+
+        return result
 
     def create_operator_datasets(self, traces: Collection[GeneratorTrace],
                                  mode: str = 'training') -> Dict[OpInfo, Collection[OpTrace]]:
@@ -165,4 +175,3 @@ class IndependentOperatorsModel(TraceImitationModel, SerializableModel, OpResolv
         self.model_paths: Dict[OpInfo, str] = {}
 
         self.model_definitions = find_known_operators(self)
-
