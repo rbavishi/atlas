@@ -17,8 +17,8 @@ class Hook(ABC):
     def finish(self):
         pass
 
-    def before_op(self, domain, context=None, op_info: OpInfo = None, **kwargs):
+    def before_op(self, domain=None, context=None, op_info: OpInfo = None, **kwargs):
         pass
 
-    def after_op(self, domain, context=None, op_info: OpInfo = None, retval: Any = None, **kwargs):
+    def after_op(self, domain=None, context=None, op_info: OpInfo = None, retval: Any = None, **kwargs):
         pass

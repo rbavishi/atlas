@@ -16,7 +16,7 @@ class OpInfo(NamedTuple):
     index: int
     gen_group: str = None
     uid: Optional[str] = None
-    tags: Optional[List[str]] = None
+    tags: Optional[Tuple[str, ...]] = None
 
 
 def operator_decorator(name: str = None,
@@ -193,7 +193,7 @@ class OpInfoConstructor:
             op_type=op_type,
             index=index,
             uid=uid,
-            tags=tags,
+            tags=tuple(tags) if tags is not None else None,
             gen_group=gen_group
         )
 
