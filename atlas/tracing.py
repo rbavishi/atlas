@@ -23,6 +23,15 @@ class OpTrace:
                 **{self.kwargs!r}
                )""")
 
+    def copy(self):
+        return OpTrace(
+            choice=self.choice,
+            domain=self.domain,
+            context=self.context,
+            op_info=self.op_info,
+            **self.kwargs
+        )
+
 
 class GeneratorTrace:
     def __init__(self, f_inputs=None):
@@ -37,6 +46,13 @@ class GeneratorTrace:
         GeneratorTrace(inputs={self.f_inputs},
                        op_traces={self.op_traces!r}
         """)
+
+    def copy(self):
+        r = GeneratorTrace()
+        r.f_inputs = self.f_inputs[:]
+        r.op_traces = [o.copy() for o in self.op_traces]
+
+        return r
 
 
 class DefaultTracer(Hook):
