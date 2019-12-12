@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from atlas.synthesis.pandas.checker import Checker
-from atlas.operators import unpack_sid
+from atlas.operators import unpack_sid, OpInfo, OpResolvable, find_known_operators, resolve_operator, operator
 
 
 class NodeFeatures(Enum):
@@ -381,7 +381,7 @@ class ValueCollection:
         return {'edges': edges, 'nodes': nodes}, node_to_int
 
 
-class PandasGraphEncoder:
+class PandasGraphEncoder(OpResolvable):
     def __init__(self):
         self.edge_type_mapping = {}
         self.node_feature_mapping = {}
@@ -392,6 +392,8 @@ class PandasGraphEncoder:
         for idx, feature in enumerate({**NodeDataTypes.__members__,
                                        **NodeRoles.__members__, **NodeSources.__members__}.keys()):
             self.node_feature_mapping[feature] = idx
+
+        self.encoder_definitions = find_known_operators(self)
 
     def get_num_edge_types(self):
         return len(self.edge_type_mapping)
@@ -430,14 +432,10 @@ class PandasGraphEncoder:
 
         encoding['nodes'] = [self.convert_node_features(n) for n in encoding['nodes']]
 
-    def get_encoder(self, sid: str):
-        unpacked = unpack_sid(sid)
-        op_type, label = unpacked.op_type, unpacked.label
-        if label is not None and hasattr(self, f"{op_type}_{label}"):
-            return getattr(self, f"{op_type}_{label}")
+    def get_encoder(self, op_info: OpInfo):
+        return resolve_operator(self.encoder_definitions, op_info)
 
-        return getattr(self, op_type)
-
+    @operator
     def Select(self, domain, context=None, choice=None, mode='training', **kwargs):
         #  We expect domain to be a list of values
         #  We expect context to be a dictionary with keys as labels and values as the raw values
@@ -483,6 +481,7 @@ class PandasGraphEncoder:
         self.post_process(encoding)
         return encoding
 
+    @operator
     def SelectFixed(self, domain, context=None, choice=None, mode='training', **kwargs):
         #  We expect domain to be a list of values
         #  We expect context to be a dictionary with keys as labels and values as the raw values
@@ -515,6 +514,55 @@ class PandasGraphEncoder:
         self.post_process(encoding)
         return encoding
 
+    @operator
+    def Subset(self, domain, context=None, choice=None, mode='training', **kwargs):
+        #  We expect domain to be a list of values
+        #  We expect context to be a dictionary with keys as labels and values as the raw values
+        #  For example {'I0': Input DataFrame, 'O': Output DataFrame}
+        if context is None:
+            context = {}
+
+        encoded_domain: Dict[str, ValueEncoding] = {f"D{idx}": self.encode_value(f"D{idx}", v)
+                                                    for idx, v in enumerate(domain)}
+        encoded_context: Dict[str, ValueEncoding] = {k: self.encode_value(k, v) for k, v in context.items()}
+
+        val_collection: ValueCollection = ValueCollection()
+        for k, v in encoded_domain.items():
+            v.build()
+            val_collection.add_value_encoding(v)
+        for k, v in encoded_context.items():
+            v.build()
+            val_collection.add_value_encoding(v)
+
+        for node in val_collection.nodes:
+            if node.label.startswith("I"):
+                node.features.add(NodeSources.INPUT)
+            elif node.label.startswith("O"):
+                node.features.add(NodeSources.OUTPUT)
+            elif node.label.startswith("D"):
+                node.features.add(NodeSources.DOMAIN)
+
+        encoding, node_to_int = val_collection.to_dict()
+        encoding['domain'] = [node_to_int[v.get_representor_node()]
+                              for v in encoded_domain.values()]
+        if mode == 'training':
+            encoding['choice'] = []
+            for c in choice:
+                for k, v in encoded_domain.items():
+                    if Checker.check(v.val, c):
+                        encoding['choice'].append(node_to_int[v.get_representor_node()])
+                        break
+                else:
+                    raise ValueError(f"Passed choice element {c} could not be found in domain {domain}")
+
+        else:
+            encoding['mapping'] = {node_to_int[encoded_domain[f"D{idx}"].get_representor_node()]: v
+                                   for idx, v in enumerate(domain)}
+
+        self.post_process(encoding)
+        return encoding
+
+    @operator
     def OrderedSubset(self, domain, context=None, choice=None, mode='training', **kwargs):
         #  We expect domain to be a list of values
         #  We expect context to be a dictionary with keys as labels and values as the raw values
@@ -565,6 +613,39 @@ class PandasGraphEncoder:
             encoding['mapping'] = {node_to_int[encoded_domain[f"D{idx}"].get_representor_node()]: v
                                    for idx, v in enumerate(domain)}
             encoding['terminal'] = node_to_int[terminal]
+
+        self.post_process(encoding)
+        return encoding
+
+    @operator(name='Sequence', tags=['function_sequence_prediction'])
+    def Sequence(self, domain, context=None, choice=None, mode='training', **kwargs):
+        #  We expect domain to be a list of values
+        #  We expect context to be a dictionary with keys as labels and values as the raw values
+        #  For example {'I0': Input DataFrame, 'O': Output DataFrame}
+        if context is None:
+            context = {}
+
+        encoded_context: Dict[str, ValueEncoding] = {k: self.encode_value(k, v) for k, v in context.items()}
+
+        val_collection: ValueCollection = ValueCollection()
+        for k, v in encoded_context.items():
+            v.build()
+            val_collection.add_value_encoding(v)
+
+        for node in val_collection.nodes:
+            if node.label.startswith("I"):
+                node.features.add(NodeSources.INPUT)
+            elif node.label.startswith("O"):
+                node.features.add(NodeSources.OUTPUT)
+            elif node.label.startswith("D"):
+                node.features.add(NodeSources.DOMAIN)
+
+        encoding, node_to_int = val_collection.to_dict()
+        if mode == 'training':
+            encoding['choice'] = [domain.index(c) for c in choice]
+
+        else:
+            encoding['mapping'] = {idx: v for idx, v in enumerate(domain)}
 
         self.post_process(encoding)
         return encoding
