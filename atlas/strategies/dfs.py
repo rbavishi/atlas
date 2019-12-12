@@ -101,7 +101,10 @@ class DfsStrategy(Strategy):
                 iterator = None
                 if model is not None:
                     try:
-                        iterator = model.infer(domain=domain, context=context, op_info=op_info, **kwargs)
+                        result = model.infer(domain=domain, context=context, op_info=op_info, **kwargs)
+                        if result is not None:
+                            iterator = iter(result)
+
                     except NotImplementedError:
                         pass
 
