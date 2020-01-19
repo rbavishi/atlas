@@ -1,5 +1,5 @@
 import multiprocessing
-import pickle
+import cloudpickle as pickle
 import random
 import struct
 from typing import BinaryIO, Callable, Any, Collection
