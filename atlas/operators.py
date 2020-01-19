@@ -7,6 +7,7 @@ import astunparse
 IS_GENERATOR_OP = "_is_generator_operator"
 IS_GENERATOR_METHOD = "_is_generator_method"
 RESOLUTION_INFO = "_resolution_INFO"
+RETURNS_LAMBDA = "_returns_lambda"
 
 
 class OpInfo(NamedTuple):
@@ -19,15 +20,21 @@ class OpInfo(NamedTuple):
     tags: Optional[Tuple[str, ...]] = None
 
 
+def returns_lambda(handler):
+    return getattr(handler, RETURNS_LAMBDA, False)
+
+
 def operator_decorator(name: str = None,
                        uid: str = None,
                        tags: Union[str, List[str]] = None,
                        gen_name: str = None,
-                       gen_group: str = None):
+                       gen_group: str = None,
+                       returns_lambda: bool = False):
     def wrapper(func: Callable):
         setattr(func, IS_GENERATOR_OP, True)
         setattr(func, RESOLUTION_INFO, {'name': name or func.__name__, 'uid': uid, 'tags': tags,
                                         'gen_name': gen_name, 'gen_group': gen_group})
+        setattr(func, RETURNS_LAMBDA, returns_lambda)
         return func
 
     return wrapper
@@ -69,7 +76,7 @@ def operator(*args, **kwargs) -> Callable:
             Matches all by default.
     """
 
-    allowed_kwargs = {'name', 'uid', 'tags', 'gen_name', 'gen_group'}
+    allowed_kwargs = {'name', 'uid', 'tags', 'gen_name', 'gen_group', 'returns_lambda'}
     error_str = f"The @operator decorator should be applied either with no parentheses or " \
                 f"at least one of the following keyword args - {', '.join(allowed_kwargs)}."
     assert (len(args) == 1 and len(kwargs) == 0 and callable(args[0])) or \

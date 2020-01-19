@@ -97,3 +97,6 @@ class PartialReplayStrategy(Strategy):
 
         return self.backup_strategy.generic_op(domain, context=context, op_info=op_info,
                                                handler=handler, **kwargs)
+
+    def __getattr__(self, item):
+        return self.backup_strategy.__getattribute__(item)

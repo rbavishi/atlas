@@ -9,7 +9,7 @@ import astunparse
 
 from atlas.hooks import Hook
 from atlas.models import GeneratorModel
-from atlas.operators import OpInfo, OpInfoConstructor
+from atlas.operators import OpInfo, OpInfoConstructor, returns_lambda
 from atlas.strategies import RandStrategy, DfsStrategy, PartialReplayStrategy
 from atlas.strategy import Strategy
 from atlas.tracing import DefaultTracer, GeneratorTrace
@@ -155,6 +155,11 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
 
                 n.func.id = _GEN_HOOK_WRAPPER
                 ops[_GEN_HOOK_WRAPPER] = hook_wrapper
+
+            if returns_lambda(handler):
+                n.func = ast.Call(func=n.func, args=n.args[:], keywords=n.keywords[:])
+                n.keywords = []
+                n.args = [n.args[0]]
 
             ast.fix_missing_locations(n)
 
