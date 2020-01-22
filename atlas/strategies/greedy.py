@@ -33,11 +33,11 @@ class GreedyStrategy(Strategy):
         self.worklist = PriorityQueue()
         self.explored = set()
 
-        self.worklist.put((0, [], []))
+        self.worklist.put((0, [], [], []))
 
     def init_run(self):
         self.call_id = 0
-        _, self.forwarding_map, self.score_map = self.worklist.get()
+        _, self.forwarding_map, self.score_map, self.iter_map = self.worklist.get()
         self.forwarding_map = self.forwarding_map[:]
         self.score_map = self.score_map[:]
 
@@ -62,7 +62,7 @@ class GreedyStrategy(Strategy):
 
                 self.explored.add(key)
                 scores = self.score_map[:idx] + [val_score]
-                self.worklist.put((-score, forwarding, scores))
+                self.worklist.put((-score, forwarding, scores, self.iter_map[:idx + 1]))
 
         if self.worklist.empty():
             self.finished = True

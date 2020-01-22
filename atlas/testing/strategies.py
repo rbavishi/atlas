@@ -217,4 +217,20 @@ class TestGreedyStrategy(unittest.TestCase):
 
             return [a, b, c]
 
-        self.assertEqual(8, len(set(map(tuple, basic_2.generate()))))
+        self.assertSetEqual({(1, 3, 5), (1, 3, 6), (1, 4, 7), (1, 4, 8),
+                             (2, 3, 5), (2, 3, 6), (2, 4, 7), (2, 4, 8)}, set(map(tuple, basic_2.generate())))
+
+        @generator(strategy=TestStrategy())
+        def basic_3():
+            a = Select([1, 2], scores=[1.0, 0.0005])
+            b = Select([3, 4], scores=[0.6, 0.4])
+            if b == 3:
+                c = Select([5, 6], scores=[1.0, 0.02])
+            else:
+                c = Select([7, 8], scores=[1.0, 0.01])
+
+            return [a, b, c]
+
+        print(list(basic_3.generate()))
+        self.assertSetEqual({(1, 3, 5), (1, 3, 6), (1, 4, 7), (1, 4, 8),
+                             (2, 3, 5), (2, 3, 6), (2, 4, 7), (2, 4, 8)}, set(map(tuple, basic_3.generate())))
