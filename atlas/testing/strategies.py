@@ -12,6 +12,26 @@ def Select(*args, **kwargs):
     pass
 
 
+@stub
+def Subset(*args, **kwargs):
+    pass
+
+
+@stub
+def Sequence(*args, **kwargs):
+    pass
+
+
+@stub
+def OrderedSubset(*args, **kwargs):
+    pass
+
+
+@stub
+def MyOperator(*args, **kwargs):
+    pass
+
+
 class TestBasicStrategyFunctionality(unittest.TestCase):
     def test_operator_recognition_1(self):
         class TestStrategy(DfsStrategy):
@@ -181,7 +201,7 @@ class TestGreedyStrategy(unittest.TestCase):
         @generator(strategy=TestStrategy())
         def basic():
             a = Select([3, 4], scores=[0.6, 0.4])
-            b = Select([1, 2], scores=[1.0, 1.0])
+            b = Select([1, 2], scores=[1.0, 0.2])
             return [a, b]
 
         self.assertListEqual([[3, 1], [4, 1], [3, 2], [4, 2]], list(basic.generate()))

@@ -7,6 +7,7 @@ from atlas import Strategy
 from atlas.exceptions import ExceptionAsContinue
 from atlas.models import GeneratorModel
 from atlas.operators import OpInfo
+from atlas.utils.iterutils import IndexableGenerator
 
 
 class GreedyStrategy(Strategy):
@@ -15,6 +16,7 @@ class GreedyStrategy(Strategy):
         self.call_id: int = 0
         self.forwarding_map: List[int] = []
         self.score_map: List[float] = []
+        self.iter_map: List[IndexableGenerator] = []
         self.finished: bool = False
         self.worklist: PriorityQueue = PriorityQueue()
         self.explored: Set[Tuple[int, ...]] = set()
@@ -24,8 +26,9 @@ class GreedyStrategy(Strategy):
 
     def init(self):
         self.call_id = 0
-        self.forwarding_map = {}
-        self.score_map = {}
+        self.forwarding_map = []
+        self.score_map = []
+        self.iter_map = []
         self.finished = False
         self.worklist = PriorityQueue()
         self.explored = set()
@@ -44,7 +47,13 @@ class GreedyStrategy(Strategy):
             cum_prod_backward = np.cumprod(self.score_map[::-1])[::-1]
 
             for idx in range(len(self.forwarding_map)):
-                score = (cum_prod_forward[idx-1] if idx > 0 else 1.0) * (cum_prod_backward[idx+1] if idx + 1 < len(self.forwarding_map) else 1.0)
+                try:
+                    _, val_score = self.iter_map[idx][self.forwarding_map[idx] + 1]
+                except StopIteration:
+                    continue
+
+                score_rest = (cum_prod_forward[idx - 1] if idx > 0 else 1.0) * (cum_prod_backward[idx + 1] if idx + 1 < len(self.forwarding_map) else 1.0)
+                score = score_rest * val_score
                 forwarding = self.forwarding_map[:idx] + [self.forwarding_map[idx] + 1]
 
                 key = tuple(forwarding)
@@ -52,7 +61,7 @@ class GreedyStrategy(Strategy):
                     continue
 
                 self.explored.add(key)
-                scores = self.score_map[:idx] + [0.0]  # We don't know the score of the next prediction
+                scores = self.score_map[:idx] + [val_score]
                 self.worklist.put((-score, forwarding, scores))
 
         if self.worklist.empty():
@@ -65,26 +74,22 @@ class GreedyStrategy(Strategy):
         self.call_id += 1
 
         if len(self.forwarding_map) > t:
-            iterator = iter(handler(self, domain=domain, context=context, op_info=op_info, model=model, **kwargs))
-
-            try:
-                val, score = next(iterator)
-                for _ in range(self.forwarding_map[t]):  # 0-indexed
-                    val, score = next(iterator)
-
-                self.score_map[t] = score
-                return val
-
-            except StopIteration:
-                #  Ran out of possibilities, this forwarding map is infeasible
-                self.forwarding_map = None
-                raise ExceptionAsContinue
+            val, score = self.iter_map[t][self.forwarding_map[t]]
+            self.score_map[t] = score
+            return val
 
         else:
             #  Need to start fresh
-            iterator = iter(handler(self, domain=domain, context=context, op_info=op_info, model=model, **kwargs))
-            val, score = next(iterator)
-            self.forwarding_map.append(0)
-            self.score_map.append(score)
+            try:
+                iterator = iter(handler(self, domain=domain, context=context, op_info=op_info, model=model, **kwargs))
+                idx_iterator = IndexableGenerator(iterator)
+                val, score = idx_iterator[0]
+                self.forwarding_map.append(0)
+                self.score_map.append(score)
+                self.iter_map.append(idx_iterator)
 
-            return val
+                return val
+
+            except StopIteration:
+                self.forwarding_map = None
+                raise ExceptionAsContinue
