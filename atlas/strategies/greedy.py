@@ -15,8 +15,8 @@ class GreedyStrategy(Strategy):
     Instead of exploring the choices of the last call first as in DFS, this strategy first explores the choice point
     where the product of the score/probability of the next prediction at that choice point and the scores of the current
     predictions at the rest of the choice points is maximized. Intuitively, this picks the choice point where
-    confidence is lowest. It is predictive in the sense that all the other choice points are assumed to remain the same,
-    which is not necessarily true as dependencies between choice points may modify the execution path.
+    uncertainty is highest. It is predictive in the sense that all the other choice points are assumed to
+    remain the same, which is not necessarily true as dependencies between choice points may modify the execution path.
 
     For example, consider the following generator, where scores for each choice are passed as arguments.
 
