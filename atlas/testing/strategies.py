@@ -3,7 +3,7 @@ import unittest
 
 from atlas import generator
 from atlas.operators import operator
-from atlas.strategies import DfsStrategy
+from atlas.strategies import DfsStrategy, GreedyStrategy
 from atlas.utils.stubs import stub
 
 
@@ -167,3 +167,34 @@ class TestBasicStrategyFunctionality(unittest.TestCase):
             self.assertEqual(len(res[2]), len(set(res[2])))
             self.assertEqual(len(res[3]), len(set(res[3])))
             self.assertIn(len(res[3]), [2, 3])
+
+
+class TestGreedyStrategy(unittest.TestCase):
+    def test_ordering_and_cardinality_1(self):
+        class TestStrategy(GreedyStrategy):
+            @operator
+            def Select(self, domain, scores=None, **kwargs):
+                elems = [(prob, idx, elem) for idx, (prob, elem) in enumerate(zip(scores, domain))]
+                for prob, _, elem in sorted(elems, key=lambda x: (-x[0], x[1])):
+                    yield elem, prob
+
+        @generator(strategy=TestStrategy())
+        def basic():
+            a = Select([3, 4], scores=[0.6, 0.4])
+            b = Select([1, 2], scores=[1.0, 1.0])
+            return [a, b]
+
+        self.assertListEqual([[3, 1], [4, 1], [3, 2], [4, 2]], list(basic.generate()))
+
+        @generator(strategy=TestStrategy())
+        def basic_2():
+            a = Select([1, 2], scores=[1.0, 1.0])
+            b = Select([3, 4], scores=[0.6, 0.4])
+            if b == 3:
+                c = Select([5, 6], scores=[1.0, 1.0])
+            else:
+                c = Select([7, 8], scores=[1.0, 1.0])
+
+            return [a, b, c]
+
+        self.assertEqual(8, len(set(map(tuple, basic_2.generate()))))
