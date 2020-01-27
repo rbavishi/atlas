@@ -44,7 +44,8 @@ class Strategy(ABC, OpResolvable):
                    **kwargs):
         pass
 
-    def gen_iterate(self, func: Callable, args, kwargs, atlas_kwargs, hooks: List[Hook], gen: 'Generator'):
+    def gen_iterate(self, func: Callable, args, kwargs, atlas_kwargs, hooks: List[Hook], gen: 'Generator',
+                    ignore_exceptions: bool = False):
         for h in hooks:
             h.init(args, kwargs)
 
@@ -59,6 +60,10 @@ class Strategy(ABC, OpResolvable):
 
             except ExceptionAsContinue:
                 pass
+
+            except Exception:
+                if not ignore_exceptions:
+                    raise
 
             self.finish_run()
 

@@ -443,7 +443,8 @@ class Generator:
                  strategy: Union[str, Strategy] = None,
                  model: GeneratorModel = None,
                  tracing: bool = False, hooks: List[Hook] = None,
-                 replay: Union[Dict[str, List[Any]], GeneratorTrace] = None) -> 'GeneratorExecEnvironment':
+                 replay: Union[Dict[str, List[Any]], GeneratorTrace] = None,
+                 ignore_exceptions: bool = False) -> 'GeneratorExecEnvironment':
         """
         Temporarily modify the config of the generator.
 
@@ -453,6 +454,7 @@ class Generator:
             tracing:
             hooks:
             replay:
+            ignore_exceptions:
 
         Returns:
 
@@ -466,7 +468,8 @@ class Generator:
             model=model or self.model,
             tracing=tracing,
             hooks=list(hooks or self.hooks),
-            replay=replay
+            replay=replay,
+            ignore_exceptions=ignore_exceptions
         )
 
     def __get__(self, instance, owner):
@@ -492,6 +495,7 @@ class GeneratorExecEnvironment:
                  tracing: bool,
                  hooks: List[Hook],
                  replay: Optional[Union[Dict[str, List[Any]], GeneratorTrace]],
+                 ignore_exceptions: bool = False
                  ):
 
         self.gen = gen
@@ -504,6 +508,7 @@ class GeneratorExecEnvironment:
         self._compiled_func: Optional[Callable] = None
         self._compilation_cache: Dict[Generator, Callable] = {}
         self.tracer: Optional[DefaultTracer] = None
+        self.ignore_exceptions = ignore_exceptions
 
         self.init()
 
@@ -534,11 +539,13 @@ class GeneratorExecEnvironment:
         extra_kwargs = {_GEN_EXEC_ENV_VAR: self, _GEN_STRATEGY_VAR: self.strategy,
                         _GEN_HOOK_VAR: self.hooks, _GEN_MODEL_VAR: self.model}
 
+        iterator = self.strategy.gen_iterate(self._compiled_func, args, kwargs, extra_kwargs,
+                                             self.hooks, self.gen, ignore_exceptions=self.ignore_exceptions)
         if self.tracer is None:
-            yield from self.strategy.gen_iterate(self._compiled_func, args, kwargs, extra_kwargs, self.hooks, self.gen)
+            yield from iterator
 
         else:
-            for result in self.strategy.gen_iterate(self._compiled_func, args, kwargs, extra_kwargs, self.hooks, self.gen):
+            for result in iterator:
                 yield result, self.tracer.get_last_trace()
 
     def call(self, *args, **kwargs):
