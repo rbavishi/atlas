@@ -13,6 +13,6 @@ setup(
     data_files=[('config', glob.glob('config/*', recursive=True))],
     include_package_data=True,
     entry_points={'console_scripts': ['atlas=atlas.main:run']},
-    zip_safe=False, install_requires=['astunparse', 'tensorflow==1.13.2', 'ray', 'numpy', 'tqdm',
+    zip_safe=False, install_requires=['astunparse', 'tensorflow==1.15.2', 'ray', 'numpy', 'tqdm',
                                       'pandas==0.23.4', 'scipy==1.1.0', 'pytest', 'cloudpickle']
 )
