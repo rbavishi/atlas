@@ -8,6 +8,7 @@ from atlas.models import GeneratorModel
 from atlas.operators import operator, method, OpInfo
 from atlas.strategies import DfsStrategy
 from atlas.utils.stubs import stub
+from atlas.warnings import PerformanceWarning
 
 
 @stub
@@ -277,6 +278,21 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
             return Select(["0", "1"]) + lower_bit()
 
         self.assertEqual(list(upper_bit.generate()), ["00", "01", "10", "11"])
+
+    def test_gen_composition_performance_warning(self):
+        @generator
+        def upper_bit():
+            dummy = lower_bit
+            return Select(["0", "1"]) + dummy()
+
+        @generator
+        def lower_bit():
+            return Select(["0", "1"])
+
+        self.assertWarnsRegex(PerformanceWarning,
+                              r"Compositional generator invocation discovered at runtime, "
+                              r"which incurs a performance penalty.",
+                              upper_bit.call)
 
     def test_gen_hooks_basic_1(self):
         @generator(strategy='dfs')

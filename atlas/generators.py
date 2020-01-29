@@ -2,6 +2,7 @@ import ast
 import collections
 import inspect
 import textwrap
+import warnings
 import weakref
 from typing import Callable, Set, Optional, Union, Dict, List, Any, Iterable, Iterator, Type, Tuple
 
@@ -16,6 +17,7 @@ from atlas.tracing import DefaultTracer, GeneratorTrace
 from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 from atlas.utils.inspection import getclosurevars_recursive
+from atlas.warnings import PerformanceWarning
 
 _GEN_EXEC_ENV_VAR = "_atlas_gen_exec_env"
 _GEN_STRATEGY_VAR = "_atlas_gen_strategy"
@@ -224,8 +226,10 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
 
     #  Passing ``g`` to exec allows us to execute all the new functions
     #  we assigned to every operator call in the previous AST walk
-    exec(compile(module, filename=inspect.getabsfile(func), mode="exec"), g)
+    filename = inspect.getabsfile(func)
+    exec(compile(module, filename=filename, mode="exec"), g)
     result = g[func.__name__]
+    g["__name__"] = filename
 
     if inspect.ismethod(func):
         result = result.__get__(func.__self__, func.__self__.__class__)
@@ -375,7 +379,6 @@ class Generator:
             return _atlas_gen_exec_env.compositional_call(self, self.func, args, kwargs)
 
         #  Try to find the calling generator execution environment
-        #  TODO : Add a one-time performance warning
         frame = inspect.currentframe().f_back
         while frame is not None and not ('self' in frame.f_locals and
                                          isinstance(frame.f_locals['self'], GeneratorExecEnvironment)):
@@ -383,6 +386,13 @@ class Generator:
 
         if frame is None:
             return self.call(*args, **kwargs)
+
+        #  This is a compositional call so point out the performance problem.
+        warnings.warn("Compositional generator invocation discovered at runtime, which incurs a performance penalty.\n"
+                      "Consider wrapping the call as follows:\n"
+                      "from atlas.wrappers import CallGenerator\n"
+                      "CallGenerator(...)",
+                      PerformanceWarning, stacklevel=2)
 
         _atlas_gen_exec_env = frame.f_locals['self']
         return _atlas_gen_exec_env.compositional_call(self, args, kwargs)
