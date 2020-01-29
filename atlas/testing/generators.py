@@ -9,6 +9,7 @@ from atlas.operators import operator, method, OpInfo
 from atlas.strategies import DfsStrategy
 from atlas.utils.stubs import stub
 from atlas.warnings import PerformanceWarning
+from atlas.wrappers import CallGenerator
 
 
 @stub
@@ -291,8 +292,31 @@ class TestBasicGeneratorFunctionality(unittest.TestCase):
 
         self.assertWarnsRegex(PerformanceWarning,
                               r"Compositional generator invocation discovered at runtime, "
-                              r"which incurs a performance penalty.",
+                              r"which may incur a performance penalty.",
                               upper_bit.call)
+
+    def test_gen_composition_with_wrapper(self):
+        @generator
+        def upper_bit():
+            dummy = lower_bit
+            return Select(["0", "1"]) + CallGenerator(dummy())
+
+        @generator
+        def lower_bit():
+            return Select(["0", "1"])
+
+        try:
+            success = False
+            self.assertWarnsRegex(PerformanceWarning,
+                                  r"Compositional generator invocation discovered at runtime, "
+                                  r"which may incur a performance penalty.",
+                                  upper_bit.call)
+        except AssertionError:
+            success = True
+            pass
+
+        if not success:
+            self.fail("Performance warning is erroneously generated.")
 
     def test_gen_hooks_basic_1(self):
         @generator(strategy='dfs')

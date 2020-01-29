@@ -18,6 +18,7 @@ from atlas.utils import astutils
 from atlas.utils.genutils import register_generator, register_group, get_group_by_name
 from atlas.utils.inspection import getclosurevars_recursive
 from atlas.warnings import PerformanceWarning
+from atlas.wrappers import CallGenerator
 
 _GEN_EXEC_ENV_VAR = "_atlas_gen_exec_env"
 _GEN_STRATEGY_VAR = "_atlas_gen_strategy"
@@ -193,6 +194,15 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
 
                     #  We delay compilation to handle mutually recursive generators
                     delayed_compilations.append((function, call_id))
+
+                elif function is CallGenerator:
+                    wrapped_func = n.args[0]
+                    n.func = wrapped_func.func
+                    n.args = wrapped_func.args[:]
+                    n.keywords = wrapped_func.keywords[:]
+                    n.keywords.append(ast.keyword(arg=_GEN_EXEC_ENV_VAR,
+                                                  value=ast.Name(_GEN_EXEC_ENV_VAR, ctx=ast.Load())))
+                    ast.fix_missing_locations(n)
 
             except:
                 pass
@@ -374,9 +384,9 @@ class Generator:
             **kwargs: Keyword arguments to the original function
         """
 
-        _atlas_gen_exec_env: GeneratorExecEnvironment = kwargs.get(_GEN_EXEC_ENV_VAR, None)
+        _atlas_gen_exec_env: GeneratorExecEnvironment = kwargs.pop(_GEN_EXEC_ENV_VAR, None)
         if _atlas_gen_exec_env is not None:
-            return _atlas_gen_exec_env.compositional_call(self, self.func, args, kwargs)
+            return _atlas_gen_exec_env.compositional_call(self, args, kwargs)
 
         #  Try to find the calling generator execution environment
         frame = inspect.currentframe().f_back
@@ -388,7 +398,8 @@ class Generator:
             return self.call(*args, **kwargs)
 
         #  This is a compositional call so point out the performance problem.
-        warnings.warn("Compositional generator invocation discovered at runtime, which incurs a performance penalty.\n"
+        warnings.warn("Compositional generator invocation discovered at runtime, "
+                      "which may incur a performance penalty.\n"
                       "Consider wrapping the call as follows:\n"
                       "from atlas.wrappers import CallGenerator\n"
                       "CallGenerator(...)",
