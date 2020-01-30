@@ -2,7 +2,6 @@ import ast
 import inspect
 from typing import Union, List
 
-import astor
 import astunparse
 import copy
 
@@ -28,14 +27,6 @@ def parse_file(fname: str) -> ast.Module:
 
 def to_source(node: ast.AST) -> str:
     return astunparse.unparse(node)
-    # if pretty:
-    #     return astor.to_source(node).strip()
-    # else:
-    #     return astor.to_source(node, pretty_source=lambda x: ''.join(x)).strip()
-
-
-def get_op(op: ast.BinOp):
-    return astor.op_util.get_op_symbol(op)
 
 
 def copy_asts(asts: Union[ast.AST, List[ast.AST]]):
