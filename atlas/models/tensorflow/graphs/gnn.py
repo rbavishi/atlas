@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Mapping, Any, Iterator, Dict, Iterable, List, Optional
 
 from atlas.models.tensorflow import TensorflowModel
-from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper
+from atlas.models.utils import EarlyStopper
 
 
 class GNN(TensorflowModel, ABC):

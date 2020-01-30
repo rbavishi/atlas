@@ -4,7 +4,7 @@ from typing import Callable, Optional, Set, List
 
 from atlas.exceptions import ExceptionAsContinue
 from atlas.hooks import Hook
-from atlas.models.core import GeneratorModel
+from atlas.models import GeneratorModel
 from atlas.operators import OpInfo, is_operator, is_method, get_attrs, OpResolvable, resolve_operator, \
     find_known_operators, find_known_methods
 

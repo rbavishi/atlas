@@ -1,24 +1,6 @@
-from abc import ABC, abstractmethod
 from typing import Optional
 
-
-class EarlyStopper(ABC):
-    @abstractmethod
-    def reset(self):
-        pass
-
-    @abstractmethod
-    def evaluate(self, val_acc: float, val_loss: float) -> bool:
-        """
-        Records statistics of the last epoch and informs whether to stop training
-        Args:
-            val_loss: Validation loss of the last epoch
-            val_acc: Validation accuracy of the last epoch
-
-        Returns:
-            A boolean. Training is continued if False and stopped if True
-        """
-        pass
+from atlas.models.utils import EarlyStopper
 
 
 class SimpleEarlyStopper(EarlyStopper):

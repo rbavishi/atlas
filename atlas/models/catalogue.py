@@ -1,9 +1,8 @@
 from abc import ABC
 
-from atlas import models
-import atlas.models.tensorflow
 import atlas.models.keras
-import atlas.models.imitation
+import atlas.models.tensorflow
+from atlas import models
 
 
 class Models:

@@ -2,6 +2,7 @@ import os
 import tempfile
 import shutil
 import urllib.request
+from abc import ABC, abstractmethod
 
 import cloudpickle
 from atlas.models.core import SerializableModel
@@ -99,3 +100,22 @@ def restore_model_from_directory(path: str) -> SerializableModel:
     model.deserialize(path)
 
     return model
+
+
+class EarlyStopper(ABC):
+    @abstractmethod
+    def reset(self):
+        pass
+
+    @abstractmethod
+    def evaluate(self, val_acc: float, val_loss: float) -> bool:
+        """
+        Records statistics of the last epoch and informs whether to stop training
+        Args:
+            val_loss: Validation loss of the last epoch
+            val_acc: Validation accuracy of the last epoch
+
+        Returns:
+            A boolean. Training is continued if False and stopped if True
+        """
+        pass

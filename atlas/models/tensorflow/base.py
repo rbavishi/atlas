@@ -6,7 +6,8 @@ from typing import Iterator, Iterable, Dict, List, Optional
 
 import tensorflow as tf
 from atlas.models.core import TrainableModel, SerializableModel
-from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper, SimpleEarlyStopper
+from atlas.models.tensorflow.graphs.earlystoppers import SimpleEarlyStopper
+from atlas.models.utils import EarlyStopper
 
 
 class TensorflowModel(TrainableModel, SerializableModel, ABC):

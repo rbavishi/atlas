@@ -9,8 +9,7 @@ from typing import Collection, Dict, Optional, Any, List, Callable
 
 import tqdm
 from atlas.models.core import GeneratorModel, TrainableModel, SerializableModel, TrainableSerializableModel
-from atlas.models.utils import save_model, restore_model
-from atlas.models.tensorflow.graphs.earlystoppers import EarlyStopper
+from atlas.models.utils import save_model, restore_model, EarlyStopper
 from atlas.operators import OpInfo, OpResolvable, find_known_operators, resolve_operator
 from atlas.tracing import GeneratorTrace, OpTrace
 from atlas.utils.ioutils import IndexedFileWriter, IndexedFileReader
