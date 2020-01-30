@@ -141,12 +141,12 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
             handler_idx = len(handlers)
             op_info: OpInfo = op_info_constructor.get(n, gen.name, gen.group)
 
-            n.keywords.append(ast.keyword(arg='model', value=ast.Name(_GEN_MODEL_VAR, ctx=ast.Load())))
+            n.keywords.append(ast.keyword(arg='model', value=ast.Name(_GEN_MODEL_VAR, ast.Load())))
 
-            n.keywords.append(ast.keyword(arg='op_info', value=ast.Name(f"_op_info_{op_idx}", ctx=ast.Load())))
+            n.keywords.append(ast.keyword(arg='op_info', value=ast.Name(f"_op_info_{op_idx}", ast.Load())))
             op_infos[f"_op_info_{op_idx}"] = op_info
 
-            n.keywords.append(ast.keyword(arg='handler', value=ast.Name(f"_handler_{handler_idx}", ctx=ast.Load())))
+            n.keywords.append(ast.keyword(arg='handler', value=ast.Name(f"_handler_{handler_idx}", ast.Load())))
             handler = strategy.get_op_handler(op_info)
             handlers[f"_handler_{handler_idx}"] = handler
 
