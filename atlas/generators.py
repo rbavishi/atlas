@@ -178,34 +178,34 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
             #  TODO : Can we be more sophisticated in our static analysis here
             try:
                 function = eval(astunparse.unparse(n.func), g)
-                if isinstance(function, Generator):
-                    call_id = f"{_GEN_COMPOSITION_ID}_{composition_cnt}"
-                    composition_cnt += 1
-                    n.func.id = call_id
-                    n.keywords.append(ast.keyword(arg=_GEN_EXEC_ENV_VAR,
-                                                  value=ast.Name(_GEN_EXEC_ENV_VAR, ctx=ast.Load())))
-                    n.keywords.append(ast.keyword(arg=_GEN_STRATEGY_VAR,
-                                                  value=ast.Name(_GEN_STRATEGY_VAR, ctx=ast.Load())))
-                    n.keywords.append(ast.keyword(arg=_GEN_MODEL_VAR,
-                                                  value=ast.Name(_GEN_MODEL_VAR, ctx=ast.Load())))
-                    n.keywords.append(ast.keyword(arg=_GEN_HOOK_VAR,
-                                                  value=ast.Name(_GEN_HOOK_VAR, ctx=ast.Load())))
-                    ast.fix_missing_locations(n)
-
-                    #  We delay compilation to handle mutually recursive generators
-                    delayed_compilations.append((function, call_id))
-
-                elif function is CallGenerator:
-                    wrapped_func = n.args[0]
-                    n.func = wrapped_func.func
-                    n.args = wrapped_func.args[:]
-                    n.keywords = wrapped_func.keywords[:]
-                    n.keywords.append(ast.keyword(arg=_GEN_EXEC_ENV_VAR,
-                                                  value=ast.Name(_GEN_EXEC_ENV_VAR, ctx=ast.Load())))
-                    ast.fix_missing_locations(n)
-
             except:
-                pass
+                continue
+
+            if isinstance(function, Generator):
+                call_id = f"{_GEN_COMPOSITION_ID}_{composition_cnt}"
+                composition_cnt += 1
+                n.func.id = call_id
+                n.keywords.append(ast.keyword(arg=_GEN_EXEC_ENV_VAR,
+                                              value=ast.Name(_GEN_EXEC_ENV_VAR, ast.Load())))
+                n.keywords.append(ast.keyword(arg=_GEN_STRATEGY_VAR,
+                                              value=ast.Name(_GEN_STRATEGY_VAR, ast.Load())))
+                n.keywords.append(ast.keyword(arg=_GEN_MODEL_VAR,
+                                              value=ast.Name(_GEN_MODEL_VAR, ast.Load())))
+                n.keywords.append(ast.keyword(arg=_GEN_HOOK_VAR,
+                                              value=ast.Name(_GEN_HOOK_VAR, ast.Load())))
+                ast.fix_missing_locations(n)
+
+                #  We delay compilation to handle mutually recursive generators
+                delayed_compilations.append((function, call_id))
+
+            elif function is CallGenerator:
+                wrapped_func = n.args[0]
+                n.func = wrapped_func.func
+                n.args = wrapped_func.args[:]
+                n.keywords = wrapped_func.keywords[:]
+                n.keywords.append(ast.keyword(arg=_GEN_EXEC_ENV_VAR,
+                                              value=ast.Name(_GEN_EXEC_ENV_VAR, ast.Load())))
+                ast.fix_missing_locations(n)
 
     #  Add the execution environment argument to the function
     f_ast.args.kwonlyargs.append(ast.arg(arg=_GEN_EXEC_ENV_VAR, annotation=None))
