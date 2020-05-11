@@ -63,7 +63,7 @@ class DefaultTracer(Hook):
         self.cur_trace = GeneratorTrace((f_args, f_kwargs))
 
     def after_op(self, domain=None, context=None, op_info: OpInfo = None, retval: Any = None, **kwargs):
-        op_trace = OpTrace(op_info=op_info, choice=retval, domain=domain, context=context)
+        op_trace = OpTrace(op_info=op_info, choice=retval, domain=domain, context=context, **kwargs)
         self.cur_trace.record_op_trace(op_trace)
 
     def get_last_trace(self):
