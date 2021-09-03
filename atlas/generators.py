@@ -4,6 +4,7 @@ import inspect
 import textwrap
 import warnings
 import weakref
+import sys
 from typing import Callable, Set, Optional, Union, Dict, List, Any, Iterable, Iterator, Type, Tuple
 
 import astunparse
@@ -230,8 +231,11 @@ def compile_func(gen: 'Generator', func: Callable, strategy: Strategy, with_hook
     g.update({k: v for k, v in ops.items()})
     g.update({k: v for k, v in handlers.items()})
     g.update({k: v for k, v in op_infos.items()})
-
-    module = ast.Module()
+    
+    if sys.version_info >= (3, 8):
+        module = ast.Module(type_ignores=[])
+    else:
+        module = ast.Module()
     module.body = [f_ast]
 
     #  Passing ``g`` to exec allows us to execute all the new functions
